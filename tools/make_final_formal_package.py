@@ -33,7 +33,9 @@ AUTH = os.path.join(ROOT, "phase3", "freeze", "authority")
 FORMAL = os.path.join(ROOT, "phase3", "formal")
 FREEZE = os.path.join(ROOT, "phase3", "freeze")
 FINAL = os.path.join(ROOT, "phase3", "final")
-STAGE_NAME = "MMU_Final_Formal_Readiness_Package"
+STAGE_NAME = "MMU_Final_Formal_Readiness_Package_v2"
+STRICT_CONTEXTS = [("M03", "R05"), ("M04", "R05"), ("M05", "R05"),
+                   ("M07", "R04"), ("M07", "R05")]
 
 SEED_LITERAL = "N/A_DETERMINISTIC"
 SEED_POLICY = "DETERMINISTIC"
@@ -265,9 +267,31 @@ def gen_trace_report(rows):
                       ev.get("trace_completeness", "NOT_RUN"),
                       ev.get("fault_activation", "NOT_RUN"),
                       ev.get("fault_consumption", "NOT_RUN")))
-    lines += ["", "M05 R05 and M07 R03/R05 remain trace/context gaps unless "
-              "their final pilots show COMPLETE evidence; the preflight "
-              "status is authoritative.", ""]
+    lines += ["", "## Strict identity chains (2026-11-12 evidence closure)", ""]
+    lines.append("The five instruction-side contexts are no longer accepted "
+                 "on temporal adjacency or on `consumed_at_activation`.  "
+                 "`tools/mmu_evidence_chain.py` names the real consuming "
+                 "request and its identity:")
+    lines.append("")
+    lines.append("| Context | Consumption witness | Basis |")
+    lines.append("|---|---|---|")
+    for model, ctx in STRICT_CONTEXTS:
+        run_id = (index.get("contexts", {}).get("%s/%s" % (model, ctx), {})
+                  .get("run_id", ""))
+        vpath = os.path.join(ROOT, "runs", run_id, "Validation", "verdict.json")
+        v = _json(vpath)
+        det = v.get("Details", {}) or {}
+        strict = det.get("strict_evidence_chain") or {}
+        lines.append("| %s/%s | event %s (`%s`) | %s |" % (
+            model, ctx, v.get("consumption_event_id", "-"),
+            (strict.get("consumption") or {}).get("kind", "-"),
+            (det.get("fault_consumption_basis") or "-").replace("|", "/")))
+    lines += ["", "The frozen binary emits no per-instruction "
+              "fetch-response/decode/commit row for a synthetic IFU "
+              "transaction.  Execution is proven by the guest oracle marker "
+              "tied to the fetched PA/code page; this is recorded as an "
+              "explicit instrumentation boundary in every causal slice, not "
+              "silently claimed as a trace event.", ""]
     return "\n".join(lines)
 
 
@@ -309,9 +333,13 @@ def gen_control_report():
         else:
             lines.append("| %s | PENDING | - | - |" % ctx)
     lines += ["", "The legacy `--ctx all` W10 control is rejected: it reports "
-              "target PFN `0x83480` / sentinel `0x7d`, while a scoped R02 run "
-              "reports `0x834b6` / `0x63`.  No reference to `0x83480` is "
-              "used as a run parameter.", ""]
+              "target PFN `0x83480` / sentinel `0x7d`, while the final "
+              "scoped control `TEST-F1-CTRL-W10-R02` reports target PFN "
+              "`0x834b2`, neighbour `0x834b3` and sentinel `0x63`. The "
+              "earlier scoped control `TEST-ENV-CTRL-W10` (`0x834b6`) "
+              "predates the final EPAN checkpoint and is superseded. No "
+              "reference to `0x83480` or `0x834b6` is used as a run "
+              "parameter.", ""]
     return "\n".join(lines)
 
 
@@ -347,25 +375,53 @@ def gen_m07_report(rows):
                           (rec.get("golden", ""), rec.get("trace", ""),
                            rec.get("final_verification", ""))))
         lines += ["", "The workbook also carries the per-column record in "
-                  "`17_M07_Context_Change_Record` and two `v2.1-M07` rows in "
-                  "`13_Change_Log`; the Markdown history is "
-                  "`MMU_Change_Log.md`.", ""]
+                  "`17_M07_Context_Change_Record` and the `v2.1-M07` / "
+                  "`v2.3-M07` rows in `13_Change_Log`; the Markdown history "
+                  "is `MMU_Change_Log.md`.", ""]
     else:
         lines += ["## Status", "",
                   "`phase3/final/M07_CONTEXT_CHANGES.json` is absent: the "
                   "exact new context strings have not been delivered yet, so "
                   "no text was applied.  This is an explicit PENDING item, "
                   "not a completed change.", ""]
+    lines += ["## R04 metadata correction (2026-11-12)", "",
+              "The frozen `DynamicContext` for M07-F0-W14-S01-R04 is "
+              "`EL0 execute from XN mapping`, but the workbook still carried "
+              "the obsolete read-only-store wording in TargetInstruction / "
+              "OracleMethod.  The correction is evidence-driven (W14 realized "
+              "context, marker 0xc7):", "",
+              "| Column | Before | After |", "|---|---|---|",
+              "| TargetVA | XN code VA | XN code VA 0x400d400100 |",
+              "| TargetEvent | target permission decision with normal "
+              "grant=false | target EL0 instruction-execute permission "
+              "decision with normal grant=false (UXN=1 on a valid leaf) |",
+              "| TargetInstruction | EL0 store through read-only alias "
+              "(primary); additional read/atomic/execute contexts. | EL0 "
+              "execute from a read-only (PROT_READ) JIT code page with "
+              "UXN=1 (distinct VA/code blob/marker 0xc7 from R05) |",
+              "| OracleMethod | W14: baseline RO store faults; injected store "
+              "succeeds and writable alias observes the changed value. | "
+              "W14: no-fault XN execute faults with SEGV_ACCERR on a valid "
+              "UXN=1 leaf; injected execute fetches/executes the R04 JIT blob "
+              "and returns marker 0xc7; trace pte_decode L3 Page must show "
+              "UXN=1 and translation_result/lsu_request(mode=Execute) at "
+              "0x400d400100. |",
+              "", "SampleRunID, ModelID, context count and Seed are unchanged.",
+              ""]
     lines += ["## Current runtime evidence", "",
-              "| Sample | Context | Primary status | Terminal | Oracle |",
-              "|---|---|---|---|---|"]
+              "| Sample | Context | Primary | Activation | Consumption | "
+              "Trace | Terminal | Oracle |",
+              "|---|---|---|---|---|---|---|---|"]
     for r in rows:
         if r.get("ModelID") != "M07":
             continue
-        lines.append("| %s | %s | %s | %s | %s |" %
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" %
                      (r.get("SampleRunID"), r.get("ContextID"),
-                      r.get("PrimaryStatus"), r.get("TerminalState"),
-                      r.get("OracleResult")))
+                      r.get("PrimaryStatus"),
+                      r.get("FaultActivationEvidenceStatus"),
+                      r.get("FaultConsumptionEvidenceStatus"),
+                      r.get("TraceStatus"),
+                      r.get("TerminalState"), r.get("OracleResult")))
     lines.append("")
     return "\n".join(lines)
 
@@ -424,19 +480,22 @@ def main(argv=None):
     artifacts = []
     missing_sources = []
 
-    def add(num, name, src=None, text=None):
-        dst = os.path.join(stage, "%02d_%s" % (num, name)
-                           if not name.startswith("_") else name)
+    def add_file(rel, src=None, text=None):
+        dst = os.path.join(stage, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
         if text is not None:
             _write(dst, text)
         else:
             if not src or not os.path.isfile(src):
-                missing_sources.append("%02d_%s <- %s" %
-                                       (num, name, src or "<none>"))
+                missing_sources.append("%s <- %s" % (rel, src or "<none>"))
                 return None
             shutil.copy2(src, dst)
         artifacts.append(dst)
         return dst
+
+    def add(num, name, src=None, text=None):
+        rel = "%02d_%s" % (num, name) if not name.startswith("_") else name
+        return add_file(rel, src=src, text=text)
 
     add(1, "MMU_40_Sample_Matrix.csv",
         os.path.join(AUTH, "MMU_40_Sample_Matrix.csv"))
@@ -484,10 +543,119 @@ def main(argv=None):
                         default=str) + "\n")
     add(19, "E_authority.md", os.path.join(FINAL, "E_authority.md"))
 
+    # --- required v2 additions -------------------------------------------
+    # The authoritative workbook must be physically inside the ZIP; the v1
+    # package only referenced a server path.
+    add_file("gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx",
+             os.path.join(AUTH, "gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx"))
+
+    index = _json(os.path.join(FORMAL, "evidence_index.json"))
+    ctx_index = index.get("contexts") or {}
+    summary_md = ["# Five instruction-side contexts — evidence closure", ""]
+    summary_md += ["| SampleRunID | Run | Consumption event | Basis | Trace "
+                   "SHA256 | Guest marker |", "|---|---|---|---|---|---|"]
+    for model, ctx in STRICT_CONTEXTS:
+        key = "%s/%s" % (model, ctx)
+        run_id = (ctx_index.get(key) or {}).get("run_id", "")
+        run_dir = os.path.join(ROOT, "runs", run_id)
+        verdict = _json(os.path.join(run_dir, "Validation", "verdict.json"))
+        det = verdict.get("Details", {}) or {}
+        strict = det.get("strict_evidence_chain") or {}
+        slice_dir = os.path.join(FINAL, "slices", "%s-%s" % (model, ctx))
+        slice_json = _json(os.path.join(slice_dir, "causal_slice.json"))
+        term = slice_json.get("terminal_evidence") or {}
+        marker = (term.get("observed") or term.get("guest_line") or "-")
+        summary_md.append("| %s | %s | %s (`%s`) | %s | `%s` | %s |" % (
+            slice_json.get("sample_run_id", ""), run_id,
+            verdict.get("consumption_event_id", "-"),
+            (strict.get("consumption") or {}).get("kind", "-"),
+            (det.get("fault_consumption_basis") or "-").replace("|", "/"),
+            (slice_json.get("trace_sha256") or "")[:16], marker))
+        for name in ("causal_slice.json", "causal_slice.md",
+                     "causal_slice.prop_evt.txt"):
+            add_file(os.path.join("26_Causal_Slices", "%s-%s" % (model, ctx),
+                                  name), os.path.join(slice_dir, name))
+        add_file(os.path.join("27_Verdicts", "%s-%s" % (model, ctx),
+                              "verdict.json"),
+                 os.path.join(run_dir, "Validation", "verdict.json"))
+        add_file(os.path.join("28_Pilot_Manifests", "%s-%s" % (model, ctx),
+                              "sample_manifest.json"),
+                 os.path.join(run_dir, "sample_manifest.json"))
+    summary_md += ["", "All five slices are extracted from the frozen raw "
+                   "PROP-EVT traces; every event id is present in the source "
+                   "trace.  The binary did not change (`%s`)." % bin_sha, ""]
+    add_file("29_Five_Context_Evidence.md", text="\n".join(summary_md))
+
+    # Formal runner / source diff / golden controls (kept self-contained).
+    for name in ("mmu_formal_validate.py", "mmu_evidence_chain.py",
+                 "mmu_causal_slice.py", "mmu_trace_validate_v3.py",
+                 "mmu_trace_validate_v4.py", "mmu_formal_preflight.py",
+                 "mmu_formal_runner.py"):
+        add_file(os.path.join("20_Formal_Runner", name),
+                 os.path.join(ROOT, "tools", name))
+    v1 = os.path.join(FINAL, "MMU_Final_Formal_Readiness_Package")
+    for rel in ("20_Formal_Runner/run_mmu_case.sh",
+                "21_Source_Diff/Frozen_Source.patch",
+                "21_Source_Diff/Closure_Commit.txt",
+                "23_Golden_Controls/CONTROL_MAP.json"):
+        add_file(rel, os.path.join(v1, rel))
+    for model, ctx in STRICT_CONTEXTS:
+        key = "%s/%s" % (model, ctx)
+        run_id = (ctx_index.get(key) or {}).get("run_id", "")
+        ctrl = _json(os.path.join(ROOT, "runs", run_id,
+                                  "sample_manifest.json")).get("control_run")
+        if ctrl and os.path.isfile(ctrl):
+            add_file(os.path.join("23_Golden_Controls",
+                                  "%s-%s_golden_output.txt" % (model, ctx)),
+                     ctrl)
+
+    readme = [
+        "# MMU Final Formal Readiness Package v2", "",
+        "Workspace: `%s`" % ROOT,
+        "Final binary: `%s`" % bin_sha,
+        "Source commit: `%s`" % source_commit(),
+        "Seed: `%s` (SeedPolicy=%s, SeedSource=%s, never passed to gem5)" %
+        (SEED_LITERAL, SEED_POLICY, SEED_SOURCE), "",
+        "## What changed from v1", "",
+        "- The authoritative Excel is physically included at the package "
+        "root (`gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx`).",
+        "- M07 R04 TargetVA/TargetEvent/TargetInstruction/OracleMethod/path "
+        "now describe the realized `exec_xn` context (marker 0xc7).",
+        "- M02 R01-R05 OracleMethod now records the final control PFN "
+        "`0x834b2 -> 0x834b3`; the stale `0x834b6` report sentence is "
+        "corrected.",
+        "- The five instruction-side contexts have strict identity chains "
+        "(`26_Causal_Slices`, `27_Verdicts`), not `consumed_at_activation`.",
+        "- No C++ change and no rebuild; the binary SHA is unchanged.", "",
+        "## Contents", "",
+        "| Path | Purpose |", "|---|---|",
+        "| `gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx` | authoritative "
+        "workbook |",
+        "| `01_MMU_40_Sample_Matrix.csv` | 40 frozen SampleRunIDs |",
+        "| `04_MMU_Formal_Config.json` / `05_...yaml` | machine config "
+        "(same 40 samples) |",
+        "| `08_MMU_Formal_Preflight_Report.md` | 40/40 static preflight |",
+        "| `09_MMU_Trace_Validation_Report.md` | per-context verdicts + "
+        "strict chains |",
+        "| `10_MMU_Golden_Control_Report.md` | independent controls + W10 "
+        "PFN map |",
+        "| `11_MMU_M07_Change_Report.md` | R03/R05 approved contexts + R04 "
+        "metadata correction |",
+        "| `14_evidence_index.json` | machine-readable 40-context index |",
+        "| `15_FINAL_BINARY.sha256` | binary identity |",
+        "| `17_MMU_40_Sample_DryRun.csv` | per-sample preflight rows |",
+        "| `26_Causal_Slices/` | five raw-trace causal slices |",
+        "| `27_Verdicts/` | five verdict JSONs |",
+        "| `28_Pilot_Manifests/` | five pilot manifests |",
+        "| `SHA256_MANIFEST.txt` | SHA256 of every packaged file |", "",
+        "No formal SampleRunID was launched for this package; all runs are "
+        "TEST-ID pilots.", ""]
+    add_file("24_README_DELIVERABLES.md", text="\n".join(readme))
+
     # SHA256 manifest + machine manifest.
     manifest = {"package": STAGE_NAME,
                 "artifacts": [], "content_artifact_count": len(artifacts),
-                "required_artifact_count": 20,
+                "required_artifact_count": len(artifacts) + 2,
                 "missing_sources": missing_sources,
                 "final_binary_sha256": bin_sha,
                 "final_binary_status": bin_state,
@@ -497,13 +665,13 @@ def main(argv=None):
                 "sample_count": len(rows)}
     for path in artifacts:
         manifest["artifacts"].append({
-            "file": os.path.basename(path),
+            "file": os.path.relpath(path, stage),
             "sha256": sha256(path),
             "bytes": os.path.getsize(path),
         })
     _write(os.path.join(stage, "00_MANIFEST.json"),
            json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    lines = ["%s  %s" % (sha256(p), os.path.basename(p))
+    lines = ["%s  %s" % (sha256(p), os.path.relpath(p, stage))
              for p in sorted(artifacts)]
     lines.append("%s  00_MANIFEST.json" % sha256(
         os.path.join(stage, "00_MANIFEST.json")))

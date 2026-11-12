@@ -167,3 +167,43 @@ No authoritative row was renumbered, deleted or added.
   M06 delivery requirement; translation_start is a transaction root.
 - Preflight: 40/40 READY; seed literal N/A_DETERMINISTIC (0 gate failures);
   binary/source provenance PASS.
+
+## v2.3 — 2026-11-12 evidence closure and package correction
+
+- **No C++ change, no rebuild.** The frozen binary remains
+  `b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185`;
+  all 40 pilots and controls keep one version.
+- **Strict identity chains replace `consumed_at_activation` for the five
+  instruction-side contexts** (`tools/mmu_evidence_chain.py`):
+  - M03 R05: candidate l2_shared entry 253/51 (ASID 236) -> fault-tagged
+    lookup 253/51 -> ITLB insert -> translation_result 253/51 ->
+    `lsu_request(mode=Execute)` event 299, PA 0x83543000.
+  - M04 R05: activation mutates `itb:173:540`; the later
+    translation_result names the same entry and emits PA 0x8353c000 ->
+    `lsu_request(mode=Execute)` event 485. The C++ consumer counter is 0
+    because the synthetic IFU transaction is not registered; the proof is
+    the entry lifetime identity.
+  - M05 R05: faulted partial insert 230 -> `fault_entry_consume` 245
+    (source=230, lookup=244) -> PTW -> decoy leaf -> result 255 ->
+    `lsu_request(mode=Execute)` event 256.
+  - M07 R04/R05: `permission_eval` deny at the same tick/VA/mode -> activation
+    inversion (the fetch row has translation_id=0) -> translation_result and
+    `lsu_request(mode=Execute)` on the same transaction, events 355/356 and
+    333/334. The join is a co-temporal key match, never event order.
+- The validator now reports FaultActivated / FaultStateConsumed /
+  PropagationComplete / TerminalState separately and never emits an empty
+  `required_kinds`.
+- **Authority correction:** M07 R04 TargetVA/TargetEvent/TargetInstruction/
+  OracleMethod/ExpectedPropagationPath now match the frozen
+  `EL0 execute from XN mapping` context (marker 0xc7); M02 R01–R05
+  OracleMethod now states the final control PFN `0x834b2 -> 0x834b3`
+  (event 4424). The stale Golden Control Report `0x834b6` sentence is
+  corrected. SampleRunIDs, contexts, counts and `N/A_DETERMINISTIC` seeds
+  are unchanged.
+- **Package v2** physically includes the authoritative Excel and five causal
+  slices (raw PROP-EVT lines + JSON + Markdown), five verdict JSONs and five
+  pilot manifests. Each slice records the instrumentation boundary: the
+  frozen binary emits no per-instruction fetch-response/decode/commit row for
+  a synthetic IFU transaction; execution is proven by the guest oracle marker
+  tied to the fetched PA/code page.
+- Preflight: 40/40 READY; no formal SampleRunID was launched.

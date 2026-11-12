@@ -35,6 +35,8 @@
       "INJECTION_NOT_ACTIVATED",
       "TRACE_INCOMPLETE"
     ],
+    "fault_activation_basis": "mmu_fault_activate",
+    "fault_consumption_basis": "explicit_consumer",
     "ifu_lookup_identity_join": [],
     "m06_separation": {
       "exception_delivered": "1",
@@ -72,6 +74,8 @@
     "scope_ambiguous_multi_fault": false,
     "scope_basis": "va/tid/seq",
     "scope_event_count": 57,
+    "strict_evidence_chain": null,
+    "terminal_evidence_basis": "TRACE_PLUS_GUEST_ORACLE",
     "terminal_expected_by_model": true,
     "terminal_text_crash_evidence": false,
     "timed_out": false,
@@ -81,7 +85,9 @@
     ],
     "wrong_value_proven": true
   },
+  "FaultActivated": "ACTIVATED",
   "FaultConsumptionStatus": "CONSUMED",
+  "FaultStateConsumed": "CONSUMED",
   "MissingCausalEdges": [],
   "OracleEvidence": {
     "basis": "W10 target sentinel vs neighbor sentinel",
@@ -93,6 +99,7 @@
     "wrong": 96
   },
   "OracleResult": "PASS_EXPECTED_DETECTION",
+  "PropagationComplete": "FULL",
   "PropagationStatus": "FULL",
   "RecordIntegrity": "PASS",
   "TerminalState": "DETECTED_CONTAINED",

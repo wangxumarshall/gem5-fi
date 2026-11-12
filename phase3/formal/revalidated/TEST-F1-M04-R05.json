@@ -6,8 +6,8 @@
       484,
       485
     ],
-    "consumption_basis": "consumed_at_activation",
-    "consumption_kind": "mmu_fault_activate",
+    "consumption_basis": "strict_identity_chain:ENTRY_LIFETIME_ITB_173:540 consumed by translation_result and lsu_request",
+    "consumption_kind": "lsu_request",
     "contradictions": [],
     "control_oracle": {
       "basis": "faulted observation differs from the independent control",
@@ -36,6 +36,8 @@
       "SDC",
       "SQUASHED"
     ],
+    "fault_activation_basis": "M04_ENTRY_PFN_SUBSTITUTION",
+    "fault_consumption_basis": "strict_identity_chain:ENTRY_LIFETIME_ITB_173:540 consumed by translation_result and lsu_request",
     "ifu_lookup_identity_join": [
       484,
       485
@@ -65,11 +67,137 @@
       "status": "PASS"
     },
     "required_kinds": [
-      "tlb_lookup_hit"
+      "translation_start",
+      "tlb_lookup_miss",
+      "tlb_lookup_hit",
+      "tlb_entry_insert",
+      "mmu_fault_activate",
+      "tlb_entry_lineage",
+      "permission_eval",
+      "translation_result",
+      "lsu_request"
     ],
     "scope_ambiguous_multi_fault": false,
     "scope_basis": "va/tid/seq",
     "scope_event_count": 193,
+    "strict_evidence_chain": {
+      "activation": {
+        "asid": "234",
+        "candidate_asid": "234",
+        "candidate_entry_id": "1188",
+        "candidate_generation": "11",
+        "candidate_pa": "0x8353c000",
+        "candidate_pfn": "0x8353c",
+        "cycle": "780953753",
+        "decoy_pa": "0x8353c000",
+        "decoy_pfn": "0x8353c",
+        "dyn_inst_seq": "0",
+        "entry_generation": "540",
+        "event_id": 481,
+        "fault_id": "1",
+        "kind": "mmu_fault_activate",
+        "mode": "Execute",
+        "new_pa": "0x8353c000",
+        "new_pfn": "0x8353c",
+        "old_pa": "0x83559000",
+        "old_pfn": "0x83559",
+        "outcome": "activated",
+        "request_id": "0",
+        "tick": "260057599749",
+        "tlb_entry_id": "173",
+        "tlb_instance": "itb",
+        "translation_id": "0",
+        "va": "4008000000"
+      },
+      "activation_basis": "M04_ENTRY_PFN_SUBSTITUTION",
+      "consumption": {
+        "cycle": "780953753",
+        "dyn_inst_seq": "0",
+        "event_id": 485,
+        "fault_id": "0",
+        "kind": "lsu_request",
+        "mode": "Execute",
+        "pa": "8353c000",
+        "request_id": "0",
+        "tick": "260057599749",
+        "translation_id": "16",
+        "unique_request_id": "16",
+        "va": "4008000000"
+      },
+      "consumption_basis": "ENTRY_LIFETIME_ITB_173:540 consumed by translation_result and lsu_request",
+      "consumption_events": [
+        481,
+        482,
+        484,
+        485
+      ],
+      "context": "R05",
+      "fault_id": "1",
+      "fetch_request": {
+        "cycle": "780953753",
+        "dyn_inst_seq": "0",
+        "event_id": 485,
+        "fault_id": "0",
+        "kind": "lsu_request",
+        "mode": "Execute",
+        "pa": "8353c000",
+        "request_id": "0",
+        "tick": "260057599749",
+        "translation_id": "16",
+        "unique_request_id": "16",
+        "va": "4008000000"
+      },
+      "guards": [],
+      "identity": {
+        "consumer_entry": [
+          173,
+          540
+        ],
+        "consumer_pa": "8353c000",
+        "consumer_translation_id": 16,
+        "lineage_event": 482,
+        "lineage_state": "alias_mutated",
+        "mutated_entry": [
+          173,
+          540
+        ],
+        "mutated_instance": "itb",
+        "new_pa": "0x8353c000",
+        "old_pa": "0x83559000"
+      },
+      "join_note": "The activation mutates resident entry (instance=itb, entry=173, generation=540) and records old_pa=0x83559000 -> new_pa=0x8353c000. The later translation_result names the SAME entry identity and emits new_pa; the lsu_request(mode=Execute) carries that PA. The C++ fault_entry_consume counter is 0 for this synthetic IFU transaction, so the proof is the entry lifetime identity, not the counter.",
+      "missing_edges": [],
+      "missing_kinds": [],
+      "mode": "Execute",
+      "model": "M04",
+      "ok": true,
+      "required_kinds": [
+        "translation_start",
+        "tlb_lookup_miss",
+        "tlb_lookup_hit",
+        "tlb_entry_insert",
+        "mmu_fault_activate",
+        "tlb_entry_lineage",
+        "permission_eval",
+        "translation_result",
+        "lsu_request"
+      ],
+      "target_va": 275012124672,
+      "terminal_evidence": {
+        "consumer_pa": "8353c000",
+        "consumer_uses_substituted_pfn": true,
+        "decoy_pfn": "0x8353c",
+        "decoy_sentinel": "0x51",
+        "execution_proof": "guest marker equals the decoy code page sentinel",
+        "guest_line": "W12_RESULT ctx=R05 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=FAIL\n",
+        "guest_observed_decoy": true,
+        "microarchitectural_fetch_response": "NOT_EMITTED_BY_FROZEN_BINARY",
+        "observed": "0x51",
+        "request_is_ifu": true,
+        "target_sentinel": "0x7d"
+      }
+    },
+    "terminal_evidence_basis": "STRICT_IDENTITY_CHAIN_PLUS_GUEST_ORACLE",
     "terminal_expected_by_model": true,
     "terminal_text_crash_evidence": false,
     "timed_out": false,
@@ -79,7 +207,9 @@
     ],
     "wrong_value_proven": true
   },
+  "FaultActivated": "ACTIVATED",
   "FaultConsumptionStatus": "CONSUMED",
+  "FaultStateConsumed": "CONSUMED",
   "MissingCausalEdges": [],
   "OracleEvidence": {
     "basis": "target sentinel vs decoy sentinel",
@@ -91,12 +221,13 @@
     "wrong": 81
   },
   "OracleResult": "FAIL",
+  "PropagationComplete": "FULL",
   "PropagationStatus": "FULL",
   "RecordIntegrity": "PASS",
   "TerminalState": "SDC",
   "TraceCompleteness": "COMPLETE",
   "activation_event_id": 481,
-  "consumption_event_id": 481,
+  "consumption_event_id": 485,
   "context": "R05",
   "fault_id": "1",
   "model": "M04",
