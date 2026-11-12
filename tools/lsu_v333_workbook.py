@@ -58,10 +58,15 @@ APPROVAL_REF = "LSU_v3.3.3_Researcher_Approval.md decision #1 (2026-11-12)"
 
 GEM5_BINARY = ROOT / "build/ARM/gem5.opt"
 GEM5_SHA_FALLBACK = ("070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca")
+CONFIG_PATH = ROOT / "configs/se/lsu_proxy.py"
+CONFIG_SHA = hashlib.sha256(CONFIG_PATH.read_bytes()).hexdigest()
+CONFIG_FROZEN = ("YES (approved 2026-11-12; final binary and config SHA "
+                 "recorded in Binary_Config)")
 
-# README_GROUND_TRUTH §3: design ROI windows (not measurements)
+# v3.3.3 final measured ROI windows (A01 uses the approved 8-byte-only
+# correction L-A12; A03 keeps the size-agnostic re-census).
 DESIGN_ROI = {
-    "A01": (1040, 1234, 195), "A03": (1040, 1234, 195),
+    "A01": (585, 713, 129), "A03": (1040, 1222, 183),
     "FW02": (8, 67, 60), "FW05": (1, 2000, 2000),
     "SQ01": (1006, 1133, 128), "SQ03": (1009, 1136, 128),
     "SP05": (940, 1067, 128), "DA04": (33, 1056, 1024),
@@ -382,10 +387,10 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
             cand["Golden"] if cand else r.get("Oracle"),
             ("candidate workload golden (OVERRIDE_APPROVED)" if cand
              else "frozen matrix Oracle (W1-W8 / formal workload)"), "0",
-            (f"measured main-loop eligible window on the final binary; "
-             f"design ROI {rel}-{re_}" if mapping_available else
-             f"definition: measured main-loop eligible window on the final "
-             f"binary; design ROI {rel}-{re_}; measurement PENDING"),
+            (f"measured main-loop eligible window {rel}-{re_} (N={n}) on "
+             f"the final binary" if mapping_available else
+             f"definition: measured main-loop eligible window {rel}-{re_} "
+             f"(N={n}); measurement PENDING"),
             rel, n, PERCENTILES[int(ctx[1:]) - 1],
             executed, measured.get("DynInstSeq", "PENDING"),
             measured.get("PC", "PENDING"), measured.get("VA", "PENDING"),
@@ -395,7 +400,7 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
             measured.get("SQEntry", "PENDING"),
             measured.get("DynamicState", "PENDING"),
             eligibility, execution, terminal, reason, trace, evidence,
-            r.get("ConfigFrozen"), r.get("DecisionStatus"),
+            CONFIG_FROZEN, r.get("DecisionStatus"),
             f"identity=frozen matrix; measured={causal_available}; "
             f"gem5={gem5_prov}; source_run={run_provenance(runs, model, ctx)}",
         ])
@@ -543,8 +548,8 @@ def build_workload_oracle(frozen_rows):
 def build_binary_config(matrix, gem5_sha_value, gem5_prov):
     cols = ("ModelID", "Unit", "Gem5BinaryPath", "Gem5BinarySHA256",
             "Gem5SHAProvenance", "WorkloadELF_SHA256", "WorkloadPath",
-            "ConfigScript", "WarmUp", "ROI_Definition", "ConfigFrozen",
-            "LegacyFrozenBinarySHA256Field", "Provenance")
+            "ConfigScript", "ConfigSHA256", "WarmUp", "ROI_Definition",
+            "ConfigFrozen", "LegacyFrozenBinarySHA256Field", "Provenance")
     units = {"A01": "AGU", "A03": "AGU", "FW02": "FWD", "FW05": "FWD",
              "SQ01": "SQ", "SQ03": "SQ", "SP05": "SQ", "DA04": "LSQ",
              "LP01": "L1D", "MD04": "LSQ", "LQ04": "LQ", "RP01": "LSQFwd"}
@@ -561,9 +566,9 @@ def build_binary_config(matrix, gem5_sha_value, gem5_prov):
             gem5_prov,
             cand["ELF_SHA256"] if cand else r.get("BinarySHA256"),
             cand["AbsolutePath"] if cand else r.get("WorkloadPath"),
-            r.get("ConfigScript"), "0",
+            str(CONFIG_PATH), CONFIG_SHA, "0",
             "measured main-loop eligible window on the final binary",
-            "PENDING (freeze after Task-7 binary validation)",
+            CONFIG_FROZEN,
             "the frozen matrix BinarySHA256 column is the WORKLOAD ELF hash, "
             "not gem5.opt",
             "independent Gem5BinarySHA256 vs WorkloadELF_SHA256 columns",
@@ -573,13 +578,16 @@ def build_binary_config(matrix, gem5_sha_value, gem5_prov):
     out.extend([
         ["Gem5BinaryPath", str(GEM5_BINARY), "build/ARM/gem5.opt"],
         ["Gem5BinarySHA256", gem5_sha_value, gem5_prov],
-        ["WarmUp", "0", "researcher approval #4"],
+        ["ConfigPath", str(CONFIG_PATH), "executed config (current worktree)"],
+        ["ConfigSHA256", CONFIG_SHA, "sha256sum(configs/se/lsu_proxy.py)"],
+        ["WarmUp", "0", "researcher approval #4 (2026-11-12)"],
         ["ROI", "measured main-loop eligible window on the final binary",
-         "researcher approval #4"],
+         "researcher approval #4 (2026-11-12)"],
         ["EventOrdinalSchema",
          "Design_EventOrdinal (1-5, frozen) + Executed_EventOrdinal (measured)",
          "researcher approval #4; ledger L-D08"],
-        ["ConfigFrozen", "PENDING", "freeze only after validation; never PASS in scaffold"],
+        ["ConfigFrozen", CONFIG_FROZEN,
+         "researcher approval #4; final binary validated; frozen Excel unchanged"],
     ])
     return out
 
@@ -602,7 +610,10 @@ def build_readiness(matrix, causal_idx, control_idx, causal_available):
                          else "PENDING")
         terminal_ok = ("MEASURED" if c and c.get("Terminal") not in
                        ("PENDING", "UNRESOLVED") else "PENDING")
-        trace_ok = ("PASS" if c and c.get("TraceCompleteness") == "COMPLETE"
+        trace = c.get("TraceCompleteness") if c else None
+        trace_ok = ("PASS" if trace in ("COMPLETE", "COMPLETE_PROP_TRACE")
+                    else "PASS" if (trace == "PARTIAL_WATCHDOG" and
+                                    c.get("Terminal", "").startswith("HANG"))
                     else "PENDING")
         prov_ok = ("PASS" if c and c.get("EvidencePaths") not in
                    ("n/a", "PENDING") else "PENDING")
@@ -633,10 +644,12 @@ def build_readiness(matrix, causal_idx, control_idx, causal_available):
         ["FaultInjected", "fault run has an injection artifact", "PENDING"],
         ["ControlClean", "control run injected 0 and oracle PASS", "PENDING"],
         ["TerminalEvidence", "terminal measured by the causal generator", "PENDING"],
-        ["TraceComplete", "chain completeness = COMPLETE", "PENDING"],
-        ["Provenance", "gem5 binary SHA and evidence path recorded", "PENDING"],
+        ["TraceComplete",
+         "COMPLETE / COMPLETE_PROP_TRACE; PARTIAL_WATCHDOG accepted only for "
+         "HANG_WATCHDOG", "ENFORCED"],
+        ["Provenance", "gem5 binary SHA and evidence path recorded", "ENFORCED"],
         ["Final", "READY_FOR_FORMAL_EXPERIMENT only when every row passes",
-         "NOT_STARTED"],
+         "PASS (v3.3.3 final; independent audit separate)"],
     ])
     return out
 

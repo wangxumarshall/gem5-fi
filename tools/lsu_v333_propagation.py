@@ -824,13 +824,22 @@ def main(argv=None) -> int:
     runs = args.runs or default_runs()
     out = args.out or default_out(runs)
     rows = build_rows(runs, args.matrix)
+    # Honest trace labels (independent audit F-04): A03's raw trace is the
+    # complete prop_trace (no trace_v31 in the direct driver); RP01 is a
+    # HANG_WATCHDOG with a partial trace by design.
+    for r in rows:
+        if r["ModelID"] == "A03" and r["TraceCompleteness"] == "COMPLETE":
+            r["TraceCompleteness"] = "COMPLETE_PROP_TRACE"
+        elif r["ModelID"] == "RP01":
+            r["TraceCompleteness"] = "PARTIAL_WATCHDOG"
     write_csv(rows, out)
 
     counts = Counter(r["Terminal"] for r in rows)
-    complete = sum(r["TraceCompleteness"] == "COMPLETE" for r in rows)
+    complete = sum(r["TraceCompleteness"] in
+                   ("COMPLETE", "COMPLETE_PROP_TRACE") for r in rows)
     print(f"wrote {len(rows)} rows to {out}")
     print("terminals: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
-    print(f"COMPLETE={complete}/{len(rows)}")
+    print(f"COMPLETE(+PROP_TRACE)={complete}/{len(rows)}")
     return 0
 
 

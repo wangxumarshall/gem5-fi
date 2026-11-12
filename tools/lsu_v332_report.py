@@ -28,8 +28,8 @@ from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
 
 RUNS = ROOT / "audit_v3_3_3/runs"
 OUT = ROOT / "audit_v3_3_3"
-BINARY_SHA = "685d88f77324d8ba75916e577b8bb68947ddf20fc13b51e859cff1cbdc1b8187"
-HEAD = "93bca301"
+BINARY_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
+HEAD = "b5031bf7"
 
 MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
           "LP01", "MD04", "LQ04", "RP01")
@@ -172,7 +172,11 @@ def fault_row(model: str, ctx: int):
                           "HANG_WATCHDOG" if terminal == "HANG_WATCHDOG" else
                           "MASKED_ORACLE_PASS" if terminal == "MASKED" else
                           "HANG_PARTIAL_EVIDENCE"),
-            trace_completeness="PARTIAL",
+            # A03 has no trace_v31.jsonl (direct driver), but the prop_trace
+            # is the raw complete trace and the oracle is in stdout/oracle.log.
+            trace_completeness=("COMPLETE_PROP_TRACE"
+                                if (outdir / "prop_trace.csv.gz").exists()
+                                else "PARTIAL"),
             checksum=checksum,
             a03_log_capped=a03.get("capped"),
             watchdog_expired=bool(s.get("watchdog_expired",
@@ -205,7 +209,7 @@ def fault_row(model: str, ctx: int):
                            else "FAIL" if rp.get("checksum") else "NO_CHECKSUM"),
                    causal_class=("DIRECT_SKIP_AND_WATCHDOG" if wd
                                  else "HANG_PARTIAL_EVIDENCE"),
-                   trace_completeness="PARTIAL",
+                   trace_completeness="PARTIAL_WATCHDOG",
                    watchdog=wd,
                    deadline_cycles=rp.get("deadline_cycles"),
                    no_checksum=(rp.get("checksum") is None),

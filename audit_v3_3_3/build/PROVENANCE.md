@@ -13,13 +13,14 @@
 | A01/A03 source fix | `7a33dc5f` (PRE retry exclusion + A03 in-simulator watchdog) |
 | SP05 source fix | `960084dc` (store-data binding + write-skipped node) |
 | Control-gate fix | `c66af09f` (probability<=0 true disable; LQ04 gate) |
-| Tools/tests commit | `93bca301bdecc99e7a7d9cbc85a5bd80c02cc951` (final source HEAD at build time) |
+| Tools/tests commit | `93bca301bdecc99e7a7d9cbc85a5bd80c02cc951` |
+| A01 8-byte correction | `b5031bf7d857ca7901810a3bf3629f5649ddaaac` (final source HEAD) |
 | Final binary | repo-root `build/ARM/gem5.opt` |
-| Binary SHA256 | `685d88f77324d8ba75916e577b8bb68947ddf20fc13b51e859cff1cbdc1b8187` |
-| Build log | `audit_v3_3_3/build/v333_build.log` |
+| Binary SHA256 | `1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338` |
+| Build log | `audit_v3_3_3/build/v333_build2.log` (final correction build; the first build log `v333_build.log` is the pre-correction `685d88f7` build) |
 | Build result | `scons: done building targets.`; `error:` count = 0 |
 | Source/binary consistency | `git diff --stat HEAD -- CHAOS/gem5/src` empty after the commits |
-| Config | `configs/se/lsu_proxy.py` SHA256 `7fd7e12ded42c319d6e33b14b9df4c0505b65cf9c89219e34bc1197fce3e2a72` |
+| Config | `configs/se/lsu_proxy.py` SHA256 `8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225` (final; matches every final run manifest) |
 
 ## 2. Workload ELF SHA256
 
@@ -46,7 +47,7 @@ The build log contains the same warning set as the v3.3.2 log: `CHAOSCache.cc` `
 | A01-R01 fault | injection=1, `a01_ea_discarded`=0, `register_writeback`=1, terminal SDC, oracle FAIL |
 | A01-R01 control | injection=0, `pre_retry_skipped`=22, golden `728e604ffcec539d` |
 | SP05-R01 fault | `store_data_fnv=b6180e0c195fd2e9`, `data_correct=0`, `stage_outcome=CHAIN_VISIBILITY_LOST`, `sp05_write_skipped` node, reload hash `a8c7f832281a39c5` |
-| A03-R01 fault | `A03_WATCHDOG_EXPIRED` at tick 400,963,640; `A03_STUCK_LIFECYCLE` (activation ordinal 1059, first affected 1060); final checksum `32a11657db750fc1` ≠ golden; `SDC / POST_ORACLE_SIM_HANG`; `timed_out=False`; `gzip -t` OK |
+| A03-R01 fault | `A03_WATCHDOG_EXPIRED` at tick 400,958,635; `A03_STUCK_LIFECYCLE` (activation ordinal 1058, first affected 1059); final checksum `1cf7a5a9f11dab7e` ≠ golden; `SDC / POST_ORACLE_SIM_HANG`; `timed_out=False`; `gzip -t` OK |
 | A03-R01 control | injection=0, golden `728e604ffcec539d` |
 | Full pytest | 232 passed |
 | Platform pytest | 121 passed |
@@ -59,7 +60,7 @@ SampleRunID and Seed are unchanged.
 
 ## 6. Packaging note
 
-The final 1.1 GB binary is preserved as a hardlink at `audit_v3_3_3/binary/gem5.opt.v333-1126e0fd`; the pre-correction `gem5.opt.v333-685d88f7` is retained as history. Neither is committed to git; the SHA above is the authority.
+The final 1.1 GB binary is preserved as a hardlink at `audit_v3_3_3/binary/gem5.opt.v333-1126e0fd` (SHA verified). The pre-correction `685d88f7` binary was overwritten in place by the correction install and is **not** retained; its 120 runs are archived at `audit_v3_3_3/runs_685d88f7/` and are never mixed with the final set. The final binary is not committed to git; the SHA above is the authority.
 
 ---
 
