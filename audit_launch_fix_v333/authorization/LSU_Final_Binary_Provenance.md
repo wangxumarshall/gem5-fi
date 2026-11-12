@@ -1,24 +1,29 @@
-# LSU v3.3.3 — Final Binary Provenance (Launch-Critical Fix Round)
+# LSU v3.3.3 — Final Binary Provenance (Trace Closure / Final Launch)
 
 **Date:** 2026-11-12
 **Worktree:** `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12`
 **Branch:** `lsu-v3.3.1-context-workload-20261111`
-**Baseline HEAD:** `58d77b34`; C++ source HEAD `b5031bf7` (unchanged this round).
+**C++ source content commit:** `e3293856` (unchanged; verified `git diff e3293856..HEAD -- CHAOS/gem5/src` empty)
+**Campaign ID:** `LSU-V333-FINAL-20261112`
+**Campaign root:** `runs/lsu/formal_v333_final_20261112`
 
 ## 1. Executable actually used by the runner
 
 The runner resolves `GEM5 = ROOT/build/ARM/gem5.opt` where `ROOT` is the
-**worktree** root. Measured:
+**worktree** root. Measured on 2026-11-12:
 
 ```console
 $ sha256sum build/ARM/gem5.opt
-1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338  build/ARM/gem5.opt
+62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd  build/ARM/gem5.opt
 $ stat -c '%s bytes' build/ARM/gem5.opt
-1149173888 bytes
+1149269352 bytes
 ```
 
-This matches the frozen v3.3.3 SHA and the archived copy
-`audit_v3_3_3/binary/gem5.opt.v333-1126e0fd` (same SHA256).
+This is the trace-closure build frozen for the formal campaign. It is
+hard-linked at `audit_v3_3_3/binary/gem5.opt.v333-62e1b1be` (same inode and
+SHA256). The superseded pre-trace-closure build is archived read-only at
+`audit_v3_3_3/trace_closure/baseline/gem5.opt.v333-old-<superseded-sha>`;
+its SHA is recorded in that directory's build log, and it must not be used.
 
 **Do not use** the main-repo binary
 `/home/sdc/gem5-fi-ding/build/ARM/gem5.opt`: it is a different build
@@ -32,6 +37,9 @@ campaign must be launched from this worktree.
 $ sha256sum configs/se/lsu_proxy.py
 8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225  configs/se/lsu_proxy.py
 ```
+
+The runner's `CONFIG` is `configs/se/lsu_proxy.py`. `configs/se/ooo_proxy.py`
+is a different file and is not the formal campaign config.
 
 ## 3. Workload ELF SHA256 (frozen table)
 
@@ -47,22 +55,27 @@ $ sha256sum configs/se/lsu_proxy.py
 | `replay_partial_v332` | `3f880cba7b6d16b61a453c37c68d6dbaaf63980dba5c9231218cf8dd8fa42e42` |
 | `md04_violations_v332` | `dd241c3097e61495141e614ce493ba4b2901a7df751baa95e69365bdf8f95c43` |
 
-The runner writes `campaign_identity.json` at the campaign root before the
-first task; the collector cross-checks every `campaign.json` against it.
+`tools/lsu_v333_provenance.py` recomputes every hash from the bytes and checks
+`FormalExecutionPath == resolve_workload(model)`. The runner writes
+`campaign_identity.json` at the campaign root before the first task; the
+collector cross-checks every canonical `attempt.json`/`campaign.json` against
+it.
 
 ## 4. Source/binary consistency
 
 ```console
-$ git diff --stat 58d77b34..HEAD -- CHAOS/gem5/src | wc -l
+$ git diff --stat e3293856..HEAD -- CHAOS/gem5/src | wc -l
 0
 ```
 
-No C++ file changed between the baseline and this round's HEAD. No `scons`
-invocation was made; the binary was not rebuilt.
+No C++ file changed between the build's source content commit and the current
+HEAD. No `scons` invocation was made in this round; the binary was not
+rebuilt. Simulation semantics, workloads, seeds, SampleRunIDs, ROI ordinals,
+dynamic-context selection and Fault/Control pairing are unchanged.
 
 ## 5. Identity freeze
 
 - 12 models / 5 contexts / 60 `SampleRunID` / 60 seeds read from
   `docs/gem5-fi/lsu/implementation_v3_2/excel/60_SAMPLE_MATRIX.csv`.
 - ROI ordinals read from the frozen mapping; no ID, seed, ROI or workload was
-  changed this round.
+  changed.
