@@ -11,11 +11,23 @@ import csv
 import hashlib
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = Path(__file__).resolve().parent
 AUTH = ROOT / "audit_launch_fix_v333/authorization"
+
+# Single source of truth for the model->workload mapping and for the real
+# workload bytes: tools/lsu_v333_provenance.py (which imports
+# tools/lsu_v332_matrix.py read-only).
+if str(ROOT / "tools") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tools"))
+import lsu_v333_provenance as provenance  # noqa: E402
+
+# The three explicit workload fields; ELF_SHA256 already exists and is
+# refreshed from real bytes below.
+PROVENANCE_COLUMNS = ("WorkloadSourcePath", "FormalExecutionPath")
 OLD_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
 NEW_SHA = "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"
 CONFIG_SHA = "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225"
@@ -34,12 +46,26 @@ def sha(path: Path) -> str:
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
-    # 1. 120-run campaign manifest template
+    # 1. 120-run campaign manifest template with explicit workload provenance
     src = AUTH / "LSU_120Run_Campaign_Manifest.csv"
     with src.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
         fields = list(rows[0].keys())
+    # Insert the two new provenance columns next to ELF; ELF_SHA256 already
+    # exists and is refreshed from the real bytes below.
+    insert_at = fields.index("ELF") + 1
+    for offset, name in enumerate(PROVENANCE_COLUMNS):
+        if name not in fields:
+            fields.insert(insert_at + offset, name)
     for row in rows:
+        exec_path = provenance.formal_execution_path(row["ModelID"])
+        source_path = provenance.workload_source_path(exec_path.name)
+        row["Workload"] = exec_path.name
+        # FormalExecutionPath is the only execution path: ELF mirrors it.
+        row["ELF"] = str(exec_path)
+        row["WorkloadSourcePath"] = str(source_path) if source_path else ""
+        row["FormalExecutionPath"] = str(exec_path)
+        row["ELF_SHA256"] = provenance.sha256_file(exec_path)
         row["Binary_SHA256"] = NEW_SHA
         row["Config_SHA256"] = CONFIG_SHA
         row["Evidence"] = str(FORMAL_BASE / f"{row['ModelID']}-{row['ContextID']}-{row['Role']}")
@@ -51,11 +77,15 @@ def main() -> int:
         w.writerows(rows)
 
     # 2. launch commands (new SHA / campaign id)
-    launch = (AUTH / "launch_commands.sh").read_text()
-    launch = launch.replace(OLD_SHA, NEW_SHA)
-    launch = launch.replace("LSU-V333-FORMAL-20261112", CAMPAIGN_ID)
-    (OUT / "launch_commands_final.sh").write_text(launch)
-    (OUT / "launch_commands_final.sh").chmod(0o755)
+    # The shipped script is maintained by the pipeline owner (campaign root
+    # already corrected); never clobber it with the authorization base copy.
+    launch_path = OUT / "launch_commands_final.sh"
+    if not launch_path.exists():
+        launch = (AUTH / "launch_commands.sh").read_text()
+        launch = launch.replace(OLD_SHA, NEW_SHA)
+        launch = launch.replace("LSU-V333-FORMAL-20261112", CAMPAIGN_ID)
+        launch_path.write_text(launch)
+        launch_path.chmod(0o755)
 
     # 3. binary provenance
     binary = ROOT / "build/ARM/gem5.opt"
@@ -69,7 +99,7 @@ def main() -> int:
     diff_stat = subprocess.check_output(
         ["git", "diff", "--stat", "--", "CHAOS/gem5/src", "tools", "tests",
          "docs/superpowers/plans"], cwd=ROOT, text=True)
-    provenance = f"""# LSU v3.3.3 Final Binary Provenance (Trace Closure)
+    provenance_doc = f"""# LSU v3.3.3 Final Binary Provenance (Trace Closure)
 
 **Date:** 2026-11-12
 **Worktree:** `{ROOT}`
@@ -127,7 +157,7 @@ into the formal result set.
     # The corrected provenance is maintained explicitly; never overwrite it
     # with this legacy template when it already exists.
     if not (OUT / "LSU_Final_Binary_Provenance.md").exists():
-        (OUT / "LSU_Final_Binary_Provenance.md").write_text(provenance)
+        (OUT / "LSU_Final_Binary_Provenance.md").write_text(provenance_doc)
 
     # 4. checksums
     lines = []
