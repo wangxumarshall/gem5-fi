@@ -11,9 +11,20 @@ from __future__ import annotations
 import csv
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
+    a03_terminal,
+    classify_control,
+    parse_addrpath_log,
+    parse_bare_checksum,
+    parse_rp01_evidence,
+    read_command,
+)
+
 RUNS = ROOT / "audit_v3_3_2/runs"
 OUT = ROOT / "audit_v3_3_2"
 BINARY_SHA = "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"
@@ -33,8 +44,10 @@ WORKLOAD = {
     "RP01": "replay_partial_v332 (candidate)",
 }
 ROI = {  # measured ROI (start,end), N, percentile ordinals
-    "A01": ((1040, 1234), 195, [1059, 1098, 1137, 1176, 1215]),
-    "A03": ((1040, 1234), 195, [1059, 1098, 1137, 1176, 1215]),
+    # v3.3.3 re-census after the PRE retry exclusion (L-A01): 1040-1222 (183)
+    # on the fixed stream; the v3.3.2 1040-1234/195 set is history.
+    "A01": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
+    "A03": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
     "FW02": ((8, 67), 60, [13, 25, 37, 49, 61]),
     "FW05": ((1, 2000), 2000, [200, 600, 1000, 1400, 1800]),
     "SQ01": ((1006, 1133), 128, [1018, 1044, 1069, 1095, 1121]),
@@ -48,10 +61,10 @@ ROI = {  # measured ROI (start,end), N, percentile ordinals
 }
 CONSUMER_EVENTS = {"consumer_commit", "commit", "errant_commit"}
 QUALIFIER = {
-    "A01": "R03=UNRESOLVED_NO_WRITEBACK; R02=SQUASHED",
-    "A03": "PERSISTENT_STUCK: ONE FAULT, FIVE OBSERVATION POINTS; PARTIAL TRACE",
+    "A01": "R03 fixed by v3.3.3 PRE retry exclusion; R02=SQUASHED/UNRELATED",
+    "A03": "PERSISTENT_STUCK: ONE FAULT, FIVE OBSERVATION POINTS; SDC/POST_ORACLE_SIM_HANG",
     "SQ03": "VISIBILITY_TIMING_SHIFT (CHAIN_VISIBILITY_MOVED 4/5), NOT SDC",
-    "SP05": "SDC_with_store_data_fnv=NULL (RELOAD_UNVERIFIABLE qualifier)",
+    "SP05": "SDC with store_data_fnv bound (v3.3.3)",
     "RP01": "HANG_BY_INTERNAL_WATCHDOG; PARTIAL TRACE; NO SDC CLAIM",
     "MD04": "R01=MASKED; CANDIDATE VIOLATION WORKLOAD",
     "FW02": "CANDIDATE W4 LOAD-PRESERVING WORKLOAD",
@@ -104,45 +117,100 @@ def fault_row(model: str, ctx: int):
     seed = (s.get("seed") or meta.get("seed")
             or (meta.get("excel_identity") or {}).get("seed"))
     if not seed and (outdir / "command.txt").exists():
-        m = re.search(r"--[A-Za-z0-9_]*rng_seed\s+(\d+)",
-                      (outdir / "command.txt").read_text(errors="replace"))
+        m = re.search(r"--[A-Za-z0-9_]*rng_seed(?:\s+|=)(\d+)",
+                      read_command(outdir))
         if m:
             seed = int(m.group(1))
+    observed_workload = meta.get("workload") or s.get("workload")
+    workload_label = (f"{Path(observed_workload).name} (observed)"
+                      if observed_workload else WORKLOAD[model])
     row = {
         "model": model, "context": f"R{ctx:02d}", "seed": seed,
-        "ordinal": s.get("ordinal"), "workload": WORKLOAD[model],
+        "ordinal": s.get("ordinal"), "workload": workload_label,
+        "workload_observed": observed_workload,
         "workload_status": ("CANDIDATE_PENDING_APPROVAL" if model in CANDIDATE
                             else "FORMAL"),
         "binary_sha": s.get("binary_sha"), "outdir": str(outdir),
+        "fault_command": read_command(outdir),
     }
     if model == "A03":
-        a03 = s.get("a03") or {}
-        row.update(injection_count=s.get("injection_count"),
-                   injection_identity=a03.get("first_activation"),
-                   activation=a03.get("first_activation"),
-                   first_divergence=a03.get("first_affected"),
-                   terminal=("HANG_TIMEOUT" if s.get("timed_out") else
-                             "COMPLETED" if s.get("exit_code") == 0 else "CRASH"),
-                   oracle="NO_CHECKSUM_ON_PARTIAL_TRACE",
-                   causal_class="HANG_PARTIAL_EVIDENCE",
-                   trace_completeness="PARTIAL",
-                   terminal_reason=f"A03_LOG_CAPPED={a03.get('capped')} "
-                                   f"stream_rows={a03.get('stream_rows')}")
+        log_path = outdir / "addrpath_injections.log"
+        # The artifact parser is authoritative: v3.3.2 summaries carry the
+        # 20000 log cap and no FUNNEL count.
+        a03 = (parse_addrpath_log(log_path) if log_path.exists()
+               else (s.get("a03") or {}))
+        stdout_text = ((outdir / "stdout.log").read_text(errors="replace")
+                       if (outdir / "stdout.log").exists() else "")
+        checksum = s.get("checksum") or parse_bare_checksum(stdout_text)
+        watchdog_expired = bool(
+            s.get("watchdog_expired", a03.get("watchdog_expired"))
+            or "A03_WATCHDOG_EXPIRED" in stdout_text)
+        parsed_term = a03_terminal(
+            checksum, watchdog_expired,
+            bool(s.get("timed_out")), s.get("exit_code"))
+        # v3.3.2 summaries carry the cap (20000) and HANG; the artifact
+        # parsers are authoritative (L-A03/L-A04): prefer the FUNNEL count and
+        # the checksum-derived terminal whenever the artifacts exist.
+        terminal = (parsed_term["terminal"]
+                    if checksum is not None or a03.get("watchdog_expired")
+                    else s.get("terminal") or parsed_term["terminal"])
+        parsed_injected = a03.get("injected_applications")
+        row.update(
+            injection_count=(parsed_injected if parsed_injected is not None
+                             else s.get("injection_count")),
+            injection_identity=a03.get("first_activation"),
+            activation=a03.get("first_activation"),
+            first_divergence=a03.get("first_affected"),
+            terminal=terminal,
+            terminal_qualifier=(s.get("terminal_qualifier")
+                                or parsed_term["terminal_qualifier"]),
+            oracle=("PASS" if parsed_term["oracle_pass"] is True else
+                    "FAIL" if checksum is not None else "NO_CHECKSUM"),
+            causal_class=("SDC_ORACLE_FAIL" if terminal == "SDC" else
+                          "HANG_WATCHDOG" if terminal == "HANG_WATCHDOG" else
+                          "MASKED_ORACLE_PASS" if terminal == "MASKED" else
+                          "HANG_PARTIAL_EVIDENCE"),
+            trace_completeness="PARTIAL",
+            checksum=checksum,
+            a03_log_capped=a03.get("capped"),
+            watchdog_expired=bool(s.get("watchdog_expired",
+                                        a03.get("watchdog_expired"))),
+            terminal_reason=(s.get("terminal_reason")
+                             or parsed_term["terminal_reason"]
+                             or f"A03_LOG_CAPPED={a03.get('capped')} "
+                                f"stream_rows={a03.get('stream_rows')}"))
     elif model == "RP01":
-        rp = s.get("rp01") or {}
-        wd = rp01_watchdog(outdir)
+        rp_parsed = parse_rp01_evidence(outdir)
+        rp = dict(s.get("rp01") or {})
+        for key in ("watchdog", "terminal", "terminal_reason",
+                    "deadline_cycles", "no_checksum", "raw_fatal_path",
+                    "watchdog_marker"):
+            if rp_parsed.get(key) is not None:
+                rp[key] = rp_parsed[key]
+        if not rp.get("checksum"):
+            rp["checksum"] = rp_parsed.get("checksum")
+        wd = bool(rp.get("watchdog")) or rp01_watchdog(outdir)
+        terminal = ("HANG_WATCHDOG" if wd
+                    else s.get("terminal") or ("HANG_TIMEOUT"
+                                               if s.get("timed_out")
+                                               else "COMPLETED"))
         row.update(injection_count=rp.get("skips"),
                    injection_identity=rp.get("first_skip"),
                    activation=rp.get("first_eligible"),
                    first_divergence=rp.get("first_skip"),
-                   terminal=("HANG_WATCHDOG" if wd else
-                             "HANG_TIMEOUT" if s.get("timed_out") else "COMPLETED"),
-                   oracle=f"no_checksum (checksum={rp.get('checksum')})",
+                   terminal=terminal,
+                   oracle=("PASS" if rp.get("checksum") == "f3b1c554273d23f7"
+                           else "FAIL" if rp.get("checksum") else "NO_CHECKSUM"),
                    causal_class=("DIRECT_SKIP_AND_WATCHDOG" if wd
                                  else "HANG_PARTIAL_EVIDENCE"),
                    trace_completeness="PARTIAL",
-                   terminal_reason=f"eligible={rp.get('eligible')} "
-                                   f"skip={rp.get('skips')} watchdog={wd}")
+                   watchdog=wd,
+                   deadline_cycles=rp.get("deadline_cycles"),
+                   no_checksum=(rp.get("checksum") is None),
+                   raw_fatal_path=rp.get("raw_fatal_path"),
+                   terminal_reason=(rp.get("terminal_reason")
+                                    or f"eligible={rp.get('eligible')} "
+                                       f"skip={rp.get('skips')} watchdog={wd}"))
     else:
         inj = s.get("first_injection") or {}
         idx = trace_index(outdir / "trace_v31.jsonl")
@@ -192,30 +260,49 @@ def control_row(model: str, ctx: int):
     outdir = RUNS / f"{model}-R{ctx:02d}-control"
     s = jload(outdir / "summary.json")
     meta = jload(outdir / "pilot_meta.json")
-    cmd = " ".join(s.get("cmd") or [])
-    if not cmd and (outdir / "command.txt").exists():
-        cmd = (outdir / "command.txt").read_text(errors="replace")
-    injector_absent = ("--chaos_lsqfwd" not in cmd and "--chaos_md04" not in cmd
-                       and "--chaos_addrpath" not in cmd)
-    mounted = not injector_absent
+    # v3.3.3 (L-D01): classify from the EXECUTED command.txt. run_pilot's argv
+    # (summary.cmd) never contains --chaos_*, which produced the false
+    # INJECTOR_ABSENT label for 35/60 controls.
+    cmd = read_command(outdir) or " ".join(s.get("cmd") or [])
+    classification = classify_control(cmd)
     inj = s.get("injection_count")
     if model == "RP01":
-        inj = (s.get("rp01") or {}).get("skips")
-    proof = ("INJECTOR_ABSENT" if (inj == 0 and injector_absent) else
-             "MOUNTED_P0_INJECTED_0" if inj == 0 else "MISFIRE")
+        rp = s.get("rp01") or parse_rp01_evidence(outdir)
+        inj = rp.get("skips")
+    misfire = bool((inj or 0) > 0)
+    proof = "MISFIRE" if misfire else classification["proof"]
     seed = (s.get("seed") or meta.get("seed")
             or (meta.get("excel_identity") or {}).get("seed"))
+    if seed is None:
+        m = re.search(r"--[A-Za-z0-9_]*rng_seed(?:\s+|=)(\d+)", cmd)
+        seed = int(m.group(1)) if m else None
+    cls = meta.get("classification") or {}
+    observed_workload = meta.get("workload") or s.get("workload")
+    terminal = (cls.get("terminal_state") or s.get("terminal")
+                or "UNRESOLVED")
+    oracle_checksum = (s.get("checksum")
+                       or (s.get("rp01") or {}).get("checksum"))
     return {
         "model": model, "context": f"R{ctx:02d}", "seed": seed,
-        "ordinal": s.get("ordinal"), "workload": WORKLOAD[model],
+        "ordinal": s.get("ordinal"),
+        "workload": (f"{Path(observed_workload).name} (observed)"
+                     if observed_workload else WORKLOAD[model]),
         "binary_sha": s.get("binary_sha"), "outdir": str(outdir),
         "injection_count": inj, "zero_injection_proof": proof,
+        "mount_evidence": {
+            "mounts": classification["mounts"],
+            "probability": classification["probability"],
+            "md04_probability": classification["md04_probability"],
+            "suppression_flags": classification["suppression_flags"],
+            "source": classification["source"],
+        },
+        "terminal": terminal,
         "oracle": ("PASS" if (meta.get("oracle_pass") or
-                              (s.get("rp01") or {}).get("checksum") ==
-                              "f3b1c554273d23f7" and model == "RP01") else
-                   "FAIL_OR_NO_CHECKSUM"),
+                              (oracle_checksum == "f3b1c554273d23f7"))
+                   else "FAIL_OR_NO_CHECKSUM"),
         "exit_code": s.get("exit_code"), "timed_out": s.get("timed_out"),
         "command": cmd.replace("\n", " ")[:600],
+        "fault_command": cmd.replace("\n", " "),
     }
 
 
@@ -317,13 +404,18 @@ def main():
             "FaultTrace": f.get("trace_completeness"),
             "ControlInjected": c.get("injection_count"),
             "ControlZeroProof": c.get("zero_injection_proof"),
+            "ControlMountEvidence": json.dumps(c.get("mount_evidence") or {}),
             "ControlOracle": c.get("oracle"),
+            "ControlTerminal": c.get("terminal"),
             "ControlExitCode": c.get("exit_code"),
             "FaultEvidencePath": f.get("outdir"),
             "ControlEvidencePath": c.get("outdir"),
-            "FaultCommand": (c.get("command", "") if False else ""),
+            "FaultCommand": f.get("fault_command") or c.get("fault_command") or
+                            read_command(Path(f.get("outdir") or "")),
         })
-    write("controls/LSU_Fault_Control_Pair_Final.csv", pairs)
+    # v3.3.3: the matrix's RAW CSV and this curated FINAL CSV are distinct
+    # files; the v3.3.2 _J/_K files are history and are left untouched.
+    write("controls/LSU_Fault_Control_Pair_FINAL.csv", pairs)
     write("propagation/LSU_60Context_Causal_Propagation_Final.csv", causal)
 
 

@@ -45,16 +45,25 @@ import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[5]
-EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
+EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.7.xlsx"
 GEM5 = ROOT / "build/ARM/gem5.opt"
 CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = IMPL / "workloads"
+DIRECTED = ROOT / "workloads/directed"
 
 # Every model the pilot platform can run; --model choices and the Excel
 # sample rows are keyed by these ids (v3.2.4 workbook is authoritative;
 # accepted pilots are transcribed into v3.2.5 later).
 MODELS = ("A01", "A03", "FW02", "SQ01", "DA04", "LP01", "MD04", "FW05",
-          "SQ03", "SP05", "LQ04")
+          "SQ03", "SP05", "LQ04", "RP01")
+
+# v3.3.3 control/attach provenance (Task 5). The mount flags are the only
+# injectors with a global/probability or ordinal gate; the gate field records
+# which mechanism the model actually uses.
+MOUNT_FLAGS = ("--chaos_lsqfwd", "--chaos_addrpath", "--chaos_l1dfwd",
+               "--chaos_lq04", "--chaos_md04")
+ORDINAL_GATED = {"A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05",
+                 "LQ04", "DA04", "RP01"}
 
 
 def _workload_for(model: str) -> str:
@@ -70,7 +79,10 @@ def _workload_for(model: str) -> str:
             # LQ04 targets an explicit-anchor Load whose LQ-entry lifetime
             # is observable end to end (v3.2.10 pilot-only workload; the
             # Excel path is retained in the sample).
-            "LQ04": "lq_lifetime_ordinal"}[model]
+            "LQ04": "lq_lifetime_ordinal",
+            # RP01 (v3.3.3): partial-forward rescheduleMemInst skip. The
+            # directed candidate workload resolves under workloads/directed.
+            "RP01": "replay_partial_v332"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -438,6 +450,75 @@ def _l1dfwd_events(path: Path) -> list[dict]:
     return out
 
 
+def _rp01_events(path: Path) -> list[dict]:
+    """Parse RP01_SKIP_REPLAY lines from lsq_fwd_injections.log (v3.3.3).
+
+    The RP01 fault is a single rescheduleMemInst skip selected by eligible
+    ordinal; the line carries the full identity (load/store seq, LQ entry,
+    generation, replay counter, tick). ELIGIBLE lines are observations, not
+    injections, and are not counted.
+    """
+    out: list[dict] = []
+    path = Path(path)
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        # The model log writes the skip as
+        #   Tick: <t>, Site: read_partial_reschedule, skipped_call=1, ...
+        # while stdout prints RP01_SKIP_REPLAY. Accept both shapes.
+        if not (line.startswith("RP01_SKIP_REPLAY")
+                or "skipped_call=1" in line):
+            continue
+        rec: dict = {"kind": "skip"}
+        tick = re.match(r"Tick:\s*(\d+)", line)
+        if tick:
+            rec["tick"] = int(tick[1])
+        for key, value in re.findall(r"(\w+)=([^,\s]+)", line):
+            try:
+                rec[key] = int(value, 0)
+            except ValueError:
+                rec[key] = value
+        fi = re.search(r"faults_injected\s*[:=]\s*(\d+)", line)
+        if fi:
+            rec["faults_injected"] = int(fi[1])
+        if "ordinal" not in rec and "eligible_ordinal" in rec:
+            rec["ordinal"] = rec["eligible_ordinal"]
+        out.append(rec)
+    return out
+
+
+def injector_meta(model: str, probability: float, cmd: list[str],
+                  stdout: str, extra: list[str]) -> dict:
+    """Injector mount/attach/gate provenance for pilot_meta.json (v3.3.3)."""
+    mounts = [flag for flag in MOUNT_FLAGS if flag in cmd]
+    md04_probability = None
+    if "--md04_probability" in cmd:
+        idx = cmd.index("--md04_probability")
+        if idx + 1 < len(cmd):
+            try:
+                md04_probability = float(cmd[idx + 1])
+            except ValueError:
+                md04_probability = None
+    gate = "md04_probability" if "--chaos_md04" in mounts else (
+        "ordinal" if model in ORDINAL_GATED else "probability")
+    markers = [ln.strip() for ln in (stdout or "").splitlines()
+               if "[lsu_proxy]" in ln
+               and ("attached" in ln or "probability=" in ln)]
+    return {
+        "mount_flags": mounts,
+        "mounted": bool(mounts),
+        "probability": probability,
+        "md04_probability": md04_probability,
+        "gate": gate,
+        "gate_enabled": (bool(mounts) and probability > 0
+                         and md04_probability != 0.0),
+        "control_omits_mount": probability == 0.0 and not mounts,
+        "model_extra_flags": list(extra),
+        "attach_marker_lines": markers,
+        "attach_mechanism": "self_attach_at_startup",
+    }
+
+
 def _read_events(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -621,6 +702,15 @@ def build_model_extra(model: str, probability: float, seed: int,
         return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                 "--max_faults", "1", "--rng_seed", str(seed),
                 "--lsqfwd_event_ordinal", ordinal]
+    if model == "RP01":
+        if control:
+            # Matched no-fault control: the RP01 skip is ordinal-gated, not
+            # probability-gated, so omit the injector entirely.
+            return []
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "rp01_skip_replay",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--rp01_event_ordinal", ordinal,
+                "--rp01_watchdog_cycles", "20000000"]
     return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
             "--max_faults", "1", "--rng_seed", str(seed),
             "--lsqfwd_event_ordinal", ordinal]
@@ -679,6 +769,9 @@ def main(argv=None) -> int:
     workload_path = Path(workload_name)
     if not workload_path.is_absolute():
         workload_path = WORKLOADS / workload_name
+        if not workload_path.exists() and (DIRECTED / workload_name).exists():
+            # v3.3.3 RP01: the candidate workload lives under workloads/directed.
+            workload_path = DIRECTED / workload_name
     sample["workload_path"] = str(workload_path)
     sample["workload_exists"] = workload_path.exists()
     cfg2 = copy.deepcopy(cfg)
@@ -887,6 +980,24 @@ def main(argv=None) -> int:
         target_proof = _lq04_target_proof(
             injections, sample.get("event_ordinal"))
         injected = len(injections)
+    elif args.model == "RP01":
+        events = _rp01_events(out / "lsq_fwd_injections.log")
+        inj = {"events": events, "injected": len(events)}
+        target_proof = {
+            "site": "IEW::rescheduleMemInst",
+            "events": len(events),
+            "all_one_injection": len(events) == 1,
+            "ordinal_matches": all(
+                e.get("ordinal") == (sample.get("event_ordinal") or 1)
+                for e in events),
+            "all_replay_skipped": all(
+                e.get("replay_gen_pre") == 0 for e in events),
+            "all_candidate_loads": all(
+                (e.get("replay_gen_post") or 0) + (
+                    e.get("in_instsToReplay_post") or 0) >= 0
+                for e in events),
+        }
+        injected = len(events)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -906,12 +1017,15 @@ def main(argv=None) -> int:
             crash_by_fault = True
             pt_fault_addr = pt_match.group(1).lower()
             crash_evidence = "page_table_fault_after_injection"
-    watchdog_hit = ("CHAOS_SQ03_WATCHDOG_EXPIRED" in (
-        (proc.stdout or "") + (proc.stderr or ""))
-        or "CHAOS_SP05_WATCHDOG_EXPIRED" in (
-        (proc.stdout or "") + (proc.stderr or ""))
-        or "CHAOS_LQ04_WATCHDOG_EXPIRED" in (
-        (proc.stdout or "") + (proc.stderr or "")))
+    watchdog_text = (
+        (proc.stdout or "") + (proc.stderr or "") + "\n" +
+        ((out / "lsq_fwd_injections.log").read_text(
+            encoding="utf-8", errors="replace")
+         if (out / "lsq_fwd_injections.log").exists() else ""))
+    watchdog_hit = any(marker in watchdog_text for marker in (
+        "CHAOS_SQ03_WATCHDOG_EXPIRED", "CHAOS_SP05_WATCHDOG_EXPIRED",
+        "CHAOS_LQ04_WATCHDOG_EXPIRED", "CHAOS_RP01_WATCHDOG_EXPIRED",
+        "CHAOS_RP01_WATCHDOG=EXPIRED"))
     if timed_out:
         run_status, activation, terminal, completeness = (
             "TIMEOUT", "TRIGGERED" if injected else "NOT_TRIGGERED",
@@ -919,7 +1033,10 @@ def main(argv=None) -> int:
     elif watchdog_hit:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED" if injected else "NOT_TRIGGERED",
-            "HANG", "INCOMPLETE")
+            # RP01's watchdog terminal is HANG_WATCHDOG (L-A07); the other
+            # watchdog models keep their existing HANG label.
+            "HANG_WATCHDOG" if args.model == "RP01" else "HANG",
+            "INCOMPLETE")
     elif proc.returncode != 0 and crash_by_fault:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
@@ -1070,6 +1187,10 @@ def main(argv=None) -> int:
         "oracle_pass": oracle_pass,
         "injection": inj,
         "injection_count": injected,
+        # v3.3.3: mount/attach/gate provenance (the control's zero proof is
+        # classified from the executed command, never inferred).
+        "injector": injector_meta(args.model, args.probability, cmd,
+                                  proc.stdout, extra),
         "target_event_proof": target_proof,
         "trace": {
             "csv_rows": converted.get("rows"),

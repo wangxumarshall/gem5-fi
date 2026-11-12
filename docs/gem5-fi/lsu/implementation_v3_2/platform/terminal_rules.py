@@ -11,8 +11,11 @@ the FW02-R01/R05 defect this module fixes.
 from __future__ import annotations
 
 LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04", "FW05", "LQ04")
+# v3.3.3: HANG_WATCHDOG is an in-simulator watchdog terminal (A03/RP01). It
+# is terminal evidence and must never be relabelled by downstream chain
+# state, exactly like the external CRASH/HANG terminals.
 HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
-                  "DETECTED_CONTAINED")
+                  "DETECTED_CONTAINED", "HANG_WATCHDOG")
 
 
 def chain_events(events: list[dict], injection: dict | None) -> list[dict]:
@@ -32,6 +35,11 @@ def chain_events(events: list[dict], injection: dict | None) -> list[dict]:
 def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
                oracle_pass: bool | None, trace_complete: bool = True):
     """Return (terminal_state, terminal_state_reason)."""
+    if model == "RP01" and observed_terminal == "HANG_WATCHDOG":
+        # v3.3.3 (L-A07): the RP01 in-simulator watchdog deadline is the
+        # terminal. Its raw marker lives in lsq_fwd_injections.log; the
+        # matrix/report carry the no_checksum fact separately.
+        return "HANG_WATCHDOG", "INTERNAL_WATCHDOG_DEADLINE"
     if observed_terminal in HARD_TERMINALS:
         return observed_terminal, None
     if model == "RP01" and observed_terminal == "TIMEOUT":
@@ -69,6 +77,17 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
     squashed = any(e.get("event_type") == "squash" for e in own)
     if squashed and not committed:
         return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
+
+    # v3.3.3 (A01-R03): the address-path injector recorded the fault on a
+    # discarded by-value copy (``a01_ea_discarded`` / applied_to_request=0),
+    # so no effective injection reached the real request. This is not an
+    # unresolved chain: the injection never activated. Checked AFTER the
+    # squash rule so A01-R02's unrelated squash keeps its SQUASHED verdict.
+    discarded = any(e.get("event_type") == "a01_ea_discarded" for e in own)
+    if not discarded and injection is not None:
+        discarded = "a01_ea_discarded" in (injection.get("detail") or "")
+    if model in ("A01", "A03") and discarded:
+        return "INJECTION_NOT_ACTIVATED", "NO_EFFECTIVE_INJECTION"
 
     if model in LOAD_SIDE:
         # v3.2.5: oracle failure alone is not SDC. The fault must have
