@@ -778,7 +778,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // copies so every downstream consumer sees the fault. byte_enable is a
     // const ref here — BE mutation is NOT offered at this hook (A06 does
     // size only; documented in 09 §3-W4).
-    if (cpu->chaosAddrPathPre) {
+    // [LSU][V3.3.3][A01] retry exclusion (ledger L-A01): a pushRequest
+    // re-entry with translationStarted() already true reuses
+    // inst->savedRequest below and discards the mutated by-value addr, so
+    // the PRE hook would inject into a dead copy and still count the retry
+    // as a new eligible event (A01-R03: a01_ea_discarded;
+    // applied_to_request=0; discard_reason=saved_request_reuse). The retry
+    // is never an eligible event: skip the whole block (staging, control
+    // probe, injection) and count the skip for provenance.
+    if (cpu->chaosAddrPathPre && !inst->translationStarted()) {
         const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
@@ -836,6 +844,11 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                 a01_ptag, cpu->chaosAddrPathPre->stagedA03Stream());
             cpu->chaosAddrPathPre->clearStagedA03Stream();
         }
+    } else if (cpu->chaosAddrPathPre) {
+        // [LSU][V3.3.3][A01] translation retry (see the guard comment
+        // above): count the excluded re-entry for provenance — no
+        // injection, no a01_ea/a03_stream node, no eligible-event ordinal.
+        cpu->chaosAddrPathPre->notePreRetrySkipped();
     }
 
     ThreadID tid = cpu->contextToThread(inst->contextId());

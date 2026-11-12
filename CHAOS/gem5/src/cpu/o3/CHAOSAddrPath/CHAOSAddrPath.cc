@@ -21,6 +21,7 @@ namespace gem5
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
+          a03_watchdog_cycles(p.watchdogCycles),
           pre_mode(p.preMode),
           agu_size_to(p.aguSizeTo)
     {
@@ -596,6 +597,18 @@ namespace gem5
                 a03_fault_id = faults_injected_count + 1;
                 writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
                     a03_stream_rec.activation()));
+                // [LSU][V3.3.3][A03] arm the in-simulator watchdog ONCE per
+                // run, at activation (ledger L-A02). This path is reached
+                // only from a real F5 application branch, so a matched
+                // control (probability 0) can never schedule it. 0 =
+                // disabled: every other model stays byte-identical.
+                if (a03_watchdog_cycles && !a03_watchdog_event) {
+                    a03_watchdog_event = new EventFunctionWrapper(
+                        [this]() { this->a03Watchdog(); },
+                        "A03 watchdog", true);
+                    schedule(a03_watchdog_event,
+                             cpu->clockEdge(Cycles(a03_watchdog_cycles)));
+                }
             }
         }
         if (a03_stream_rec.record(ev)) {
@@ -666,59 +679,119 @@ namespace gem5
             // W2 funnel summary (attempted/eligible/injected; activated is
             // the W3 L0 read-back layer's verdict — R2 ruling) + W3 L0 lines
             // (chaos_l0 discipline: to the LOG FILE, stdout stays stable).
-            registerExitCallback([this]() {
-                if (lsuTrigger) {
-                    lsuTrigger->summary("CHAOSAddrPath");
-                    // [LSU][OBS-2] post-trigger decline report (D-class):
-                    // pre_opclass>0 with fault writes < trigger.injected is
-                    // the phantom-activation signature (F-049).
-                    printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
-                           "pre_invalid=%lu pre_nochange=%lu post_fired=%lu "
-                           "post_nochange=%lu trigger_injected=%lu\n",
-                           (unsigned long)obs_pre_fired,
-                           (unsigned long)obs_pre_opclass,
-                           (unsigned long)obs_pre_invalid,
-                           (unsigned long)obs_pre_nochange,
-                           (unsigned long)obs_post_fired,
-                           (unsigned long)obs_post_nochange,
-                           (unsigned long)lsuTrigger->injected);
-                    // Mirror the trigger's FINAL counts here (exit time), so
-                    // the funnel line and the summary line always agree.
-                    l0_funnel.attempted = lsuTrigger->attempted;
-                    l0_funnel.eligible  = lsuTrigger->eligible;
-                } else {
-                    l0_funnel.attempted = l0_funnel.injected;
-                    l0_funnel.eligible  = l0_funnel.injected;
-                }
-                if (write_log && log_stream && log_stream->stream()) {
-                    *(log_stream->stream()) << chaosL0Line("CHAOSAddrPath",
-                                                           l0_item)
-                                            << std::endl
-                                            << l0_funnel.line("CHAOSAddrPath")
-                                            << std::endl;
-                }
-                // [LSU][V3.3.2][A03] one lifecycle line for the persistent
-                // stuck-at fault: applications (affected=1) vs already_stuck
-                // (affected=0) + the activation and first-affected identity.
-                // Observation only; emitted only when the A03 stream actually
-                // activated (never a silent zero line for other modes).
-                if (a03_stream_rec.activated()) {
-                    writeA03LogLine("A03_STUCK_LIFECYCLE",
-                                    chaos_a03::lifecycleDetail(
-                                        a03_stream_rec.lifecycle(a03_fault_id,
-                                                                 pre_mode)));
-                }
-                // [LSU][OBS-L3] final funnel row (final counts; runs only on
-                // normal exit — aborts keep the last injection-time node,
-                // which is exactly why the per-injection rows exist).
-                notifyFunnelAtInjection();
-            });
+            // [LSU][V3.3.3][A03] the body lives in emitExitReport() so the
+            // in-simulator watchdog and this callback cannot drift.
+            registerExitCallback([this]() { emitExitReport(); });
         } else if (probability > 0.0f) {
             // [LSU][OBS-L3] legacy (non-trigger) path: final funnel row only.
             // The l0 lines above stay lsuTrigger-only, so the legacy log
             // output is otherwise byte-identical.
-            registerExitCallback([this]() { notifyFunnelAtInjection(); });
+            registerExitCallback([this]() { emitExitReport(); });
         }
+    }
+
+    void
+    CHAOSAddrPath::emitExitReport()
+    {
+        // [LSU][V3.3.3][A03] single body shared by the normal exit callback
+        // and a03Watchdog(). Emits at most once: the watchdog emits the final
+        // report before exitSimLoop(), and the exit callback it triggers
+        // must not repeat it.
+        if (exit_report_emitted)
+            return;
+        exit_report_emitted = true;
+        // Normal exit while the watchdog is still pending: take it off the
+        // event queue so teardown never runs a stale event. Never dereference
+        // an AutoDelete event that already fired — a03Watchdog() clears the
+        // pointer first.
+        if (!a03_watchdog_fired && a03_watchdog_event &&
+            a03_watchdog_event->scheduled()) {
+            deschedule(a03_watchdog_event);
+        }
+        if (!lsuTrigger) {
+            // Legacy (non-trigger) path: final funnel row only — unchanged
+            // (the lsuTrigger-only l0 lines below stay trigger-only, so the
+            // legacy log output is byte-identical).
+            if (probability > 0.0f)
+                notifyFunnelAtInjection();
+            return;
+        }
+        lsuTrigger->summary("CHAOSAddrPath");
+        // [LSU][OBS-2] post-trigger decline report (D-class):
+        // pre_opclass>0 with fault writes < trigger.injected is
+        // the phantom-activation signature (F-049).
+        // [LSU][V3.3.3][A01] pre_retry_skipped counts the excluded
+        // translation-retry re-entries (ledger L-A01).
+        printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
+               "pre_invalid=%lu pre_nochange=%lu post_fired=%lu "
+               "post_nochange=%lu trigger_injected=%lu "
+               "pre_retry_skipped=%lu\n",
+               (unsigned long)obs_pre_fired,
+               (unsigned long)obs_pre_opclass,
+               (unsigned long)obs_pre_invalid,
+               (unsigned long)obs_pre_nochange,
+               (unsigned long)obs_post_fired,
+               (unsigned long)obs_post_nochange,
+               (unsigned long)lsuTrigger->injected,
+               (unsigned long)obs_pre_retry_skipped);
+        // Mirror the trigger's FINAL counts here (exit time), so
+        // the funnel line and the summary line always agree.
+        l0_funnel.attempted = lsuTrigger->attempted;
+        l0_funnel.eligible  = lsuTrigger->eligible;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << chaosL0Line("CHAOSAddrPath",
+                                                   l0_item)
+                                    << std::endl
+                                    << l0_funnel.line("CHAOSAddrPath")
+                                    << std::endl;
+        }
+        // [LSU][V3.3.2][A03] one lifecycle line for the persistent
+        // stuck-at fault: applications (affected=1) vs already_stuck
+        // (affected=0) + the activation and first-affected identity.
+        // Observation only; emitted only when the A03 stream actually
+        // activated (never a silent zero line for other modes).
+        if (a03_stream_rec.activated() && !a03_lifecycle_emitted) {
+            a03_lifecycle_emitted = true;
+            writeA03LogLine("A03_STUCK_LIFECYCLE",
+                            chaos_a03::lifecycleDetail(
+                                a03_stream_rec.lifecycle(a03_fault_id,
+                                                         pre_mode)));
+        }
+        // [LSU][OBS-L3] final funnel row (final counts; runs only on
+        // normal exit — aborts keep the last injection-time node,
+        // which is exactly why the per-injection rows exist).
+        notifyFunnelAtInjection();
+    }
+
+    void
+    CHAOSAddrPath::a03Watchdog()
+    {
+        // [LSU][V3.3.3][A03] in-simulator watchdog (ledger L-A02). The
+        // corrupted exit path of the persistent stuck-at fault can leave the
+        // guest looping after its final checksum; without this the external
+        // driver kill truncates the trace and the exit callbacks never run.
+        a03_watchdog_fired = true;
+        // AutoDelete event: the event queue deletes it after process()
+        // returns; drop the pointer before any exit callback observes it.
+        a03_watchdog_event = nullptr;
+        const uint64_t stream_rows = a03_stream_rec.recorded();
+        const uint64_t injected_applications =
+            lsuTrigger ? lsuTrigger->injected : faults_injected_count;
+        // Lifecycle + final funnel/decline lines through the SAME helper as
+        // the normal exit callback (cannot drift).
+        emitExitReport();
+        std::ostringstream d;
+        d << "tick=" << curTick()
+          << " activated=" << (a03_stream_rec.activated() ? 1 : 0)
+          << " stream_rows=" << stream_rows
+          << " injected_applications=" << injected_applications;
+        writeA03LogLine("A03_WATCHDOG_EXPIRED", d.str());
+        printf("A03_WATCHDOG_EXPIRED: %s\n", d.str().c_str());
+        // Graceful end (NOT fatal): exitSimLoop runs the exit callbacks, the
+        // addrpath log flushes and the gzip trailer is written. The runner
+        // classifies the marker; the oracle verdict (the already-printed
+        // final checksum) is preserved.
+        exitSimLoop("CHAOS_A03_WATCHDOG_EXPIRED", 0);
     }
 
 } // namespace gem5

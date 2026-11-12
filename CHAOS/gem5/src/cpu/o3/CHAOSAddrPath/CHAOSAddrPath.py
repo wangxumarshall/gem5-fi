@@ -55,3 +55,14 @@ class CHAOSAddrPath(SimObject):
         "a03_bit3_stuck0_load (LSU v3.2 A03: load bit3 stuck-at-0, F5)")
     aguSizeTo = Param.UInt64(0,
         "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
+
+    # [LSU][V3.3.3][A03] in-simulator watchdog (ledger L-A02). A03's
+    # persistent stuck-at fault can corrupt the guest exit path after the
+    # final checksum; an external kill then truncates the trace and skips
+    # the exit callbacks. Armed once at activation for this many CPU cycles,
+    # then gem5 exits cleanly via exitSimLoop and emits
+    # A03_WATCHDOG_EXPIRED. 0 = disabled (default; every other model is
+    # byte-identical).
+    watchdogCycles = Param.UInt64(0,
+        "A03: in-simulator watchdog clock cycles after activation "
+        "(0 = disabled)")

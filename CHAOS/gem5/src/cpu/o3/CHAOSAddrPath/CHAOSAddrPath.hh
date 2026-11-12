@@ -5,6 +5,7 @@
 #include <string>
 
 #include "params/CHAOSAddrPath.hh"
+#include "sim/eventq.hh"        // [LSU][V3.3.3][A03] EventFunctionWrapper
 #include "sim/sim_object.hh"
 #include "base/output.hh"
 #include "base/types.hh"
@@ -60,6 +61,15 @@ class CHAOSAddrPath : public SimObject
     // addr/size untouched, so a before/after compare at the call site
     // cannot see them.
     bool lastPreHookInjected() const { return obs_pre_hook_injected; }
+
+    // [LSU][V3.3.3][A01] PRE-hook retry exclusion (ledger L-A01). The
+    // lsq.cc pushRequest PRE block is guarded by
+    // !inst->translationStarted(); a re-entry that reuses
+    // inst->savedRequest is counted here instead of being injected into the
+    // discarded by-value addr. Nothing is staged, injected or registered on
+    // this path; the counter is reported in the CHAOS_L0_DECLINE exit line
+    // (pre_retry_skipped=).
+    void notePreRetrySkipped() { ++obs_pre_retry_skipped; }
 
     // [LSU][V3.2.12][A01] staged golden/actual EA record (a01_ea, plan
     // Task 7): computed at EA formation by the A01 injection branches
@@ -158,6 +168,9 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_opclass = 0;    // PRE: op-class filter declined (phantom)
     uint64_t obs_pre_invalid = 0;    // PRE: invalid target / unknown pre_mode
     uint64_t obs_pre_nochange = 0;   // PRE: condition applied, value already stuck (A03)
+    // [LSU][V3.3.3][A01] pushRequest re-entries with translationStarted()
+    // excluded from the PRE eligible stream (notePreRetrySkipped).
+    uint64_t obs_pre_retry_skipped = 0;
     uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
     uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
 
@@ -199,6 +212,26 @@ class CHAOSAddrPath : public SimObject
     void a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
                              Addr actual_ea, int bit, uint64_t pc);
     void writeA03LogLine(const char *tag, const std::string &detail);
+
+    // [LSU][V3.3.3][A03] in-simulator watchdog (ledger L-A02). The
+    // persistent stuck-at fault can corrupt the guest exit path after the
+    // final checksum; the external driver's 30 s kill then truncates the
+    // trace and skips the exit callbacks. Armed ONCE at activation
+    // (a03NoteEligibleLoad) for a03_watchdog_cycles CPU cycles; on expiry it
+    // emits the lifecycle + final funnel/decline report (the SAME helper as
+    // the normal exit callback), prints/writes A03_WATCHDOG_EXPIRED and ends
+    // the simulation through exitSimLoop so the exit callbacks, the log
+    // flush and the gzip trailer run. 0 = disabled (default; every other
+    // model is byte-identical).
+    uint64_t a03_watchdog_cycles = 0;
+    EventFunctionWrapper *a03_watchdog_event = nullptr;
+    bool a03_watchdog_fired = false;
+    bool a03_lifecycle_emitted = false;
+    bool exit_report_emitted = false;
+    void a03Watchdog();
+    // Shared body of the normal-exit callback and the watchdog (never two
+    // divergent copies of the final report). Emits at most once.
+    void emitExitReport();
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
