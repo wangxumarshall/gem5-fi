@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12
+plugins: check-2.4.0
+collected 123 items
+
+tests/test_lsu_v333_runner_errors.py ................................... [ 28%]
+.....                                                                    [ 32%]
+tests/test_lsu_v333_control_proof.py ..................                  [ 47%]
+tests/test_lsu_v333_qualified.py .......................                 [ 65%]
+tests/test_lsu_v333_manifest_isolation.py ......                         [ 70%]
+tests/test_lsu_v333_synthetic.py ....................................    [100%]
+
+============================= 123 passed in 16.60s =============================
