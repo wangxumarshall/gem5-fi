@@ -50,7 +50,7 @@ explainable by its designed mechanism.
 | Control classification | 35 `MOUNTED_BUT_DISABLED`, 25 `INJECTOR_ABSENT`, 0 `SUPPRESSED` |
 | ROI arithmetic | 60/60 `N=end-start+1`, `absolute=start+ceil(p*N)-1` |
 | Distinctness | 60/60 unique identities within each model |
-| Causal rows | 60/60 closed; 55 `COMPLETE_PROP_TRACE` + 5 `PARTIAL_WATCHDOG` (RP01 HANG) |
+| Causal rows | 60/60 closed: 50 `COMPLETE` + 5 `COMPLETE_PROP_TRACE` (A03) + 5 `PARTIAL_WATCHDOG` (RP01 HANG) |
 | Oracle | 43 FAIL (SDC), 12 PASS (MASKED), 5 NO_CHECKSUM (RP01 HANG) |
 | Workbook | 8 sheets; 60 manifest rows; 60/60 authoritative SampleRunID/Seed; ConfigFrozen=YES; ConfigSHA `8309da72…` |
 | Regression | `pytest tests/ -q` → **232 passed**; platform → **121 passed** |
@@ -106,8 +106,8 @@ control completes and prints golden `f3b1c554273d23f7`.
    `sq_reload_v3212`) plus the A01 8-byte scope correction and the A01/A03
    PRE-retry fix; all approved by the researcher on 2026-11-12
    (`decisions/LSU_v3.3.3_Researcher_Approval.md`). SampleRunID/Seed unchanged.
-4. **Propagation chains closed?** Yes, 60/60 closed: 55 `COMPLETE_PROP_TRACE`
-   + 5 `PARTIAL_WATCHDOG` (RP01 HANG). Every row has an injection,
+4. **Propagation chains closed?** Yes, 60/60 closed: 50 `COMPLETE` + 5
+   `COMPLETE_PROP_TRACE` (A03) + 5 `PARTIAL_WATCHDOG` (RP01 HANG). Every row has an injection,
    activation/first divergence, downstream/consumer, commit/squash/hang, and
    oracle/terminal. MASKED rows carry a mechanism; RP01 carries the internal
    watchdog. A03's raw trace is the complete `prop_trace.csv.gz` (no

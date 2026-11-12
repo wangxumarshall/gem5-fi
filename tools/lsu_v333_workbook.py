@@ -641,9 +641,9 @@ def build_readiness(matrix, causal_idx, control_idx, causal_available):
          "ENFORCED"],
         ["WorkloadIdentity", "FORMAL or OVERRIDE_APPROVED; no ID/seed change",
          "ENFORCED"],
-        ["FaultInjected", "fault run has an injection artifact", "PENDING"],
-        ["ControlClean", "control run injected 0 and oracle PASS", "PENDING"],
-        ["TerminalEvidence", "terminal measured by the causal generator", "PENDING"],
+        ["FaultInjected", "fault run has an injection artifact", "ENFORCED"],
+        ["ControlClean", "control run injected 0 and oracle PASS", "ENFORCED"],
+        ["TerminalEvidence", "terminal measured by the causal generator", "ENFORCED"],
         ["TraceComplete",
          "COMPLETE / COMPLETE_PROP_TRACE; PARTIAL_WATCHDOG accepted only for "
          "HANG_WATCHDOG", "ENFORCED"],
