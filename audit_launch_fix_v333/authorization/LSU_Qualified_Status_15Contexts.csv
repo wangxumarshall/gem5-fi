@@ -1,0 +1,16 @@
+ModelID,ContextID,Status,MissingFields,TerminalRule,Source
+A03,R01,PASS,,APPLICATION_CHECKSUM;ORACLE_FAIL_SDC;POST_ORACLE_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+A03,R02,QUALIFIED,load_result;register_writeback;consumer,APPLICATION_CHECKSUM;ORACLE_FAIL_SDC;POST_ORACLE_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+A03,R03,PASS,,APPLICATION_CHECKSUM;ORACLE_FAIL_SDC;POST_ORACLE_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+A03,R04,PASS,,APPLICATION_CHECKSUM;ORACLE_FAIL_SDC;POST_ORACLE_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+A03,R05,PASS,,APPLICATION_CHECKSUM;ORACLE_FAIL_SDC;POST_ORACLE_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+SP05,R01,QUALIFIED,commit_event;writeback_event,APPLICATION_ORACLE;ORACLE_FAIL_SDC;STORE_COMMIT_ABSENT;STORE_WRITEBACK_ABSENT,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+SP05,R02,QUALIFIED,commit_event;writeback_event,APPLICATION_ORACLE;ORACLE_FAIL_SDC;STORE_COMMIT_ABSENT;STORE_WRITEBACK_ABSENT,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+SP05,R03,QUALIFIED,commit_event;writeback_event,APPLICATION_ORACLE;ORACLE_FAIL_SDC;STORE_COMMIT_ABSENT;STORE_WRITEBACK_ABSENT,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+SP05,R04,QUALIFIED,commit_event;writeback_event,APPLICATION_ORACLE;ORACLE_FAIL_SDC;STORE_COMMIT_ABSENT;STORE_WRITEBACK_ABSENT,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+SP05,R05,QUALIFIED,commit_event;writeback_event,APPLICATION_ORACLE;ORACLE_FAIL_SDC;STORE_COMMIT_ABSENT;STORE_WRITEBACK_ABSENT,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+RP01,R01,TRACE_INCOMPLETE,,MODEL_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+RP01,R02,TRACE_INCOMPLETE,,MODEL_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+RP01,R03,TRACE_INCOMPLETE,,MODEL_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+RP01,R04,TRACE_INCOMPLETE,,MODEL_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
+RP01,R05,TRACE_INCOMPLETE,,MODEL_INTERNAL_WATCHDOG,tools/lsu_v333_qualified.py on audit_v3_3_3/runs/
