@@ -1,393 +1,237 @@
-# Agent F — Final Independent Acceptance Audit (LSU v3.3.3)
+# Agent F3 — Final Independent Acceptance (LSU v3.3.3)
 
-**Auditor:** Agent F (fresh, independent; did not write any of the artifacts)
+**Auditor:** Agent F3 (fresh adversarial re-auditor; wrote none of the artifacts under audit)
 **Date:** 2026-11-12
 **Worktree:** `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12`
-**Mode:** read-only. No source/config/tool/test/data/Excel edit; no gem5 and no scons run. The only file written is this report.
-**Method:** every number below was recomputed from raw artifacts (`audit_v3_3_3/runs/*/summary.json|command.txt|pilot_meta.json|manifest.json|trace_v31.jsonl`, the CSVs under `roi|controls|propagation`, the workbook via openpyxl, the pytest/build logs, the binary and the git tree). The main agent's `LSU_v3.3.3_Final_Acceptance_Report.md` was treated as a claim to be tested, not as evidence.
+**HEAD at audit:** `135ebcfeab86dc911f40c1bd79b92663f65de037` ("fix the causal ROI strings and finalize readiness labels"); final source HEAD `b5031bf7d857ca7901810a3bf3629f5649ddaaac`
+**Mode:** read-only. No source/config/tool/test/data/Excel edit; no gem5, no scons. Only this report was written (superseding the F2 re-audit). Tools used: `sha256sum`, `git`, `stat`, `find`, `gzip -t`, `unzip -l`, openpyxl (read-only), read-only Python.
+
+**Method:** every number below was recomputed from raw artifacts (`runs/*/summary.json|manifest.json|command.txt`, the ROI/controls/propagation CSVs, the workbook via openpyxl, the build/pytest/dry-run logs, the binary and the git tree). The main agent's acceptance report and the F2 report were treated as claims to be re-tested, not trusted.
 
 ---
 
-## 0. Executive summary
+## 0. Verdict
 
-The **measured 120-run dataset is genuine and internally consistent**: 120 run dirs, one binary SHA `1126e0fd…`, 60 fault runs with `injection_count>0`, 60 controls with `injection_count==0` and a classified zero-proof (35 `MOUNTED_BUT_DISABLED` / 25 `INJECTOR_ABSENT`), ROI arithmetic exact, terminal distribution SDC 43 / MASKED 12 / HANG_WATCHDOG 5, and the required causal witnesses present for all 60 rows.
-
-However, the **Ready package/provenance closure layer is not consistent with its own artifacts**, and several acceptance-report claims are contradicted by per-run metadata:
-
-- the packaged `Config` SHA is the **pre-correction** config, not the one the final runs used;
-- the "retained" pre-correction binary `gem5.opt.v333-685d88f7` is **the final binary** (same inode), i.e. the 685d binary is not actually preserved;
-- the report's "Config Freeze = YES" is contradicted by 105/120 run manifests (`warmup`/`roi` = `NEEDS_RESEARCHER_CONFIRMATION`), by the workbook (`ConfigFrozen=NO` for 60 rows; `PENDING` in Binary_Config; `Final = NOT_STARTED` in the Readiness_Gate summary), and by the authoritative `Final_Readiness.csv`;
-- "60/60 TraceCompleteness=COMPLETE" is contradicted by `LSU_60Context_Final_Readiness.csv`, which says **50 COMPLETE / 10 PARTIAL** (A03 faults + RP01 faults have no `trace_v31.jsonl`);
-- the Master Defect Ledger is **40/47 OPEN + 1 OPEN_AWAITING_RESEARCHER + 6 VERIFIED_V333**, unreconciled with the final artifacts;
-- the package is not assembled (no zip, no SHA sidecar) and 1 of the 14 required items is missing.
-
-Verdict: **PARTIALLY_READY** (see §9). The data are usable for the formal experiment; the gate/provenance/Excel/package closure is not.
+> ## `READY_FOR_FORMAL_EXPERIMENT`
+>
+> The blocking defect **F-05 is genuinely fixed** in every place the F2 audit named (tool source, top-level causal CSV, workbook `Causal_Propagation` sheet, workbook `Fault_Sample_Manifest`, ROI mapping) and the fix is committed at `135ebcfe`. Residuals **R-02** and **R-03** are cleared. **R-05** is confirmed as a pre-existing, out-of-scope v3.3.2 packaging artifact. **R-04 is substantially cleared but one stale wording instance remains** (Ready-Gate table line 163: "55 COMPLETE_PROP_TRACE") — a LOW documentation nit, not a data defect, and it does not contradict the corrected breakdown given in the headline table and Q4. All core data gates re-derive exactly. The 14 package items are present on disk (two under `build/`/`reports/` rather than the exact top-level paths named by the plan); only the zip itself is not built.
+>
+> Two LOW provenance notes are worth committing before zipping (see §6): the `LSU_60Context_Final_Readiness_Matrix.csv` label fix is present in the worktree but **not** in HEAD `135ebcfe`, and `LSU_Independent_Acceptance.md` is referenced by the acceptance report but exists only as `reports/Agent_F_Final_Independent_Acceptance.md`.
 
 ---
 
-## 1. Ready-Gate table (per the ten required checks)
+## 1. F-05 — stale A01/A03 ROI in the causal table — **PASS (fixed)**
 
-| # | Ready-Gate item | Result | One-line basis |
-|---|---|---|---|
-| 1 | Binary / provenance | **FAIL** | binary SHA, src-diff empty, 0 build errors, identical warning classes, 9/9 ELF SHAs all PASS; but packaged config SHA is stale and the 685d backup is not 685d. |
-| 2 | Run set (120; 60/60 injection; 60/60 zero; proofs) | **PASS** | recomputed from 120 `summary.json`. |
-| 3 | ROI arithmetic (60/60; A01 585–713/129; A03 1040–1222/183) | **PASS** | 0 arithmetic failures in the authoritative mapping and in every `command.txt`; A01/A03 windows/ordinals exact. |
-| 4 | Context distinctness | **PASS** | 5/5 unique within every model; SQ01≡SQ03 cross-model shared workload (stated §4). |
-| 5 | Causal chain (60 rows; witnesses; MASKED mechanism; COMPLETE not structural) | **PARTIAL** | all 60 have injection/activation/divergence/commit-squash-replay-hang/oracle; 12/12 MASKED have a mechanism; **but** the "60/60 COMPLETE" claim is false — 10 rows are PARTIAL in the authoritative readiness table. |
-| 6 | Terminal honesty | **PASS** | A03=SDC/POST_ORACLE_SIM_HANG + checksum; RP01=HANG_WATCHDOG + internal watchdog + target ordinal; SP05 `store_data_fnv` non-null; no UNRESOLVED/TRACE_INCOMPLETE masquerade. |
-| 7 | Fault-control pairing | **PASS** | same seed/ELF/config/ordinal; command diff is only the fault switch (p=1.0→0.0, or injector mount omitted). |
-| 8 | Identity / Excel | **PARTIAL** | 8 sheets, 60 manifest rows, 60/60 authoritative SampleRunID/Seed, 0 blank critical fields, 30 `OVERRIDE_APPROVED` all PASS; but workbook internal contradictions (ConfigFrozen/gate summary/stale ROI fields). |
-| 9 | Regression | **PASS** | captured 232 passed + 121 passed; dry-run 120 commands; build 0 errors; warning classes identical to v3.3.2. |
-| 10 | Package readiness | **FAIL** | 12/14 items present; `LSU_Independent_Acceptance.md` missing; zip + SHA sidecar not built; 15 runs have no `trace_v31.jsonl`. |
+The stale tuple is gone from the tool source and every artifact.
+
+```text
+$ grep -nE '"A01"|"A03"' tools/lsu_v333_propagation.py
+55:    "A01": (585, 713, 129, [597, 623, 649, 675, 701]),
+56:    "A03": (1040, 1222, 183, [1058, 1094, 1131, 1168, 1204]),
+
+$ grep -E '^(A01|A03),' audit_v3_3_3/LSU_60Context_Causal_Propagation.csv | cut -c1-55
+A01,R01,ROI=585-713;N=129;p=0.10;ordinal=597,...
+...
+A03,R05,ROI=1040-1222;N=183;p=0.90;ordinal=1204,...
+
+$ grep -cE '1040-1234|N=195' audit_v3_3_3/LSU_60Context_Causal_Propagation.csv
+0
+
+$ grep -cE '1040-1234|N=195' audit_v3_3_3/LSU_60Context_Final_Readiness.csv \
+      audit_v3_3_3/LSU_60Context_Final_Readiness_Matrix.csv \
+      audit_v3_3_3/LSU_Fault_Control_Audit.csv
+0 / 0 / 0
+```
+
+Workbook, read-only via openpyxl — whole-workbook cell scan for `1040-1234`/`N=195`: **NONE**. `Causal_Propagation` rows 2–11:
+
+```text
+A01 R01 | ROI=585-713;N=129;p=0.10;ordinal=597
+A01 R02 | ROI=585-713;N=129;p=0.30;ordinal=623
+A01 R03 | ROI=585-713;N=129;p=0.50;ordinal=649
+A01 R04 | ROI=585-713;N=129;p=0.70;ordinal=675
+A01 R05 | ROI=585-713;N=129;p=0.90;ordinal=701
+A03 R01 | ROI=1040-1222;N=183;p=0.10;ordinal=1058
+A03 R02 | ROI=1040-1222;N=183;p=0.30;ordinal=1094
+A03 R03 | ROI=1040-1222;N=183;p=0.50;ordinal=1131
+A03 R04 | ROI=1040-1222;N=183;p=0.70;ordinal=1168
+A03 R05 | ROI=1040-1222;N=183;p=0.90;ordinal=1204
+```
+
+`Fault_Sample_Manifest` A01/A03 rows carry `ROI_Start/ROI_N = 585/129` and `1040/183` with `Executed_EventOrdinal` `597…701` / `1058…1204`; `ROI_Context_Mapping` carries the same. All ten rows satisfy `ordinal = start + ceil(p·N) − 1`:
+
+```text
+585+ceil(0.10*129)-1=597 … 585+ceil(0.90*129)-1=701
+1040+ceil(0.10*183)-1=1058 … 1040+ceil(0.90*183)-1=1204
+```
+
+Full 60-row arithmetic recomputation: **0 failures**; **0 stale A01/A03 rows**. The committed HEAD blob `135ebcfe:audit_v3_3_3/LSU_60Context_Causal_Propagation.csv` also reads `585-713;N=129` / `1040-1222;N=183` (0 stale strings).
 
 ---
 
-## 2. Check 1 — binary / provenance
-
-### 2.1 PASS sub-checks (real commands/output)
+## 2. R-02 — stale 685d smoke CSVs — **PASS (cleared)**
 
 ```text
-$ sha256sum build/ARM/gem5.opt
-1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338  build/ARM/gem5.opt
+$ ls audit_v3_3_3/controls/
+LSU_Fault_Control_Pair_FINAL.csv
+LSU_Fault_Control_Pair_RAW_685d88f7.csv      # clearly labelled pre-correction archive
+LSU_Fault_Control_Pair_RAW.csv
 
-$ git cat-file -t b5031bf7 && git log --oneline b5031bf7..HEAD
-commit
-df7f86ed [LSU][V3.3.3][RESULTS] final 120-pair matrix, workbook and acceptance evidence
-
-$ git diff --stat b5031bf7..HEAD -- CHAOS/gem5/src     # (empty)
-$ git diff --stat HEAD -- CHAOS/gem5/src               # (empty)
+$ find audit_v3_3_3 -iname 'smoke*'
+audit_v3_3_3/correction_smoke/…              # only the legitimate A01-R03 correction smoke
 ```
 
-`audit_v3_3_3/build/v333_build2.log`: `scons: done building targets.` (line 1157), `error:` count **0**. Warning-class comparison against `/tmp/v332_build2.log`:
+`controls/smoke.csv` and `controls/smoke_a03.csv` are gone. The surviving `correction_smoke/smoke.csv` contains **no** `685d88f7` rows and points at the final binary:
 
 ```text
-v332 warning classes: 4 | v333: 4
-NEW in v333: (none)
-GONE in v333: (none)
-  classes: HDF5 missing / capstone missing / png missing / systemc architecture
+A01,R03,fault,649,…1,False,SDC,…1126e0fd…,audit_v3_3_3/correction_smoke/A01-R03-fault
+A01,R03,control,649,…0,True,UNRESOLVED,…1126e0fd…,audit_v3_3_3/correction_smoke/A01-R03-control
 ```
 
-All nine workload ELF SHAs recorded in `build/PROVENANCE.md` match the on-disk bytes (agu_addrmodes, fw05_forward, sq_reload_v3212, alignment, load_response, lq_lifetime_ordinal, sq_forward_w4v2, replay_partial_v332, md04_violations_v332 — 9/9 OK).
+---
 
-Note on HEAD: the live worktree HEAD is `df7f86ed`, one results commit *after* the source HEAD `b5031bf7`. That commit touches only results + `tools/lsu_v333_oracle_audit.py` + 3 test assertions + the plan doc; `git diff --stat b5031bf7..HEAD -- CHAOS/gem5/src` is empty, so the built source is `b5031bf7`. This is acceptable.
+## 3. R-03 — workbook Readiness_Gate PENDING labels — **PASS (cleared)**
 
-### 2.2 FAIL sub-checks
-
-**(a) Packaged config SHA is the pre-correction config.**
-
-`audit_v3_3_3/LSU_Final_Binary_Provenance.md:22` and `build/PROVENANCE.md:22` record:
+Read-only openpyxl scan of `Readiness_Gate` (71 rows): **no `PENDING` anywhere**. Bottom summary block now:
 
 ```text
-| Config | configs/se/lsu_proxy.py SHA256 7fd7e12ded42c319d6e33b14b9df4c0505b65cf9c89219e34bc1197fce3e2a72 |
+FaultInjected    | fault run has an injection artifact                          | ENFORCED
+ControlClean     | control run injected 0 and oracle PASS                         | ENFORCED
+TerminalEvidence | terminal measured by the causal generator                      | ENFORCED
+TraceComplete    | COMPLETE / COMPLETE_PROP_TRACE; PARTIAL_WATCHDOG only for HANG  | ENFORCED
+Provenance       | gem5 binary SHA and evidence path recorded                     | ENFORCED
+Final            | READY_FOR_FORMAL_EXPERIMENT only when every row passes         | PASS (v3.3.3 final; independent audit separate)
 ```
 
-Actual file at `b5031bf7`, at `HEAD`, and in the working tree:
+Per-row `ReadyGate` = **PASS 60 / 60** (9 trailing non-row cells are blank/summary and excluded). Each row `FaultInjected=YES`, `ControlClean=YES`, `TerminalEvidence=MEASURED`.
+
+---
+
+## 4. R-04 — trace-completeness wording — **PARTIAL (core fixed; one stale instance remains)**
+
+The headline evidence table and Q4 now state the literal split correctly:
 
 ```text
-$ git show b5031bf7:configs/se/lsu_proxy.py | sha256sum
-8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225  -
-$ sha256sum configs/se/lsu_proxy.py
-8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225  configs/se/lsu_proxy.py
+LSU_v3.3.3_Final_Acceptance_Report.md:53  | Causal rows | 60/60 closed: 50 `COMPLETE` + 5 `COMPLETE_PROP_TRACE` (A03) + 5 `PARTIAL_WATCHDOG` (RP01 HANG) |
+LSU_v3.3.3_Final_Acceptance_Report.md:109 4. … Yes, 60/60 closed: 50 `COMPLETE` + 5 `COMPLETE_PROP_TRACE` (A03) + 5 `PARTIAL_WATCHDOG` (RP01 HANG) …
 ```
 
-The recorded `7fd7e12d…` is exactly the `gem5.config_script_sha256` in the **pre-correction** `runs_685d88f7/*/manifest.json`; the final 120 runs correctly record `8309da72…`:
-
 ```text
-$ (recompute) FINAL runs manifest gem5.config_script_sha256 -> {8309da72…: 105, None: 15}
-              runs_685d88f7 manifest config_script_sha256     -> {7fd7e12d…: 120}
+$ grep -n '55' audit_v3_3_3/LSU_v3.3.3_Final_Acceptance_Report.md
+145:| F-04 trace overclaim | … causal is 55+5, not 60 `COMPLETE` |
+163:| Propagation | 60/60 closed (55 COMPLETE_PROP_TRACE + 5 PARTIAL_WATCHDOG accepted for HANG) |
 ```
 
-=> The required deliverable `LSU_Final_Binary_Provenance.md` states the wrong config identity. The matrix artifacts themselves are correct; the packaged provenance is stale.
+**Residual:** the Ready-Gate row (line 163) still reads `55 COMPLETE_PROP_TRACE`, which mislabels the 50 `COMPLETE` rows as `COMPLETE_PROP_TRACE` (only A03's 5 are). Line 145's "55+5" is arithmetically correct as a *count*. This is a documentation wording nit; the corrected breakdown appears verbatim twice in the same report, and every data artifact (`Final_Readiness.csv`, `Final_Readiness_Matrix.csv` worktree copy, causal CSV, workbook) carries `{COMPLETE:50, COMPLETE_PROP_TRACE:5, PARTIAL_WATCHDOG:5}`. **Non-blocking**, but the exact string the task asked to eliminate survives at line 163 and should be edited to "50 COMPLETE + 5 COMPLETE_PROP_TRACE + 5 PARTIAL_WATCHDOG".
 
-**(b) The "retained" pre-correction binary is the final binary.**
+Artifact-level check (all consistent):
 
 ```text
-$ sha256sum audit_v3_3_3/binary/gem5.opt.v333-1126e0fd \
-            audit_v3_3_3/binary/gem5.opt.v333-685d88f7 \
-            build/ARM/gem5.opt
-1126e0fd…  audit_v3_3_3/binary/gem5.opt.v333-1126e0fd
-1126e0fd…  audit_v3_3_3/binary/gem5.opt.v333-685d88f7
+LSU_60Context_Final_Readiness.csv        {COMPLETE:50, COMPLETE_PROP_TRACE:5, PARTIAL_WATCHDOG:5}
+LSU_60Context_Final_Readiness_Matrix.csv {COMPLETE:50, COMPLETE_PROP_TRACE:5, PARTIAL_WATCHDOG:5}   (worktree)
+LSU_60Context_Causal_Propagation.csv     {COMPLETE:50, COMPLETE_PROP_TRACE:5, PARTIAL_WATCHDOG:5}
+Workbook Fault_Sample_Manifest           {COMPLETE:50, COMPLETE_PROP_TRACE:5, PARTIAL_WATCHDOG:5}
+```
+
+---
+
+## 5. R-05 — `audit_v3_3_2` hardlink — **CONFIRMED (historical, out of v3.3.3 scope)**
+
+```text
+$ stat -c '%i %h %n' build/ARM/gem5.opt audit_v3_3_3/binary/gem5.opt.v333-1126e0fd audit_v3_3_2/binary/gem5.opt.v332-070d68a6
+7341432 3 build/ARM/gem5.opt
+7341432 3 audit_v3_3_3/binary/gem5.opt.v333-1126e0fd
+7341432 3 audit_v3_3_2/binary/gem5.opt.v332-070d68a6
+
+$ sha256sum build/ARM/gem5.opt audit_v3_3_3/binary/gem5.opt.v333-1126e0fd audit_v3_3_2/binary/gem5.opt.v332-070d68a6
 1126e0fd…  build/ARM/gem5.opt
-
-$ stat -c '%i %h %n' build/ARM/gem5.opt audit_v3_3_3/binary/gem5.opt.v333-1126e0fd audit_v3_3_3/binary/gem5.opt.v333-685d88f7
-7341432 4 build/ARM/gem5.opt
-7341432 4 audit_v3_3_3/binary/gem5.opt.v333-1126e0fd
-7341432 4 audit_v3_3_3/binary/gem5.opt.v333-685d88f7
+1126e0fd…  audit_v3_3_3/binary/gem5.opt.v333-1126e0fd
+1126e0fd…  audit_v3_3_2/binary/gem5.opt.v332-070d68a6
 ```
 
-All three names are the same inode (hardlink). `PROVENANCE.md` §6 ("the pre-correction `gem5.opt.v333-685d88f7` is retained as history") is therefore false: the rebuild wrote the binary **in place**, so the 685d byte image is gone. (`audit_v3_3_3/binary/SHA256.txt` also lists only the 1126e0fd file.) The archived `runs_685d88f7/` data are intact (120 summaries, all SHA `685d88f7…`) and are **not mixed** with the final runs, but they can no longer be reproduced from a preserved binary.
-
-**(c) Mixed-binary row inside the "on this binary" verification table.**
-
-`build/PROVENANCE.md:49` / `LSU_Final_Binary_Provenance.md:49` ("Pre-matrix verification **on this binary**") cite:
-
-```text
-A03-R01 fault | A03_WATCHDOG_EXPIRED at tick 400,963,640; ... activation ordinal 1059, first affected 1060; final checksum 32a11657db750fc1
-```
-
-but `audit_v3_3_3/controls/smoke_a03.csv` shows that row was produced by the **685d88f7** binary at the **old ordinal 1059**:
-
-```text
-A03,R01,fault,1059,…,checksum 32a11657db750fc1,…,binary_sha 685d88f77324d8ba…
-```
-
-The final archived run is `1126e0fd`, ordinal 1058, checksum `1cf7a5a9f11dab7e` (`A03-R01-fault/summary.json`, `oracle.log`). So the verification table mixes a pre-correction smoke value into a table titled as final-binary evidence.
+The v3.3.2 package's "760d68a6-preserved" file is a third hardlink to the final inode and now hashes `1126e0fd`. It is pre-existing, untracked, and referenced by no v3.3.3 deliverable. **It does not affect the final v3.3.3 binary SHA** (`build/ARM/gem5.opt` = `1126e0fd…`, matching `audit_v3_3_3/binary/SHA256.txt` and all 120 summaries). Recorded as a historical v3.3.2 packaging note only.
 
 ---
 
-## 3. Check 2 — run set
+## 6. Core gates recomputed from raw artifacts
 
-Recomputed from `audit_v3_3_3/runs/*/summary.json`:
-
-```text
-total dirs 120  fault 60  control 60
-missing summary: 0
-bad SHA: 0
-fault injection<=0: 0
-control injection!=0: 0
-fault terminals: {'SDC': 43, 'MASKED': 12, 'HANG_WATCHDOG': 5}
-control terminals: {'UNRESOLVED': 55, 'MASKED': 5}
-control oracle not True: 0
-control_proof counts: {'MOUNTED_BUT_DISABLED': 35, 'INJECTOR_ABSENT': 25}
-proof inconsistencies (p!=0 for MOUNTED_BUT_DISABLED, mounts present for INJECTOR_ABSENT): 0
-```
-
-Per-model control proof: A01/A03/FW05/LP01/SP05/SQ01/SQ03 = 5 `MOUNTED_BUT_DISABLED`; DA04/FW02/LQ04/MD04/RP01 = 5 `INJECTOR_ABSENT`. Exactly the claimed 35/25 with 0 `SUPPRESSED`.
-
-Zero-proof is a real artifact, not a label: e.g. `A01-R01-control/stdout.log` shows `CHAOS_LSU_TRIGGER … injected=0` and `CHAOS_L0_DECLINE … trigger_injected=0`; `oracle.log` = `expected=728e604ffcec539d got=728e604ffcec539d / ORACLE_PASS`. All 60 control `oracle.log` contain `ORACLE_PASS` (0 non-PASS).
-
-**Result: PASS.**
-
----
-
-## 4. Check 3 — ROI arithmetic
-
-Authoritative source `audit_v3_3_3/roi/LSU_60Context_ROI_Percentile_Mapping.csv`; recomputed in Python for all 60 rows:
-
-```text
-ROI arithmetic failures: 0
-  (N == end-start+1) and (k == ceil(p*N)) and (abs == start+k-1)
-  AND summary.json ordinal == abs  AND summary.json seed == CSV Seed
-command.txt ordinal mismatches (with correct per-model flag): 0
-```
-
-A01: `585–713`, N=129 → 597/623/649/675/701 (`585+ceil(0.1·129)−1=597`, …) — matches the brief exactly. A03: `1040–1222`, N=183 → 1058/1094/1131/1168/1204 — matches the brief exactly. `A01_8B/CENSUS.md` independently records 817 eligible 8-byte events, first main event 585, last 713, and the five ordinals; the A01 fault `pilot_meta.injection.eligible=817`.
-
-`command.txt` spot-checks: A01 `--addrpath_event_ordinal 597`; A03 `--addrpath_event_ordinal 1058`; DA04 `--lsqfwd_event_ordinal 135`; MD04 `--md04_event_ordinal 3`; SP05 `--sp05_event_ordinal 952`; LP01 `--l1dfwd_event_ordinal 2549`; LQ04 `--lq04_event_ordinal 1`; RP01 `--rp01_event_ordinal 26`.
-
-**Result: PASS** (arithmetic and executed ordinals). See finding F-05 for stale ROI *labels* elsewhere.
-
----
-
-## 5. Check 4 — context distinctness
-
-`roi/LSU_60Context_Distinctness_Audit.csv`, 60 rows, all `DistinctFromOtherContexts=YES`; recomputed per model: every model has 5/5 unique identity tuples. Example identities: A01 `seq=12909;pc=400578;…;lq=756`; RP01 skip-replay record with `load_seq=16293 … lq_gen=1283`; A03 activation `tick=15958635;bit=3`.
-
-**Cross-model shared-workload fact (explicit):** SQ01 and SQ03 use the same workload `sq_reload_v3212` and the **same five dynamic stores** (`seq=13328;pc=40053c;addr=0x4919f0`, …, R05 `seq=20435`). Their 5 identities are byte-identical to each other. This is legitimate (different fault models on the same dynamic event) but the two models are **not globally distinct**; distinctness holds only within each model. (This is also recorded as ledger L-C09.)
-
-**Result: PASS** (within-model 5/5), with the cross-model caveat stated.
-
----
-
-## 6. Check 5 — causal chain
-
-`LSU_60Context_Causal_Propagation.csv` (16 columns, 60 rows) recomputed against each raw `summary.json`:
-
-```text
-Terminal dist: {'SDC': 43, 'MASKED': 12, 'HANG_WATCHDOG': 5}
-Oracle        : {'FAIL': 43, 'PASS': 12, 'NO_CHECKSUM': 5}
-TraceCompleteness: {'COMPLETE': 60}      <-- claim in the CSV / workbook / report
-```
-
-All 60 rows carry injection, activation, first divergence, commit/squash/replay/hang and oracle/terminal. Concrete witnesses:
-
-- **A01-R01**: `Injection seq=12909;pc=400578;…;lq=756`; `Activation a01_ea;ordinal=597`; `Downstream consumer_commit=394;first=consumer_commit@seq12911`; `Consumer consumer_commit;seq=12911`; `CommitSquashReplay commit;commit_seq=6169`; `Terminal SDC / ORACLE_FAIL`. Raw `summary.json` chain: `injection,address_formed,memory_request,memory_response,register_writeback,consumer_commit,errant_commit`, `missing_stages: []`, `chain_integrity: PASS`.
-- **MASKED 12/12 have a mechanism** (no blank): FW02-R03 `SUPPRESSED_FORWARD_NORMAL_VALUE`; SQ03-R01/R03/R04/R05 `VISIBILITY_TIMING_SHIFT:DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER`; SQ03-R02 `VISIBILITY_TIMING_SHIFT:LIFECYCLE_ONLY` (the 4/5 + 1/5 split); MD04-R01 `INERT_AFTER_COMPLETION;no_wrong_value_produced`; LQ04-R01..R05 `ENTRY_INVALIDATED_RESTORED;data_unchanged=1;no_pop=1;no_reuse=1`.
-- **RP01-R01..R05**: `HANG_WATCHDOG / INTERNAL_WATCHDOG_DEADLINE`; target ordinal present (26/77/128/179/230); `CommitSquashReplay watchdog_expired; src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc:627: fatal: CHAOS_RP01_WATCHDOG_EXPIRED tick=7700000000 injected=1 eligible=26`; `summary.rp01.watchdog=true, deadline_cycles=20000000, no_checksum=true`.
-- **SQ03-R02** is the lifecycle-only 1/5: `effect_outcome=LIFECYCLE_ONLY;no_downstream_effect;not_sdc`, oracle PASS.
-- **A01-R03** (brief's specific demand): `addrpath_injections.log` has `register_writeback` chain and the trace contains **1** `register_writeback` record and **0** `a01_ea_discarded` records; `pilot_meta.target_event_proof={site: lsq_pushRequest_PRE, events: 1, all_load_bit3: True}`. `CHAOS_L0_DECLINE … pre_retry_skipped=22`.
-
-**Problem with the "COMPLETE" label (part of this gate).** The authoritative `LSU_60Context_Final_Readiness.csv` reports:
-
-```text
-Trace: {'COMPLETE': 50, 'PARTIAL': 10}
-PARTIAL rows: A03-R01..R05, RP01-R01..R05
-```
-
-and the `propagation/LSU_60Context_Causal_Propagation_Final.csv` also marks those 10 `PARTIAL`. The reason is verifiable: these 15 run dirs (A03 faults + RP01 fault & control) have **no `trace_v31.jsonl`**:
-
-```text
-trace_v31.jsonl missing in 15 runs: A03-R01..R05-fault, RP01-R01..R05-{fault,control}
-A03-R01-fault/pilot_meta.json: "trace": null
-RP01-R01-fault/pilot_meta.json: "trace": null
-```
-
-The top-level CSV, the workbook `Causal_Propagation` sheet, and the acceptance report all say `COMPLETE` 60/60. That promotion is not backed by the v31 trace validator for 10 rows (A03/RP01 are terminal-witness evidence — legitimate for those models, but not "COMPLETE" by the v31 criterion). The acceptance report's "Causal rows 60/60, TraceCompleteness=COMPLETE" is therefore **overstated**; the honest value is **50 COMPLETE / 10 PARTIAL**.
-
-**Result: PARTIAL** — witnesses PASS, the 60/60 COMPLETE claim FAIL.
-
----
-
-## 7. Check 6 — terminal honesty
-
-| Model | Expected | Observed (raw) | Verdict |
-|---|---|---|---|
-| A03 5/5 | SDC + POST_ORACLE_SIM_HANG + checksum | `summary.terminal=SDC`, `terminal_qualifier=POST_ORACLE_SIM_HANG`, `terminal_reason=ORACLE_FAIL`, `checksum` present (R01=`1cf7a5a9f11dab7e` ≠ golden `728e604ffcec539d`), `exit_code=1`, `timed_out=false`, `a03.watchdog_expired=true`, lifecycle emitted, `gzip -t prop_trace.csv.gz` OK | PASS |
-| RP01 5/5 | HANG_WATCHDOG, internal watchdog, target ordinal | `terminal=HANG_WATCHDOG`, `terminal_reason=INTERNAL_WATCHDOG_DEADLINE`, `watchdog=true`, `deadline_cycles=20000000`, `no_checksum=true`, target ordinal recorded, fatal line at `CHAOSLSQFwd.cc:627` | PASS |
-| SP05 | `store_data_fnv` non-null | `store_data_fnv=b6180e0c195fd2e9`, `store_data_hex=6d7b78717e6b7d7f`, `store_data_len=8`, `stage_outcome=CHAIN_VISIBILITY_LOST`, `sp05_write_skipped` node | PASS |
-| A01-R02 | (brief says SQUASHED/UNRELATED_SQUASH_NO_ARCH_ENTRY) | final run is **SDC** (`ORACLE_FAIL;committed_data_value_diverged`) with `register_writeback` + `errant_commit`; see F-11 — the brief's SQUASHED expectation is superseded by the approved A01 8-byte scope correction (L-A12) | internally consistent; brief stale |
-| no masquerade | no UNRESOLVED / TRACE_INCOMPLETE terminal | 0 rows with `UNRESOLVED`/`TRACE_INCOMPLETE` as fault terminal | PASS |
-
-**Result: PASS.** A03's exit path prints a Python `NotImplementedError: Exit event 'CHAOS_A03_WATCHDOG_EXPIRED' not implemented` traceback on stderr and returns `exit_code=1`; the watchdog still fires after the oracle and the checksum is captured, so the terminal is honest, but "terminates cleanly" is imprecise (F-09).
-
----
-
-## 8. Checks 7–10
-
-### 7. Fault-control pairing — **PASS**
-
-Recomputed token-level `command.txt` diff for all 60 pairs. The only differences are the fault switch:
-
-- `MOUNTED_BUT_DISABLED` (35): only `--probability 1.0 → 0.0` (A03 controls additionally drop `--addrpath_watchdog_cycles`, which is part of the fault harness, not the workload);
-- `INJECTOR_ABSENT` (25): the model mount and its model-specific flags are **omitted** from the control (e.g. `--chaos_lsqfwd --lsq_struct_mode … --lsqfwd_event_ordinal …` for DA04/FW02), plus `--probability 0.0`.
-
-`summary.json` pairing: 0 seed mismatches, 0 workload mismatches, 0 ordinal mismatches across 60 pairs. Expected goldens hold: e.g. RP01 control `f3b1c554273d23f7`, MD04 control `0x22be5ae3364d0c9f`, DA04 control `0x3f89eab79392ce69`.
-
-Gate-test re-evidence (`gate_tests_final/`): `MD04-p0.stdout` shows `[lsu_proxy] CHAOSMD04 probability=0.0 (global=0.0, override=None)` and `checksum=0x22be5ae3364d0c9f`; `DA04-p0.stdout` shows `injected=0` and `checksum=0x3f89eab79392ce69`. Consistent with the 35/25 matrix classification.
-
-### 8. Identity / Excel — **PARTIAL**
-
-Present and correct:
-
-```text
-sheets: ['Model_Design','Fault_Sample_Manifest','Control_Manifest','ROI_Context_Mapping',
-         'Causal_Propagation','Workload_Oracle','Binary_Config','Readiness_Gate']  (8)
-Fault_Sample_Manifest data rows: 60
-SampleRunID not in frozen 60_SAMPLE_MATRIX.csv: 0
-Seed mismatches vs frozen: 0
-blank critical fields (SampleRunID/Seed/binary SHA/ELF SHA/Oracle/ROI_Start/ROI_N/
-  EligibleEventOrdinal/TerminalState/TraceCompleteness/ExecutionStatus): 0
-WorkloadIdentityStatus x DecisionStatus: FORMAL 30 / OVERRIDE_APPROVED 30
-Control_Manifest: ControlInjected 0/60, ControlOracle PASS 60, zero proof 35/25
-Readiness_Gate per-row ReadyGate: PASS 60
-```
-
-Contradictions inside the same workbook (F-03, F-05):
-
-```text
-Fault_Sample_Manifest ConfigFrozen: {'NO': 60}
-Binary_Config ConfigFrozen: 'PENDING (freeze after Task-7 binary validation)' (×12), field block 'PENDING'
-Readiness_Gate bottom gate summary: FaultInjected/ControlClean/TerminalEvidence/TraceComplete/Provenance = PENDING; Final = NOT_STARTED
-Fault_Sample_Manifest ROI_Start/ROI_N for A01 & A03: 1040 / 195 (old design window) while EligibleEventOrdinal is 597/…/1058 (corrected)
-Causal_Propagation ROI string A01-R01: 'ROI=1040-1234;N=195;p=0.10;ordinal=597'
-```
-
-`ROI_Context_Mapping` is correct (A01 585/129, A03 1040/183). So the workbook has the right ROI in one sheet and the stale ROI in two others, and its own gate summary says `NOT_STARTED`.
-
-Also: `LSU_60Context_Final_Readiness.csv` marks the 30 candidate contexts `TECHNICALLY_READY_APPROVAL_PENDING` and their workbook `DecisionStatus` is `NEEDS_USER_DECISION`, even though the researcher approval record (`decisions/LSU_v3.3.3_Researcher_Approval.md`, decision #1) says all six candidates were **adopted**. `WorkloadIdentityStatus=OVERRIDE_APPROVED` (30) is present, so the brief's specific "30 candidate contexts carry OVERRIDE_APPROVED" is satisfied; the approval *status* columns are stale (F-08).
-
-**Result: PARTIAL** — the enumerated identity criteria pass; internal workbook consistency does not.
-
-### 9. Regression — **PASS**
-
-```text
-audit_v3_3_3/build/pytest_final.log:           232 passed in 142.68s
-audit_v3_3_3/build/platform_pytest_final.log:  121 passed in 4.67s
-audit_v3_3_3/build/dry_run_final.log:          "dry-run: 120 commands; no run dirs written" (grep count = 120)
-build logs:                                    0 "error:"; warning classes identical to /tmp/v332_build2.log
-```
-
-The two updated-tests check: the commits after `b5031bf7` update only three assertions (A03 watchdog `1e9→1e6`, report out-dir `audit_v3_3_2→audit_v3_3_3`, gem5 SHA `070d…→1126…`) — all justified by the final binary. The brief's named tests exist and are included in the 232: `tests/test_lsu_v333_control.py:270 test_a01_ea_discarded_is_injection_not_activated`, `tests/test_lsu_12model_closure.py:1666 test_a01_discard_context_grades_injection_not_activated`, `tests/test_lsu_v333_control.py:320 test_planned_rp01_and_a03_commands` (RP01 is in `MODELS` in both `tools/lsu_v332_report.py:35` and `tools/lsu_v333_propagation.py:48`).
-
-Caveat: `pytest_final.log` is a 4-line summary (not a verbose capture); it is consistent with 232 passed but is prose-level, not a full transcript (ledger L-D12).
-
-### 10. Package readiness — **FAIL**
-
-The 14 items from `docs/superpowers/plans/2026-11-12-lsu-v333-final-closure.md` ("Task 9 / Step 4"):
-
-| # | Item | Status |
+| Gate | Result | Recomputed evidence |
 |---|---|---|
-| 1 | Final_Acceptance_Report | present |
-| 2 | Master_Defect_Ledger | present (but stale — F-07) |
-| 3 | Consolidated_Repair_Plan | present |
-| 4 | Researcher_Decision_Packet (+ decisions/) | present |
-| 5 | workbook | present |
-| 6 | 60Context_Final_Readiness | present (50/10 trace split) |
-| 7 | Causal_Propagation | present |
-| 8 | Fault_Control_Final_Audit | present (byte-identical to controls/FINAL) |
-| 9 | Workload_Oracle_Audit | present |
-| 10 | Final_Binary_Provenance | present (wrong config SHA — F-01) |
-| 11 | Final_Source_Diff.patch | present (26 files, includes configs/se/lsu_proxy.py) |
-| 12 | Independent_Acceptance | **MISSING** (`audit_v3_3_3/LSU_Independent_Acceptance.md` absent; this report is under `reports/`) |
-| 13 | raw pilot traces/logs/oracles/tests | present, **but 15 runs have no `trace_v31.jsonl`** |
-| 14 | exact commands and runner config | present (`RUNBOOK.md`, per-run `command.txt`/`pilot_meta.json`) |
+| Run set | **PASS** | 120 run dirs; 120 `summary.json`; 60 fault + 60 control |
+| One binary | **PASS** | `{1126e0fd…: 120}`, zero other SHAs |
+| Fault injection | **PASS** | 60/60 fault `injection_count > 0` |
+| Control zero | **PASS** | 60/60 control `injection_count == 0`; 60/60 `oracle = True` |
+| Control proofs | **PASS** | 35 `MOUNTED_BUT_DISABLED` / 25 `INJECTOR_ABSENT` / 0 `SUPPRESSED` |
+| Fault terminals | **PASS** | SDC 43 / MASKED 12 / HANG_WATCHDOG 5 |
+| Control terminals | **PASS** | UNRESOLVED 55 / MASKED 5 (no injection event) |
+| Pairing | **PASS** | 60 pairs; 0 seed mismatches; 0 ordinal mismatches |
+| ROI arithmetic | **PASS** | 60/60 `N=end−start+1`, `ordinal=start+ceil(p·N)−1`; 0 failures |
+| A01 window | **PASS** | 585–713 / N=129 / 597,623,649,675,701 |
+| A03 window | **PASS** | 1040–1222 / N=183 / 1058,1094,1131,1168,1204 |
+| Causal rows | **PASS** | 60 rows; 0 blank/`n/a` in Injection/Activation/FirstDivergence/Downstream/Consumer/CommitSquashReplay/Terminal/ApplicationOracle |
+| Oracle consistency | **PASS** | 43 FAIL (SDC) / 12 PASS (MASKED) / 5 NO_CHECKSUM (HANG); 0 mismatches |
+| MASKED mechanisms | **PASS** | 12/12 non-empty (FW02 ×1, SQ03 ×5, MD04 ×1, LQ04 ×5) |
+| A03 trace | **PASS** | 5/5 `COMPLETE_PROP_TRACE`; `prop_trace.csv.gz` `gzip -t` OK on all five |
+| RP01 HANG | **PASS** | 5/5 `HANG_WATCHDOG`; `target_ordinal=26/77/128/179/230`; checksum None |
+| Distinctness | **PASS** | 60/60 `DistinctFromOtherContexts=YES` within model |
+| Workbook | **PASS** | 8 sheets; 60 manifest rows; 60 unique `SampleRunID`; 60 unique `Seed`; 60/60 `Gem5BinarySHA256=1126e0fd…`; `ConfigFrozen=YES` ×60 |
+| Control_Manifest | **PASS** | 60 rows; `ControlInjected=0` ×60; zero-proof 35/25 |
+| Config provenance | **PASS** | `sha256sum configs/se/lsu_proxy.py = 8309da72…`; workbook `ConfigSHA256=8309da72…` all models |
+| Workload ELFs | **PASS** | 9/9 provenance SHAs match on-disk bytes (incl. the three under `workloads/directed/`) |
+| Regression | **PASS** | `pytest_final2.log` → **232 passed in 142.19s**; `pytest_final.log` → 232 passed; `platform_pytest_final.log` → **121 passed in 4.67s** |
+| Dry-run | **PASS** | `dry_run_final.log` → 120 `DRY-RUN` lines; "dry-run: 120 commands; no run dirs written" |
+| Source/binary | **PASS** | `git diff --stat b5031bf7 -- CHAOS/gem5/src` empty; worktree diff empty; `v333_build2.log` `error:` count 0, `scons: done building targets` present |
+| Gate-test evidence | **PASS** | `MD04-p0.stdout`: `CHAOSMD04 probability=0.0`, golden `0x22be5ae3364d0c9f`; `DA04-p0.stdout`: `injected=0`, golden `0x3f89eab79392ce69` |
+| Ledger reconciliation | **PASS** | 47 rows → 11 `VERIFIED_V333`, 32 `CLOSED_V333`, 3 `OPEN_NONBLOCKING` (L-A11, L-D11, L-D15), 1 `SUPERSEDED_BY-L-A12`; 0 blocking |
 
-Also missing for assembly: the zip `LSU_v3.3.3_Formal_Experiment_Ready_Package.zip` and its `.sha256` sidecar (prompt states the zip is not built yet; I confirm neither exists in the worktree root).
-
----
-
-## 9. Findings (severity + evidence)
-
-**F-01 — HIGH — packaged config SHA is the pre-correction config.**
-`audit_v3_3_3/LSU_Final_Binary_Provenance.md:22`, `audit_v3_3_3/build/PROVENANCE.md:22` record `7fd7e12d…`; actual `configs/se/lsu_proxy.py` at `b5031bf7`/`HEAD`/worktree = `8309da72…`; final-run manifests record `8309da72…`; `7fd7e12d…` belongs to `runs_685d88f7/*/manifest.json`. Fix: update both provenance files to `8309da72…`.
-
-**F-02 — HIGH — the "retained" pre-correction binary is the final binary.**
-`audit_v3_3_3/binary/gem5.opt.v333-685d88f7` = inode 7341432 (same as `build/ARM/gem5.opt`) = SHA `1126e0fd…`, not `685d88f7…`. `PROVENANCE.md:62` claim is false. The `runs_685d88f7/` archive (120 runs, all `685d88f7…`) is intact and not mixed, but is no longer reproducible from a preserved binary. Fix: re-materialize the true 685d88f7 binary from a build log/backup, or relabel the archive as "binary not preserved".
-
-**F-03 — HIGH — "Config Freeze = YES" is unsupported by every per-run artifact.**
-105/120 `manifest.json` have `warmup = roi = NEEDS_RESEARCHER_CONFIRMATION` (15 A03/RP01 manifests have `None`); 120 `pilot_meta.json` either say `TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)` (105) or omit the field (15). Workbook `Fault_Sample_Manifest.ConfigFrozen = NO ×60`; `Binary_Config.ConfigFrozen = PENDING`; `Readiness_Gate` summary `Final = NOT_STARTED`. The acceptance report's Ready-Gate row "Config Freeze | YES" has no supporting artifact. Fix: regenerate manifests/workbook after the freeze decision is recorded, or change the report to state the freeze is "definition approved, artifact not yet frozen".
-
-**F-04 — MEDIUM — trace-completeness overstatement (60/60 COMPLETE).**
-`LSU_60Context_Final_Readiness.csv` and `propagation/…_Final.csv` say 50 COMPLETE / 10 PARTIAL; the top-level CSV, workbook `Causal_Propagation`, and the report say 60 COMPLETE. Root cause: A03 faults + RP01 fault/control (15 dirs) have no `trace_v31.jsonl`; `pilot_meta.trace = null`. Fix: report 50/10 (or distinguish "v31-validated" vs "terminal-witness").
-
-**F-05 — MEDIUM — stale ROI fields in two workbook sheets.**
-`Fault_Sample_Manifest.ROI_Start/ROI_N` = 1040/195 for A01 and A03; `Causal_Propagation` ROI string = `1040-1234;N=195` for both. The approved values are A01 `585/129` and A03 `1040/183` (`ROI_Context_Mapping` is correct). The `ROI` text column simultaneously says "measured main-loop eligible window on the final binary", which is false for these 20 rows. Fix: propagate the corrected window into the manifest/causal sheets.
-
-**F-06 — MEDIUM — mixed-binary evidence in the "on this binary" verification table.**
-`PROVENANCE.md:49` / `LSU_Final_Binary_Provenance.md:49` cite the A03-R01 smoke from the **685d88f7** binary at ordinal 1059 (`controls/smoke_a03.csv`), not the final 1126e0fd run (ordinal 1058, checksum `1cf7a5a9f11dab7e`). The other rows (A01-R01, SP05-R01) do match the final runs. Fix: re-run the A03 smoke on 1126e0fd or label the row "pre-correction smoke".
-
-**F-07 — MEDIUM — Master Defect Ledger not reconciled.**
-`LSU_v3.3.3_Master_Defect_Ledger.csv` `FinalStatus`: `OPEN ×40`, `OPEN_AWAITING_RESEARCHER ×1` (L-A12), `VERIFIED_V333 ×6`. Several OPEN rows are demonstrably fixed in the final artifacts (L-D01: final controls are 35 mounted-p0 / 25 absent, not "INJECTOR_ABSENT for 35"; L-D02: final summaries carry seeds), while others remain true (L-C01: A03 has no `trace_v31.jsonl`; L-A07; L-A08 label now superseded). The acceptance report does not mention 40 OPEN rows. Fix: re-status each ledger row against the final evidence.
-
-**F-08 — LOW — approval-status columns stale.**
-30 candidate contexts are `WorkloadIdentityStatus=OVERRIDE_APPROVED` (correct) but `DecisionStatus=NEEDS_USER_DECISION` / `TECHNICALLY_READY_APPROVAL_PENDING`, while `decisions/LSU_v3.3.3_Researcher_Approval.md` adopts all six candidates. Fix: regenerate readiness/DecisionStatus.
-
-**F-09 — LOW — A03 exit path raises an unhandled exit event.**
-`A03-R01-fault/stderr.log`: `NotImplementedError: Exit event 'CHAOS_A03_WATCHDOG_EXPIRED' not implemented` (Python traceback, `exit_code=1`). The watchdog terminal and checksum are genuine; "terminates cleanly" should be softened or the exit event registered.
-
-**F-10 — LOW — A03 ROI window has no standalone census artifact.**
-The A01 correction ships `census/A01_8B/CENSUS.md` + logs; A03's `1040–1222/N=183` is asserted only in the CSV/PROVENANCE (the fault run's funnel is `eligible=52367`, the persistent F5 stream). Arithmetic is correct, but N=183 cannot be independently re-derived from an archived count-only run. Fix: archive the A03 count-only re-census alongside `A01_8B`.
-
-**F-11 — INFO — brief expectation superseded (no artifact defect).**
-The brief expects A01-R02 = SQUASHED/UNRELATED_SQUASH_NO_ARCH_ENTRY. After the approved L-A12 8-byte scope change, A01-R02's executed ordinal moved 1098→623 and the final run is a genuine **SDC** with `register_writeback` + `errant_commit` and oracle FAIL. The final data are internally consistent; ledger L-A08 (SQUASHED) is stale. A01-R03 meets the brief exactly (`register_writeback=1`, `a01_ea_discarded=0`).
-
-**F-12 — INFO — SQ01/SQ03 cross-model non-distinctness.**
-Both models use `sq_reload_v3212` and the identical five dynamic stores; distinctness holds only within a model. Ledger L-C09 records this. Legitimate for different fault models; should be stated whenever "60 distinct contexts" is claimed.
-
-**F-13 — INFO — two labels for RP01 oracle.**
-`RP01-*-fault/oracle.log` = `ORACLE_FAIL: no checksum line`; the summary has `oracle=false, no_checksum=true`; the CSV says `NO_CHECKSUM`. The `NO_CHECKSUM` label is the honest reading; note the raw log says FAIL.
-
-**F-14 — INFO — 15 runs bypass run_pilot.**
-A03 faults + all RP01 fault/control have `manifest.json` without the `gem5` block (binary/config SHA null) and no `pilot_meta.excel_identity`; the binary SHA is still present in `summary.json`. Evidence is complete via `summary.json`/prop logs, but not through the same manifest schema as the other 105.
+### Observation (not a defect)
+A03-R03's causal row reports `Activation;ordinal=1131` (configured/executed ordinal, matching summary/ROI) while its `Injection`/`FirstDivergence` witness is the first `affected=1` stream event, `event_ordinal=1150`. This is correct trace semantics: the stuck bit latches at 1131 (`A03_ACTIVATION`), and the first load whose EA actually changes is 1150 (`STUCK_APPLIED`). The generator binds `Injection` to the first `affected=1` line (`tools/lsu_v333_propagation.py:628-643`); the configured ordinal stays 1131. No gate is violated and the row is internally explained by its `reason=ALREADY_STUCK`/`STUCK_APPLIED` fields.
 
 ---
 
-## 10. Things I could not verify (n ≤ 1)
+## 7. Package readiness — 14 required items (plan Task 10, Step 4)
 
-- Build log ↔ binary byte lineage: I confirm `v333_build2.log` ends `scons: done building targets.`, 0 errors, and the runs report `gem5 compiled Nov 12 2026 10:45:35`; I did not rebuild.
-- `pytest` full transcript: only the 4-line summary is captured; the 232 pass count is quoted from it.
-- A03 N=183 re-census: no standalone artifact (F-10).
-- The true `685d88f7` binary: not preserved in the worktree (F-02).
+| # | Required item | Status | Location |
+|---|---|---|---|
+| 1 | Final Acceptance Report | PRESENT | `audit_v3_3_3/LSU_v3.3.3_Final_Acceptance_Report.md` |
+| 2 | Master Defect Ledger | PRESENT | `audit_v3_3_3/LSU_v3.3.3_Master_Defect_Ledger.csv` |
+| 3 | Consolidated Repair Plan | PRESENT | `audit_v3_3_3/LSU_v3.3.3_Consolidated_Repair_Plan.md` |
+| 4 | Researcher Decision Packet (+ approval) | PRESENT | `…_Researcher_Decision_Packet.md`; `decisions/LSU_v3.3.3_Researcher_Approval.md` |
+| 5 | Workbook | PRESENT | `audit_v3_3_3/gem5-fi-LSU-Formal-Experiment-Design-v3.3.3.xlsx` |
+| 6 | 60Context Final Readiness | PRESENT | `LSU_60Context_Final_Readiness.csv` (and `_Matrix.csv`) |
+| 7 | Causal Propagation | PRESENT | `LSU_60Context_Causal_Propagation.csv` (+ `propagation/…_Final.csv`) |
+| 8 | Fault Control Final Audit | PRESENT | `LSU_Fault_Control_Final_Audit.csv` (== `controls/…_FINAL.csv`) |
+| 9 | Workload Oracle Audit | PRESENT | `LSU_12Model_Workload_Oracle_Audit.csv` |
+| 10 | Final Binary Provenance | PRESENT | `LSU_Final_Binary_Provenance.md` (== `build/PROVENANCE.md`) |
+| 11 | Final Source Diff patch | PRESENT (under `build/`) | `audit_v3_3_3/build/LSU_Final_Source_Diff.patch` |
+| 12 | Independent Acceptance | PRESENT as `reports/…` | `reports/Agent_F_Final_Independent_Acceptance.md` (top-level `LSU_Independent_Acceptance.md` alias absent) |
+| 13 | Raw pilot traces/logs/oracles/tests | PRESENT | `runs/` (120 × ~13 files), `runs_685d88f7/`, `gate_tests_final/`, `census/`, `correction_smoke/` |
+| 14 | Exact commands and runner config | PRESENT | `build/RUNBOOK.md`, `runs/*/command.txt`, `config.json`, `dry_run_final.log` |
+| — | Zip + sidecar | **NOT BUILT** (expected) | no `LSU_v3.3.3_*.zip` yet |
+
+No required item is missing in substance. Items 11 and 12 live under `build/` and `reports/` rather than the exact top-level paths named in the plan/acceptance report; item 12's referenced filename `LSU_Independent_Acceptance.md` does not exist as an alias. Note these before zipping.
 
 ---
 
-## 11. Final verdict
+## 8. Remaining findings
 
-**`PARTIALLY_READY`**
+- **R-04-residual — LOW (non-blocking, documentation).** `LSU_v3.3.3_Final_Acceptance_Report.md:163` still reads "55 COMPLETE_PROP_TRACE" (and line 145 says "55+5"). Correct breakdown (50 `COMPLETE` + 5 `COMPLETE_PROP_TRACE` + 5 `PARTIAL_WATCHDOG`) already appears at lines 53 and 109–110 and in every data artifact. Fix: reword line 163.
+- **P-01 — LOW (provenance/commit hygiene).** `audit_v3_3_3/LSU_60Context_Final_Readiness_Matrix.csv` is modified in the worktree (corrected `COMPLETE_PROP_TRACE`/`PARTIAL_WATCHDOG` labels) but **not committed**; HEAD `135ebcfe` still has the stale `{COMPLETE:50, PARTIAL:10}` split for that file. The top-level `LSU_60Context_Final_Readiness.csv` at HEAD is already correct, so the primary deliverable is fine. Commit the Matrix fix before zipping so git matches the package.
+- **P-02 — INFO.** Acceptance report §4 references `LSU_Independent_Acceptance.md`, which does not exist; the actual independent-acceptance artifact is `reports/Agent_F_Final_Independent_Acceptance.md`. Add the alias or correct the reference.
+- **P-03 — INFO.** `audit_v3_3_2/binary/gem5.opt.v332-070d68a6` is a hardlink to the final binary (inode 7341432) and hashes `1126e0fd`; pre-existing v3.3.2 packaging artifact, outside the v3.3.3 package, no effect on the final binary SHA (R-05 above).
+- **P-04 — INFO (out of scope).** `audit_v3_3_3/LSU_Fault_Control_Audit.csv` is an untracked duplicate of the tracked `LSU_Fault_Control_Final_Audit.csv`; not a required item.
 
-Rationale, stated honestly:
+No blocking defect was found. No measured data, seed, ordinal, binary SHA, or gate result is invalidated by any remaining finding.
 
-- The **experiment itself is sound**: 120 runs, one binary (`1126e0fd…`), 60 fault injections > 0, 60 controls == 0 with real zero-proof, exact ROI arithmetic, correct executed ordinals, valid fault/control pairing, and honest terminals (A03 checksum + post-oracle hang, RP01 internal watchdog + target ordinal, SP05 store-data hash non-null). No fabricated run and no mixed-binary run was found in `runs/`.
-- The **Ready Gate cannot be signed as "READY_FOR_FORMAL_EXPERIMENT"** because four gate items are contradicted by the package's own evidence: the packaged config SHA is wrong (F-01), the pre-correction binary backup is not what it claims (F-02), "Config Freeze = YES" is contradicted by 105/120 manifests and the workbook's own `NOT_STARTED` gate summary (F-03), the "60/60 COMPLETE" trace claim is overstated (F-04), the ledger is 40 OPEN (F-07), and the package is not assembled and is missing item 12 (Check 10).
+---
 
-Concretely, to reach `READY_FOR_FORMAL_EXPERIMENT` the owners should (one patch/unit each): fix the provenance config SHA and the 685d archive claim; regenerate manifests/workbook with the approved warm-up/ROI/ConfigFrozen state and the corrected A01/A03 ROI fields; set the reported trace completeness to 50 COMPLETE / 10 terminal-witness PARTIAL; re-status the defect ledger; reconcile the 30-candidate approval status; and assemble the package with item 12 (this report) + zip + SHA sidecar.
+## 9. Final verdict
+
+**`READY_FOR_FORMAL_EXPERIMENT`**
+
+- **F-05 fixed and verified end-to-end:** tool tuple (`tools/lsu_v333_propagation.py:55-56`), causal CSV, workbook `Causal_Propagation` and `Fault_Sample_Manifest`, ROI mapping all carry `A01 585–713/N=129` and `A03 1040–1222/N=183`; all 60 ordinals satisfy `start+ceil(p·N)−1`; zero stale `1040-1234`/`N=195` anywhere in the deliverables or workbook.
+- **R-02 and R-03 cleared; R-05 confirmed out-of-scope.**
+- **All core gates re-derive exactly from raw artifacts:** 120 summaries on one SHA `1126e0fd…`; 60/60 fault inject > 0; 60/60 controls == 0 with oracles PASS; 35/25 zero-proof; 43 SDC / 12 MASKED / 5 HANG_WATCHDOG; 12/12 MASKED mechanisms; RP01 target ordinals 26/77/128/179/230; 60/60 distinct; workbook 8 sheets / 60 unique IDs / 60 unique seeds; regression 232 + 121; dry-run 120; `git diff b5031bf7 -- CHAOS/gem5/src` empty; build 0 errors; 9/9 ELF SHAs.
+- **Package:** all 14 required items present on disk; only the zip is not yet built. Recommended one-line edits/commits before zipping: reword acceptance-report line 163 (R-04-residual), commit the `Final_Readiness_Matrix.csv` label fix (P-01), and reconcile the `LSU_Independent_Acceptance.md` reference (P-02). None of these touches measured data.
+
+The experiment itself is sound, reproducible, and traceable to a single binary and config. Authorize the formal campaign only after the main agent acknowledges the three LOW/INFO cleanups above.

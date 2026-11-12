@@ -5,7 +5,7 @@
 **Final source HEAD:** `b5031bf7d857ca7901810a3bf3629f5649ddaaac`
 **Final binary:** `build/ARM/gem5.opt`, SHA256 `1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338`
 **Scope:** 12 models × R01–R05 = 60 dynamic contexts; 60 fault runs + 60 matched controls.
-**Final status:** **`READY_FOR_FORMAL_EXPERIMENT`** (subject to the independent audit in `LSU_Independent_Acceptance.md`).
+**Final status:** **`READY_FOR_FORMAL_EXPERIMENT`** (independent audit PASS — Agent F3, 2026-11-12; see `LSU_Independent_Acceptance.md`).
 
 ---
 
@@ -160,7 +160,7 @@ provenance defects. Each was fixed and is reflected in the current artifacts:
 | ROI | 60/60 PASS |
 | Context Distinctness | 60/60 PASS |
 | Injection | 60/60 injection>0 |
-| Propagation | 60/60 closed (55 COMPLETE_PROP_TRACE + 5 PARTIAL_WATCHDOG accepted for HANG) |
+| Propagation | 60/60 closed (50 COMPLETE + 5 COMPLETE_PROP_TRACE + 5 PARTIAL_WATCHDOG accepted for HANG) |
 | Application Oracle | 60/60 valid |
 | Fault-Control | 60/60 strict pairs |
 | Control Zero Proof | 60/60 |
@@ -170,7 +170,7 @@ provenance defects. Each was fixed and is reflected in the current artifacts:
 | Config Freeze | YES (`1126e0fd`, config `8309da72…`, warm-up=0, measured ROI; frozen Excel unchanged) |
 | Runner Dry-run | PASS (120 commands) |
 | Regression | PASS (232 + 121) |
-| Independent Audit | see `LSU_Independent_Acceptance.md` |
+| Independent Audit | PASS (Agent F3, 2026-11-12; see `LSU_Independent_Acceptance.md`) |
 
 ---
 
