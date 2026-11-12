@@ -1796,5 +1796,19 @@ LSQ::write(LSQRequest* request, uint8_t *data, ssize_t store_idx)
     return thread.at(tid).write(request, data, store_idx);
 }
 
+// [LSU][V3.3.3][RP01] Read-only accessors for the watchdog terminal
+// snapshot (observation only).
+LSQUnit &
+LSQ::getLSQUnit(ThreadID tid)
+{
+    return thread.at(tid);
+}
+
+unsigned
+LSQ::numLSQUnits() const
+{
+    return (unsigned)thread.size();
+}
+
 } // namespace o3
 } // namespace gem5

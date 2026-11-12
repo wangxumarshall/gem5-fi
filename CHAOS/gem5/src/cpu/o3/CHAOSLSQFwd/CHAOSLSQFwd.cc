@@ -12,6 +12,8 @@
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"   // complete DynInst before lsq_unit.hh
+#include "cpu/o3/lsq_unit.hh"   // [V3.3.3][RP01] read-only LQ/SQ snapshot
 #include "debug/LSQUnit.hh"
 
 namespace gem5
@@ -215,8 +217,12 @@ namespace gem5
                 rp01_watchdog_event = new EventFunctionWrapper(
                     [this]() { this->rp01Watchdog(); }, "RP01 watchdog",
                     true);
-                schedule(rp01_watchdog_event,
-                         cpu->clockEdge(Cycles(p.rp01WatchdogCycles)));
+                // [V3.3.3][RP01] Record the armed time/period for the
+                // terminal snapshot (read-only).
+                rp01_watchdog_cycles = p.rp01WatchdogCycles;
+                rp01_watchdog_armed_tick =
+                    cpu->clockEdge(Cycles(p.rp01WatchdogCycles));
+                schedule(rp01_watchdog_event, rp01_watchdog_armed_tick);
             }
             registerExitCallback([this]() {
                 if (write_log && log_stream && log_stream->stream()) {
@@ -619,6 +625,52 @@ namespace gem5
                 << " eligible=" << eligible_count
                 << " tick=" << curTick() << std::endl;
         }
+        // [LSU][V3.3.3][RP01] Write the terminal record set BEFORE fatal():
+        // fatal -> ::exit(1) skips gem5's Python atexit exit callbacks, so
+        // without this the terminal metadata and the gzip trailer are lost.
+        // The snapshot is read-only and does not touch any replay decision,
+        // event schedule or RNG state.
+        if (cpu && cpu->chaosPropagation) {
+            CHAOSPropagation::WatchdogTerminalInfo info;
+            info.armed_tick = rp01_watchdog_armed_tick;
+            info.fired_tick = curTick();
+            info.deadline_cycles = rp01_watchdog_cycles;
+            info.fault_id = faults_injected_count;
+            info.injected = faults_injected_count;
+            info.eligible_count = eligible_count;
+            info.event_ordinal = rp01_event_ordinal;
+            info.replay_eligible = rp01_fired;
+            info.replay_decision_skip = rp01_fired;
+            info.replay_skip = rp01_fired;
+            info.last_eligible_seq = last_eligible_seq;
+            info.last_eligible_pc = last_eligible_pc;
+            info.last_lq_idx = last_eligible_lq_idx;
+            info.last_lq_gen = last_eligible_lq_gen;
+            info.last_store_seq = last_eligible_store_seq;
+            info.last_replay_gen = last_eligible_replay_gen;
+            info.last_eligible_tick = last_eligible_tick;
+            info.commit_seq = cpu->chaosPropagation->traceCommitSeq();
+            info.last_commit_dyn_seq =
+                cpu->chaosPropagation->lastCommitDynSeq();
+            info.last_commit_tick = cpu->chaosPropagation->lastCommitTick();
+
+            // Read-only LQ/SQ head/occupancy snapshot (guarded getters: the
+            // head accessors require a non-empty queue).
+            auto &ldst = cpu->o3IEW().ldstQueue;
+            if (ldst.numLSQUnits() > 0) {
+                auto &unit = ldst.getLSQUnit(0);
+                info.lq_loads = (uint64_t)unit.numLoads();
+                info.lq_free = (uint64_t)unit.numFreeLoadEntries();
+                info.sq_stores = (uint64_t)unit.numStores();
+                info.sq_free = (uint64_t)unit.numFreeStoreEntries();
+                if (info.lq_loads)
+                    info.lq_head_seq = (uint64_t)unit.getLoadHeadSeqNum();
+                if (info.sq_stores)
+                    info.sq_head_seq = (uint64_t)unit.getStoreHeadSeqNum();
+                info.lsu_stalled = unit.isStalled();
+            }
+            cpu->chaosPropagation->flushWatchdogTerminal(info);
+        }
         // A watchdog expiry is a failed simulation, not a normal MAX_TICK
         // exit: abort loudly so the process exit status is non-zero and the
         // runner cannot classify the stalled run as MASKED (design gate
@@ -652,6 +704,15 @@ namespace gem5
         if (!chaos_rp01::isEligible(false /* load_squashed: site-guaranteed */))
             return false;
         ++eligible_count;
+        // [V3.3.3][RP01] Read-only last-eligible bookkeeping for the
+        // watchdog terminal snapshot. It never feeds shouldSkip().
+        last_eligible_seq = load_seq;
+        last_eligible_pc = load_pc;
+        last_eligible_lq_idx = lq_idx;
+        last_eligible_lq_gen = lq_gen;
+        last_eligible_store_seq = store_seq;
+        last_eligible_replay_gen = replay_gen;
+        last_eligible_tick = curTick();
         const chaos_rp01::EventIdentity id{load_seq, lq_idx, lq_gen, store_seq,
                                            replay_gen};
         // instsToReplay membership, pre/post the call this hook guards

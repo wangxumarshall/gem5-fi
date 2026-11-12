@@ -260,6 +260,17 @@ class CHAOSLSQFwd : public SimObject
     chaos_rp01::EventIdentity rp01_fired_id{};
     uint64_t rp01_fired_pc = 0;
     EventFunctionWrapper *rp01_watchdog_event = nullptr;
+    // [LSU][V3.3.3][RP01] Read-only terminal snapshot bookkeeping. None of
+    // these values participates in shouldSkip() or any replay decision.
+    Tick rp01_watchdog_armed_tick = 0;
+    uint64_t rp01_watchdog_cycles = 0;
+    uint64_t last_eligible_seq = 0;
+    uint64_t last_eligible_pc = 0;
+    uint64_t last_eligible_lq_idx = 0;
+    uint64_t last_eligible_lq_gen = 0;
+    uint64_t last_eligible_store_seq = 0;
+    uint64_t last_eligible_replay_gen = 0;
+    Tick last_eligible_tick = 0;
 
     std::mt19937 rng;
     std::random_device rd;

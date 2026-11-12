@@ -923,6 +923,12 @@ class LSQ
 
     void sendRetryResp();
 
+    // [LSU][V3.3.3][RP01] Read-only per-thread LSQ unit accessor used by
+    // the watchdog terminal snapshot. Observation only; no state is
+    // written. Defined in lsq.cc (LSQUnit is complete there).
+    LSQUnit &getLSQUnit(ThreadID tid);
+    unsigned numLSQUnits() const;
+
   protected:
     /** D-cache is blocked */
     bool _cacheBlocked;

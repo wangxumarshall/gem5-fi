@@ -126,6 +126,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 #include "base/types.hh"
@@ -347,22 +348,87 @@ class CHAOSPropagation : public SimObject
     // the pre-call values; stores_to_wb is the post-call counter.
     // v3.3.3 (L-A05): store_data/data_len are the SQ entry bytes that the
     // skipped cache write would have sent (storeWBIt->data(),
-    // request->_size); commit_tick is the store's observed commit tick
-    // (caller-supplied, never silently 0). Hashed into data_fnv so the
-    // deferred sp05_stage record can compare intended vs. reloaded bytes.
+    // request->_size). Hashed into data_fnv so the deferred sp05_stage
+    // record can compare intended vs. reloaded bytes.
+    // v3.3.3 trace closure: the real commit tick comes from StoreCommitObs
+    // captured in noteCommit (commit_stage_capture); the injection tick is
+    // never relabelled as a commit.
     void noteSP05Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
                            unsigned size, uint64_t sq_idx, uint64_t sq_gen,
                            bool completed_before, bool completed_after,
                            uint64_t stores_before, uint64_t stores_after,
                            Tick inject_tick, uint64_t eligible_ordinal,
-                           const uint8_t *store_data, unsigned data_len,
-                           Tick commit_tick);
+                           const uint8_t *store_data, unsigned data_len);
 
     void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
                           bool canwb, bool completed_before,
                           uint64_t stores_to_wb_before,
                           uint64_t stores_to_wb_after, bool mem_sent,
                           Tick tick);
+
+    // [LSU][V3.3.3][SP05] Independent observation of the writeback-stage
+    // OUTCOME when the fault suppresses the cache write. This is negative
+    // evidence (the send did not happen), never a fabricated store_wb: the
+    // kind name deliberately does not match the qualified grader's
+    // writeback-event set. Read-only; called after the real completeStore().
+    void noteSP05WritebackSuppressed(uint64_t dyn_seq, uint64_t pc, Addr addr,
+                                     unsigned size, uint64_t sq_idx,
+                                     uint64_t sq_gen, bool request_present,
+                                     bool request_sent_before,
+                                     bool request_sent_after, bool mem_sent,
+                                     bool write_skipped, Tick drain_tick,
+                                     uint64_t stores_before,
+                                     uint64_t stores_after, Tick tick);
+
+    // [LSU][V3.3.3][RP01] Snapshot handed to flushWatchdogTerminal() by the
+    // injector immediately before its fatal() exit. Pure POD, read-only.
+    struct WatchdogTerminalInfo
+    {
+        const char *trigger = "CHAOS_RP01_WATCHDOG";
+        const char *reason = "INTERNAL_WATCHDOG_DEADLINE";
+        const char *terminal_state = "HANG_WATCHDOG";
+        Tick armed_tick = 0;
+        Tick fired_tick = 0;
+        uint64_t deadline_cycles = 0;
+        uint64_t fault_id = 0;
+        uint64_t injected = 0;
+        uint64_t eligible_count = 0;
+        uint64_t event_ordinal = 0;
+        bool replay_eligible = false;
+        bool replay_decision_skip = false;
+        bool replay_skip = false;
+        uint64_t last_eligible_seq = 0;
+        uint64_t last_eligible_pc = 0;
+        uint64_t last_lq_idx = 0;
+        uint64_t last_lq_gen = 0;
+        uint64_t last_store_seq = 0;
+        uint64_t last_replay_gen = 0;
+        Tick last_eligible_tick = 0;
+        uint64_t lq_loads = 0;
+        uint64_t lq_free = 0;
+        uint64_t sq_stores = 0;
+        uint64_t sq_free = 0;
+        uint64_t lq_head_seq = 0;
+        uint64_t sq_head_seq = 0;
+        bool lsu_stalled = false;
+        uint64_t commit_seq = 0;
+        uint64_t last_commit_dyn_seq = 0;
+        Tick last_commit_tick = 0;
+    };
+
+    // [LSU][V3.3.3][RP01] Write the terminal record set before the process
+    // exits through fatal()/::exit(1) (which skips gem5's exit callbacks).
+    // Idempotent; writes trace_flush_start -> watchdog_terminal ->
+    // trace_flush_complete, flushes and closes the gzip stream. Observation
+    // only: it never changes replay, scheduling or injection state.
+    void flushWatchdogTerminal(const WatchdogTerminalInfo &info);
+
+    // Read-only accessors used to fill WatchdogTerminalInfo.
+    uint64_t lastCommitDynSeq() const { return last_commit_dyn_seq; }
+    Tick lastCommitTick() const { return last_commit_tick; }
+    uint64_t traceCommitSeq() const { return commit_seq; }
+    Tick traceLastNodeTick() const { return last_node_tick; }
+    uint64_t traceNextNodeId() const { return next_node_id; }
 
     void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
                            uint64_t true_seq, Addr true_addr,
@@ -493,6 +559,30 @@ class CHAOSPropagation : public SimObject
     uint64_t next_fragment_id = 0;
     uint64_t commit_seq = 0;
     bool errant_commit_seen = false;
+
+    // [LSU][V3.3.3][SP05] Real architectural commit of every store observed
+    // while the SP05 injector is mounted. The SP05 target is only selected
+    // later (commitStores), so the capture cannot wait for the target
+    // identity; noteSP05Injection consumes and erases the entry. Read-only.
+    struct StoreCommitObs
+    {
+        Tick commit_tick = 0;
+        uint64_t commit_seq = 0;
+        Addr pc = 0;
+        uint64_t sq_idx = 0;
+        uint64_t sq_gen = 0;
+        unsigned size = 0;
+        uint64_t attempt_id = 0;
+        uint64_t replay_gen = 0;
+    };
+    std::unordered_map<uint64_t, StoreCommitObs> store_commit_obs;
+
+    // [LSU][V3.3.3][RP01] Watchdog-terminal flush state. Observation only;
+    // none of these feed an injection or replay decision.
+    bool terminal_flushed = false;
+    Tick last_node_tick = 0;
+    uint64_t last_commit_dyn_seq = 0;
+    Tick last_commit_tick = 0;
 
     struct RequestMeta {
         uint64_t request_id = 0;

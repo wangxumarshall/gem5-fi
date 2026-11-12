@@ -22,6 +22,7 @@
 #include "cpu/o3/CHAOSLSQFwd/sq01_rules.hh"    // SQ01 chain grading
 #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"    // SQ03 effect grading
 #include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"    // SP05 stage grading
+#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"   // sp05Mode() for commit capture
 
 #include <cstring>
 #include <sstream>
@@ -217,6 +218,7 @@ namespace gem5
         // Crash durability (W2.1 contract): one flush per node — an aborted
         // run keeps every completed node readable (trailer-less prefix).
         gzflush(gz_file, Z_SYNC_FLUSH);
+        last_node_tick = node_tick;          // [V3.3.3][RP01] progress witness
         ++next_node_id;
         return node_id;
     }
@@ -302,6 +304,7 @@ namespace gem5
             panic("CHAOSPropagation: edge write failed (node %llu)",
                   (unsigned long long)node_id);
         gzflush(gz_file, Z_SYNC_FLUSH);
+        last_node_tick = curTick();          // [V3.3.3][RP01] progress witness
     }
 
     // ------------------------------------------------------- registration
@@ -1817,8 +1820,7 @@ namespace gem5
                                         Tick inject_tick,
                                         uint64_t eligible_ordinal,
                                         const uint8_t *store_data,
-                                        unsigned data_len,
-                                        Tick commit_tick)
+                                        unsigned data_len)
     {
         if (!write_log)
             return;
@@ -1835,14 +1837,17 @@ namespace gem5
                 store_fnv.insert(0, 16 - store_fnv.size(), '0');
             store_hex = bytesToHex(store_data, data_len);
         }
-        // The store's architectural commit happens in commitStores before
-        // this premature completion, but that select tick is not exposed on
-        // this hook. The caller passes its own curTick() and the record
-        // labels it honestly; commit_tick is never written as a silent 0.
-        const Tick effective_commit_tick = commit_tick ? commit_tick
-                                                       : inject_tick;
-        const char *commit_tick_source = commit_tick
-            ? "caller_supplied" : "injection_bound_curTick";
+        // [V3.3.3][SP05] The store's architectural commit happened in
+        // commitStores before this premature completion. noteCommit captured
+        // that real tick for every store while SP05 is mounted; never fall
+        // back to the injection tick (caller_supplied is rejected by the
+        // qualified grader because it is not a commit observation).
+        auto co_it = store_commit_obs.find(dyn_seq);
+        const bool commit_observed = co_it != store_commit_obs.end();
+        const Tick effective_commit_tick =
+            commit_observed ? co_it->second.commit_tick : 0;
+        const char *commit_tick_source = commit_observed
+            ? "commit_stage_capture" : "unavailable";
 
         std::ostringstream d;
         d << "site=writebackStores_prematureComplete;family=sp05;model=SP05"
@@ -1884,6 +1889,36 @@ namespace gem5
         fe.data_hex = store_hex;
         fe.store_commit_tick = effective_commit_tick;
         fault_store_registry[dyn_seq] = fe;
+
+        // [V3.3.3][SP05] Emit the independent architectural-commit
+        // observation captured in noteCommit. The node timestamp is the real
+        // commit tick; the row is written now (injection time) so the ptag
+        // order is store_commit -> inj_sp05 -> skipped write. A missing
+        // capture emits nothing and the injection record stays
+        // commit_tick_source=unavailable (never a fabricated tick).
+        if (commit_observed) {
+            std::ostringstream c;
+            c << "site=commit_commitHead;family=sp05;model=SP05"
+              << ";trigger=sp05_target_store_commit"
+              << ";store_seq=" << dyn_seq
+              << ";store_pc=0x" << std::hex << co_it->second.pc << std::dec
+              << ";sq_entry_id=" << co_it->second.sq_idx
+              << ";sq_entry_generation=" << co_it->second.sq_gen
+              << ";store_size=" << co_it->second.size
+              << ";store_addr=0x" << std::hex << addr << std::dec
+              << ";commit_tick=" << co_it->second.commit_tick
+              << ";commit_seq=" << co_it->second.commit_seq
+              << ";commit_state=ARCHITECTURAL_COMMIT"
+              << ";commit_tick_source=commit_stage_capture"
+              << ";observation_tick=" << curTick()
+              << ";execution_attempt_id=" << co_it->second.attempt_id
+              << ";replay_generation=" << co_it->second.replay_gen;
+            writeNode(ptag, "store_commit", dyn_seq, true, 0, false,
+                      addr, true, 0, false, 0, false, c.str(),
+                      co_it->second.commit_tick);
+            store_commit_obs.erase(co_it);
+        }
+
         writeNode(ptag, "inj_sp05", dyn_seq, true, 0, false, addr, true,
                   0, false, 0, false, d.str());
 
@@ -1939,6 +1974,139 @@ namespace gem5
         auto fit = fault_store_registry.find(dyn_seq);
         if (fit != fault_store_registry.end())
             fit->second.complete_tick = tick;
+    }
+
+    void
+    CHAOSPropagation::noteSP05WritebackSuppressed(uint64_t dyn_seq,
+                                                  uint64_t pc, Addr addr,
+                                                  unsigned size,
+                                                  uint64_t sq_idx,
+                                                  uint64_t sq_gen,
+                                                  bool request_present,
+                                                  bool request_sent_before,
+                                                  bool request_sent_after,
+                                                  bool mem_sent,
+                                                  bool write_skipped,
+                                                  Tick drain_tick,
+                                                  uint64_t stores_before,
+                                                  uint64_t stores_after,
+                                                  Tick tick)
+    {
+        if (!write_log)
+            return;
+        auto pit = sp05_ptag.find(dyn_seq);
+        const uint64_t ptag = pit == sp05_ptag.end() ? 0 : pit->second;
+        std::ostringstream d;
+        d << "site=writebackStores_sp05Branch"
+          << ";family=sp05_complete;model=SP05"
+          << ";store_seq=" << dyn_seq
+          << ";store_pc=0x" << std::hex << pc
+          << ";store_addr=0x" << addr << std::dec
+          << ";store_size=" << size
+          << ";sq_entry_id=" << sq_idx
+          << ";sq_entry_generation=" << sq_gen
+          << ";writeback_state=SUPPRESSED_BEFORE_SEND"
+          << ";writeback_stage_entered=1"
+          << ";request_present=" << (request_present ? 1 : 0)
+          << ";request_sent_before=" << (request_sent_before ? 1 : 0)
+          << ";request_sent_after=" << (request_sent_after ? 1 : 0)
+          << ";mem_sent=" << (mem_sent ? 1 : 0)
+          << ";write_skipped=" << (write_skipped ? 1 : 0)
+          << ";drain_tick=" << drain_tick
+          << ";visibility_tick=0"
+          << ";visibility_state=NEVER_WRITTEN"
+          << ";stores_to_wb_before=" << stores_before
+          << ";stores_to_wb_after=" << stores_after
+          << ";cache_port_available=1"
+          << ";observation_tick=" << tick;
+        writeNode(ptag, "store_writeback_suppressed", dyn_seq, true, 0, false,
+                  addr, true, 0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::flushWatchdogTerminal(const WatchdogTerminalInfo &info)
+    {
+        // Idempotent: the first call owns the flush; a second call (or a
+        // future exit callback) is a no-op. Set the guard before writing so
+        // a re-entrant writer cannot duplicate the terminal record set.
+        if (!write_log || !gz_file || terminal_flushed)
+            return;
+        terminal_flushed = true;
+
+        const uint64_t prev_last = next_node_id ? next_node_id - 1 : 0;
+        const Tick last_tick = last_node_tick;
+        const Tick silent_ticks = info.fired_tick > last_tick
+            ? info.fired_tick - last_tick : 0;
+
+        {
+            std::ostringstream d;
+            d << "trigger=" << info.trigger
+              << ";trigger_reason=" << info.reason
+              << ";prev_last_event_id=" << prev_last
+              << ";armed_tick=" << info.armed_tick
+              << ";fired_tick=" << info.fired_tick
+              << ";deadline_cycles=" << info.deadline_cycles;
+            writeNode(0, "trace_flush_start", 0, false, 0, false, 0, false,
+                      0, false, 0, false, d.str());
+        }
+
+        {
+            std::ostringstream d;
+            d << "terminal_state=" << info.terminal_state
+              << ";terminal_source=MODEL_INTERNAL_WATCHDOG"
+              << ";trigger=" << info.trigger
+              << ";trigger_reason=" << info.reason
+              << ";fault_id=" << info.fault_id
+              << ";injected=" << info.injected
+              << ";eligible=" << info.eligible_count
+              << ";event_ordinal=" << info.event_ordinal
+              << ";last_valid_event_id=" << prev_last
+              << ";last_eligible_seq=" << info.last_eligible_seq
+              << ";last_eligible_pc=0x" << std::hex << info.last_eligible_pc
+              << std::dec
+              << ";lq_idx=" << info.last_lq_idx
+              << ";lq_gen=" << info.last_lq_gen
+              << ";store_seq=" << info.last_store_seq
+              << ";replay_gen=" << info.last_replay_gen
+              << ";replay_eligible=" << (info.replay_eligible ? 1 : 0)
+              << ";replay_decision="
+              << (info.replay_decision_skip ? "SKIP" : "NONE")
+              << ";replay_skip=" << (info.replay_skip ? 1 : 0)
+              << ";lq_loads=" << info.lq_loads
+              << ";lq_free=" << info.lq_free
+              << ";sq_stores=" << info.sq_stores
+              << ";sq_free=" << info.sq_free
+              << ";lq_head_seq=" << info.lq_head_seq
+              << ";sq_head_seq=" << info.sq_head_seq
+              << ";lsu_stalled=" << (info.lsu_stalled ? 1 : 0)
+              << ";last_trace_tick=" << last_tick
+              << ";silent_ticks=" << silent_ticks
+              << ";commit_seq=" << info.commit_seq
+              << ";last_commit_dyn_seq=" << info.last_commit_dyn_seq
+              << ";last_commit_tick=" << info.last_commit_tick;
+            writeNode(0, "watchdog_terminal", 0, false, 0, false, 0, false,
+                      0, false, 0, false, d.str());
+        }
+
+        {
+            std::ostringstream d;
+            d << "flushed_event_id=" << (next_node_id ? next_node_id - 1 : 0)
+              << ";nodes_written=3"
+              << ";gzflush=1"
+              << ";gzclose=1"
+              << ";final_terminal_state=" << info.terminal_state;
+            writeNode(0, "trace_flush_complete", 0, false, 0, false, 0, false,
+                      0, false, 0, false, d.str());
+        }
+
+        // Close (not just flush): this path is about to exit through
+        // fatal()/::exit(1), which skips gem5's exit callbacks. Closing
+        // writes the gzip trailer so the complete prefix plus the terminal
+        // record set is readable by ordinary gzip readers. TRACE_INCOMPLETE
+        // remains enforced by the watchdog flag, not by a missing trailer.
+        gzflush(gz_file, Z_SYNC_FLUSH);
+        gzclose(gz_file);
+        gz_file = nullptr;
     }
 
     void
@@ -2515,6 +2683,30 @@ namespace gem5
 
         ++commit_seq;
         const uint64_t pc = head_inst->pcState().instAddr();
+        // [LSU][V3.3.3][RP01] Progress witness for the watchdog terminal
+        // record: the last architecturally committed dynamic instruction.
+        // Observation only.
+        last_commit_dyn_seq = head_inst->seqNum;
+        last_commit_tick = curTick();
+
+        // [LSU][V3.3.3][SP05] Capture the REAL architectural commit of every
+        // store while the SP05 injector is mounted. The SP05 target is only
+        // selected later in commitStores, so waiting for the target identity
+        // here would lose the event. Read-only: no ROB/LSQ state is touched.
+        if (head_inst->isStore() && o3cpu && o3cpu->lsqFwd
+                && o3cpu->lsqFwd->sp05Mode()) {
+            StoreCommitObs o;
+            o.commit_tick = curTick();
+            o.commit_seq = commit_seq;
+            o.pc = pc;
+            o.sq_idx = head_inst->sqIdx >= 0
+                ? (uint64_t)head_inst->sqIdx : 0;
+            o.sq_gen = head_inst->sqEntryGeneration;
+            o.size = head_inst->effSize;
+            o.attempt_id = head_inst->executionAttemptId;
+            o.replay_gen = head_inst->replayGeneration;
+            store_commit_obs[head_inst->seqNum] = o;
+        }
 
         // v3.2.12 (tasks 11/12/13): a registered fault store's own
         // architectural commit tick (sq03_effect.commit_tick /

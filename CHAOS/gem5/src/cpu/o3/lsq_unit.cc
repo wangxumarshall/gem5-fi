@@ -1078,21 +1078,38 @@ LSQUnit::writebackStores()
                                            inst->sqEntryGeneration, false)) {
             DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: completing [sn:%lli] before "
                     "writeback\n", inst->seqNum);
-            // v3.3.3 (L-A05): one tick for both the injection and the commit
-            // observation. The store was selected at commitStores, but that
-            // tick is not exposed here, so the record labels this as the
-            // writebackStores observation tick instead of silently writing 0.
+            // v3.3.3 (L-A05): the injection tick is NOT a commit tick. The
+            // real architectural commit was captured by noteCommit
+            // (commit_stage_capture); capture the fields needed by the
+            // post-completion writeback-suppressed record before
+            // completeStore() may clear the store-queue entry/request.
             const Tick sp05_tick = curTick();
+            const uint64_t sp05_stores_before = (uint64_t)storesToWB;
+            const bool sp05_sent_before = request->isSent();
+            const uint64_t sp05_seq = inst->seqNum;
+            const uint64_t sp05_pc = inst->pcState().instAddr();
+            const Addr sp05_addr = inst->effAddr;
+            const unsigned sp05_size = request->mainReq()->getSize();
+            const uint64_t sp05_sq_idx = inst->sqIdx;
+            const uint64_t sp05_sq_gen = inst->sqEntryGeneration;
             if (cpu->chaosPropagation)
                 cpu->chaosPropagation->noteSP05Injection(
-                    inst->seqNum, inst->pcState().instAddr(), inst->effAddr,
-                    request->mainReq()->getSize(), inst->sqIdx,
-                    inst->sqEntryGeneration, false, true, (uint64_t)storesToWB,
-                    (uint64_t)(storesToWB - 1), sp05_tick,
+                    sp05_seq, sp05_pc, sp05_addr,
+                    sp05_size, sp05_sq_idx, sp05_sq_gen, false, true,
+                    sp05_stores_before,
+                    (uint64_t)(sp05_stores_before - 1), sp05_tick,
                     cpu->lsqFwd->sp05Eligible(),
                     reinterpret_cast<const uint8_t *>(storeWBIt->data()),
-                    request->_size, sp05_tick);
+                    request->_size);
             completeStore(storeWBIt);
+            // [V3.3.3][SP05] Independent negative evidence: the entry
+            // entered the writeback stage but the cache write was suppressed
+            // before sendPacketToCache(). This is not a writeback event.
+            if (cpu->chaosPropagation)
+                cpu->chaosPropagation->noteSP05WritebackSuppressed(
+                    sp05_seq, sp05_pc, sp05_addr, sp05_size, sp05_sq_idx,
+                    sp05_sq_gen, true, sp05_sent_before, false, false, true,
+                    0, sp05_stores_before, (uint64_t)storesToWB, curTick());
             if (!storeQueue.empty())
                 storeWBIt++;
             else
