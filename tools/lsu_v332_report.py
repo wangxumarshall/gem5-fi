@@ -8,6 +8,7 @@ observed is written as `n/a` or `NOT_OBSERVED`.
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import re
@@ -25,10 +26,10 @@ from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
     read_command,
 )
 
-RUNS = ROOT / "audit_v3_3_2/runs"
-OUT = ROOT / "audit_v3_3_2"
-BINARY_SHA = "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"
-HEAD = "fc608224"
+RUNS = ROOT / "audit_v3_3_3/runs"
+OUT = ROOT / "audit_v3_3_3"
+BINARY_SHA = "685d88f77324d8ba75916e577b8bb68947ddf20fc13b51e859cff1cbdc1b8187"
+HEAD = "93bca301"
 
 MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
           "LP01", "MD04", "LQ04", "RP01")
@@ -306,7 +307,16 @@ def control_row(model: str, ctx: int):
     }
 
 
-def main():
+def main(argv=None):
+    global RUNS, OUT
+    ap = argparse.ArgumentParser(
+        description="Build the LSU v3.3.3 60-context acceptance tables from "
+                    "real run artifacts. Defaults point at audit_v3_3_3.")
+    ap.add_argument("--runs", default=str(ROOT / "audit_v3_3_3/runs"))
+    ap.add_argument("--out", default=str(ROOT / "audit_v3_3_3"))
+    args = ap.parse_args(argv)
+    RUNS = Path(args.runs)
+    OUT = Path(args.out)
     OUT.mkdir(parents=True, exist_ok=True)
     faults, controls = [], []
     mapping, distinct, matrix, causal = [], [], [], []
