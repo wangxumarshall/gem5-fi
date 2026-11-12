@@ -1,429 +1,859 @@
 #!/usr/bin/env python3
-"""LSU v3.3.3 launch-preflight artifact generator.
+"""LSU v3.3.3 formal campaign collector (campaign-root isolated).
 
-Builds the launch package from the frozen design + the measured v3.3.3 runs.
-It does NOT run gem5 and does NOT modify the frozen Excel/design.
+Every formal evidence value is read from ``--runs <CampaignRoot>``.  The design
+matrix / ROI mapping provide **identity only** (SampleRunID, model, context,
+seed, workload, ROI and the injection identity); they never supply a run
+outcome.  Nothing under a historical audit tree is read, and a value that cannot
+be derived from the campaign root is reported as ``UNKNOWN`` / ``n/a`` -- never
+defaulted to ``0`` or ``PASS``.
+
+Design rules (see ``audit_launch_fix_v333/README_INTERFACES.md``):
+
+* a missing run dir / ``campaign.json`` / ``summary.json``, an identity or SHA
+  disagreement, a timeout or a missing required output is a non-PASS status;
+* ``EvidenceKind=FORMAL`` only for a run directory under ``--runs`` whose
+  ``campaign.json`` matches ``--campaign-id`` and whose identity matches the
+  design;
+* control runs are graded by ``lsu_v333_control_proof.classify_control_run``;
+  A03/SP05/RP01 fault runs also carry
+  ``lsu_v333_qualified.qualified_evidence`` and that status is never upgraded.
+
+CLI::
+
+    python3 tools/lsu_v333_launch.py --runs <CampaignRoot> \\
+        --campaign-id <id> \\
+        --design-matrix <60_SAMPLE_MATRIX.csv> \\
+        --design-mapping <LSU_60Context_ROI_Percentile_Mapping.csv> \\
+        --out <dir> [--manifest-only]
+
+``main(argv) -> int`` returns 0 only when every scheduled task is FORMAL and
+evidence-complete (success statuses below), else 1.
 """
 from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
-import math
-import os
 import re
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
-import openpyxl
-from openpyxl.styles import Alignment, Font
+TOOLS = Path(__file__).resolve().parent
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
 
-ROOT = Path(__file__).resolve().parents[1]
-FROZEN = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/60_SAMPLE_MATRIX.csv"
-MAPPING = ROOT / "audit_v3_3_3/roi/LSU_60Context_ROI_Percentile_Mapping.csv"
-CAUSAL = ROOT / "audit_v3_3_3/LSU_60Context_Causal_Propagation.csv"
-CONTROLS = ROOT / "audit_v3_3_3/controls/LSU_Fault_Control_Pair_FINAL.csv"
-ORACLE = ROOT / "audit_v3_3_3/LSU_12Model_Workload_Oracle_Audit.csv"
-RUNS = ROOT / "audit_v3_3_3/runs"
-OUT = ROOT / "audit_launch_v333/artifacts"
-BINARY_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
-CONFIG_SHA = "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225"
-SOURCE_HEAD = "b5031bf7"
-RESULTS_HEAD = "b8405580"
+from lsu_v333_control_proof import classify_control_run  # noqa: E402
+from lsu_v333_qualified import QUALIFIED_MODELS, qualified_evidence  # noqa: E402
 
-MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05",
-          "DA04", "LP01", "MD04", "LQ04", "RP01")
-CONTEXTS = ("R01", "R02", "R03", "R04", "R05")
+DEFAULT_BINARY_SHA = (
+    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
+DEFAULT_CONFIG_SHA = (
+    "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
 
-DESIGN = {
-    "A01": ("AGU EA -> LSQ pushRequest (PRE)", "a01_bit3_load / F0", "EA bit3 flip",
-            "A01_EA; register_writeback; commit; consumer", "SDC / MASKED / SQUASHED"),
-    "A03": ("AGU EA -> LSQ pushRequest (PRE)", "a03_bit3_stuck0_load / F5", "EA bit3 stuck-at-0",
-            "persistent stream; register_writeback; watchdog", "SDC / HANG_WATCHDOG"),
-    "FW02": ("LSQFwd forwarding decision", "f6_fw02", "suppress one forward",
-             "fw02_decision; normal decision; replay", "SDC / MASKED"),
-    "FW05": ("LSQFwd older-source substitution", "fw05_older_src", "older store source",
-             "forwarding_decision; consumer", "SDC"),
-    "SQ01": ("SQ entry data", "sq01_bit3", "SQ data bit3 flip",
-             "store writeback; reload; consumer", "SDC"),
-    "SQ03": ("SQ _canWB", "sq03_canwb", "premature canWB",
-             "visibility timing; oracle", "MASKED / visibility"),
-    "SP05": ("completeStore", "sp05_complete", "store completion lost",
-             "write skipped; reload; consumer", "SDC"),
-    "DA04": ("Request byte-enable", "da04_be_bit0", "byte-enable bit flip",
-             "store writeback; consumer", "SDC"),
-    "LP01": ("L1D load response", "post-check", "response byte0 flip",
-             "memory_response; register_writeback; consumer", "SDC"),
-    "MD04": ("LSQ checkViolations", "md04", "violation report suppressed",
-             "load complete; consumer", "SDC / MASKED"),
-    "LQ04": ("LQ entry lifetime", "lq04", "entry invalidated/restored",
-             "entry valid; response; restore", "MASKED"),
-    "RP01": ("Partial-address replay", "rp01_skip_replay", "skip rescheduleMemInit",
-             "skip; watchdog; hang", "HANG_WATCHDOG"),
+FORMAL = "FORMAL"
+NON_FORMAL = "NON_FORMAL"
+UNKNOWN = "UNKNOWN"
+NOT_AVAILABLE = "n/a"
+
+# Task outcomes that count as evidence-complete for the launch gate.
+SUCCESS_STATUSES = frozenset(
+    {"COMPLETED", "ORACLE_FAIL", "QUALIFIED", "TRACE_INCOMPLETE"})
+WATCHDOG_TERMINALS = frozenset({"HANG_WATCHDOG"})
+MEASURED_TERMINALS = frozenset(
+    {"MASKED", "SQUASHED", "HANG_WATCHDOG", "CRASH"})
+
+# The per-model injection log.  Mirrors tools/lsu_v332_matrix.MODEL_LOG_NAME.
+MODEL_LOG_NAME = {
+    "A01": "addrpath_injections.log",
+    "A03": "addrpath_injections.log",
+    "FW02": "lsq_fwd_injections.log",
+    "FW05": "lsq_fwd_injections.log",
+    "SQ01": "lsq_fwd_injections.log",
+    "SQ03": "lsq_fwd_injections.log",
+    "SP05": "lsq_fwd_injections.log",
+    "DA04": "lsq_fwd_injections.log",
+    "LP01": "l1d_fwd_injections.log",
+    "MD04": "md04_injections.log",
+    "LQ04": "lq04_injections.log",
+    "RP01": "lsq_fwd_injections.log",
 }
 
-EXPECTED = {m: v[4] for m, v in DESIGN.items()}
+# A03/RP01 have a documented partial terminal: the model watchdog cuts the
+# converted trace, so summary + prop_trace + oracle + marker stand in.
+PARTIAL_MARKER_MODELS = ("A03", "RP01")
+WATCHDOG_MARKERS = {
+    "A03": ("A03_WATCHDOG_EXPIRED", "A03_WATCHDOG"),
+    "RP01": ("CHAOS_RP01_WATCHDOG", "RP01_WATCHDOG_EXPIRED", "RP01_WATCHDOG"),
+}
+
+# Static design expectations (not evidence): one line per fault model.  These
+# describe the intended injection site/terminal; measured values always come
+# from the run dir.
+MODEL_INFO = {
+    "A01": ("AGU EA -> LSQ pushRequest (PRE)", "a01_bit3_load / F0",
+            "SDC / MASKED / SQUASHED"),
+    "A03": ("AGU EA -> LSQ pushRequest (PRE)", "a03_bit3_stuck0_load / F5",
+            "SDC / HANG_WATCHDOG"),
+    "FW02": ("LSQFwd forwarding decision", "f6_fw02", "SDC / MASKED"),
+    "FW05": ("LSQFwd older-source substitution", "fw05_older_src", "SDC"),
+    "SQ01": ("SQ entry data", "sq01_bit3", "SDC"),
+    "SQ03": ("SQ _canWB", "sq03_canwb", "MASKED / visibility"),
+    "SP05": ("completeStore", "sp05_complete", "SDC"),
+    "DA04": ("Request byte-enable", "da04_be_bit0", "SDC"),
+    "LP01": ("L1D load response", "post-check", "SDC"),
+    "MD04": ("LSQ checkViolations", "md04", "SDC / MASKED"),
+    "LQ04": ("LQ entry lifetime", "lq04", "MASKED"),
+    "RP01": ("Partial-address replay", "rp01_skip_replay", "HANG_WATCHDOG"),
+}
 
 MANIFEST_COLS = (
     "RunID", "ModelID", "ContextID", "SampleRunID", "Seed", "Role",
-    "Workload", "ELF", "ELF_SHA256", "Binary_SHA256", "Config_SHA256",
+    "Status", "EvidenceKind", "Evidence", "Reason", "MissingEvidence",
+    "CampaignID", "CampaignStatus",
+    "TerminalState", "TerminalReason", "OracleResult", "InjectionCount",
+    "ControlZeroProof", "QualifiedStatus", "TraceCompleteness",
+    "Binary_SHA256", "Config_SHA256", "ELF_SHA256",
+    "Workload", "ELF", "InjectionConfig", "ExpectedTerminal",
     "ROI_Start", "ROI_End", "ROI_N", "Warmup", "Percentile",
     "EligibleEventOrdinal", "DynInstSeq", "PC", "VA", "PA", "LQEntry",
-    "SQEntry", "InjectionConfig", "InjectionEnabled", "InjectorMounted",
-    "FaultEnabled", "SuppressionReason", "InjectionAttemptCount",
-    "InjectionAppliedCount", "InjectionCount", "ControlZeroProof",
-    "ExpectedTerminal",
-    "TerminalState", "TerminalReason", "OracleResult", "TraceCompleteness",
-    "Evidence", "EvidenceKind", "FormalManifest",
+    "SQEntry", "InjectionEnabled", "InjectorMounted", "FaultEnabled",
+    "SuppressionReason", "InjectionAttemptCount", "InjectionAppliedCount",
+    "FormalManifest",
 )
 
 
-def parse_identity(*texts):
-    def g(key):
-        for text in texts:
-            m = re.search(r"(?:^|[; ])" + re.escape(key) + r"=([^; ,]+)",
-                          text or "")
-            if m:
-                return m.group(1)
-        return "n/a"
-    seq = g("seq")
-    if seq == "n/a":
-        seq = g("dyn_inst_seq")
-    if seq == "n/a":
-        seq = g("load_seq")
-    pc = g("pc")
-    if pc == "n/a":
-        pc = g("load_pc")
-    return (seq, pc, g("va"), g("pa"), g("lq") if g("lq") != "n/a" else g("lq_idx"),
-            g("sq") if g("sq") != "n/a" else g("sq_entry_id"))
+# ---------------------------------------------------------------------------
+# small IO / value helpers
+# ---------------------------------------------------------------------------
+def _load_csv(path: Path) -> list[dict]:
+    try:
+        with open(path, newline="", encoding="utf-8") as fh:
+            return list(csv.DictReader(fh))
+    except (OSError, csv.Error):
+        return []
 
 
-def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def _read_json(path: Path) -> dict | None:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
-def load_csv(path: Path):
-    return list(csv.DictReader(open(path, newline="", encoding="utf-8")))
+def _as_int(value) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and re.fullmatch(r"[+-]?\d+", value.strip()):
+        return int(value.strip())
+    return None
 
 
-def ctx_of(sr: str) -> str:
-    return sr[-3:]
+def _as_bool(value) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes"):
+        return True
+    if text in ("0", "false", "no"):
+        return False
+    return None
 
 
-def run_dir(model: str, ctx: str, role: str) -> Path:
-    return RUNS / f"{model}-{ctx}-{role}"
+def _same_value(left, right) -> bool:
+    """Compare strings/ints (a seed may be ``123`` or ``"123"``)."""
+    if left is None or right is None:
+        return False
+    li, ri = _as_int(left), _as_int(right)
+    if li is not None and ri is not None:
+        return li == ri
+    return str(left).strip() == str(right).strip()
 
 
-def cmd_path(run: Path) -> str:
-    p = run / "command.txt"
-    return p.read_text(errors="replace") if p.exists() else ""
+def _sha_matches(observed, expected) -> bool:
+    return bool(observed) and bool(expected) and \
+        str(observed).strip().lower() == str(expected).strip().lower()
 
 
-def workload_path(run: Path) -> str:
-    m = re.search(r"--cmd=(\S+)", cmd_path(run))
-    return m.group(1) if m else ""
+def _yes_no_unknown(value) -> str:
+    if value is True:
+        return "YES"
+    if value is False:
+        return "NO"
+    return UNKNOWN
 
 
-def read_json(path: Path):
-    return json.load(open(path)) if path.exists() else {}
+def _ctx_of(sample_run_id: str) -> str:
+    return str(sample_run_id)[-3:]
 
 
-def terminal(model: str, ctx: str, role: str):
-    run = run_dir(model, ctx, role)
-    s = read_json(run / "summary.json")
-    c = causal_idx.get((model, ctx), {})
-    oracle = read_json(run / "oracle.log")
-    return {
-        "summary": s,
-        "terminal": s.get("terminal") or c.get("Terminal", "n/a"),
-        "oracle": s.get("oracle") if role == "fault" else True,
-        "checksum": s.get("checksum"),
-        "injection": s.get("injection_count"),
-        "trace": c.get("TraceCompleteness", "n/a"),
-        "evidence": c.get("EvidencePaths", str(run)),
-    }
+_IDENTITY_KEYS = ("seq", "pc", "va", "pa", "lq", "sq")
 
 
-frozen_rows = load_csv(FROZEN)
-frozen = {(r["FaultModelID"], ctx_of(r["SampleRunID"])): r for r in frozen_rows}
-mapping_idx = {(r["ModelID"], r["ContextID"]): r for r in load_csv(MAPPING)}
-causal_idx = {(r["ModelID"], r["ContextID"]): r for r in load_csv(CAUSAL)}
-control_idx = {(r["ModelID"], r["ContextID"]): r for r in load_csv(CONTROLS)}
-oracle_idx = {r["ModelID"]: r for r in load_csv(ORACLE)} if ORACLE.exists() else {}
+def parse_identity(text: str | None) -> dict[str, str]:
+    """Parse ``seq=..;pc=..;va=..;pa=..;lq=..;sq=..`` from the design mapping."""
+    out = {key: NOT_AVAILABLE for key in _IDENTITY_KEYS}
+    for part in (text or "").split(";"):
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if key in out and value:
+            out[key] = value
+    return out
 
 
-def fault_row(model: str, ctx: str):
-    fr = frozen[(model, ctx)]
-    mr = mapping_idx[(model, ctx)]
-    cr = causal_idx[(model, ctx)]
-    orc = oracle_idx.get(model, {})
-    run = run_dir(model, ctx, "fault")
-    s = read_json(run / "summary.json")
-    pm = read_json(run / "pilot_meta.json")
-    wl = workload_path(run)
-    elf_sha = sha256(Path(wl)) if wl and Path(wl).exists() else "n/a"
-    seq, pc, va, pa, lq, sq = parse_identity(
-        cr.get("Injection", ""), cr.get("Activation", ""),
-        json.dumps(s))
-    row = {k: "n/a" for k in MANIFEST_COLS}
-    row.update({
-        "RunID": fr["RunID"], "ModelID": model, "ContextID": ctx,
-        "SampleRunID": fr["SampleRunID"], "Seed": fr["Seed"], "Role": "fault",
-        "Workload": orc.get("Workload", Path(wl).name if wl else "n/a"),
-        "ELF": wl, "ELF_SHA256": elf_sha,
-        "Binary_SHA256": BINARY_SHA, "Config_SHA256": CONFIG_SHA,
-        "ROI_Start": mr["ROI_Start_Ordinal"], "ROI_End": mr["ROI_End_Ordinal"],
-        "ROI_N": mr["ROI_N"], "Warmup": "0",
-        "Percentile": mr["Percentile"],
-        "EligibleEventOrdinal": mr["Absolute_Eligible_Ordinal"],
-        "DynInstSeq": seq, "PC": pc, "VA": va, "PA": pa,
-        "LQEntry": lq, "SQEntry": sq,
-        "InjectionConfig": DESIGN[model][1],
-        "InjectionEnabled": "YES",
-        "InjectionCount": s.get("injection_count", "n/a"),
-        "ExpectedTerminal": EXPECTED[model],
-        "TerminalState": s.get("terminal", cr.get("Terminal", "n/a")),
-        "TerminalReason": cr.get("TerminalReason", "n/a"),
-        # RP01's HANG has no checksum by design; the authoritative label is
-        # NO_CHECKSUM, not oracle FAIL (independent preflight F-1).
-        "OracleResult": ("NO_CHECKSUM" if model == "RP01"
-                         and s.get("checksum") is None else
-                         "FAIL" if s.get("oracle") is False else
-                         "PASS" if s.get("oracle") is True else "NO_CHECKSUM"),
-        "TraceCompleteness": cr.get("TraceCompleteness", "n/a"),
-        "Evidence": str(run),
-        "EvidenceKind": "PRE_FORMAL",
-        "FormalManifest": "GENERATED_BY_RUNNER",
+# ---------------------------------------------------------------------------
+# run-dir evidence probes
+# ---------------------------------------------------------------------------
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _watchdog_marker(run_dir: Path, model: str) -> str | None:
+    tokens = WATCHDOG_MARKERS.get(model)
+    if not tokens:
+        return None
+    names = [MODEL_LOG_NAME.get(model), "stdout.log", "stderr.log"]
+    for name in names:
+        if not name:
+            continue
+        path = run_dir / name
+        if not path.is_file():
+            continue
+        text = _read_text(path)
+        for token in tokens:
+            if token in text:
+                return token
+    return None
+
+
+def _partial_watchdog(run_dir: Path, model: str) -> str | None:
+    """Documented A03/RP01 partial: marker + summary + prop_trace + oracle."""
+    if model not in PARTIAL_MARKER_MODELS:
+        return None
+    for name in ("summary.json", "prop_trace.csv.gz", "oracle.log"):
+        if not (run_dir / name).is_file():
+            return None
+    return _watchdog_marker(run_dir, model)
+
+
+def _trace_has_injection(run_dir: Path) -> bool:
+    path = run_dir / "trace_v31.jsonl"
+    if not path.is_file():
+        return False
+    try:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if '"injection"' not in line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(record, dict) and (
+                        record.get("event_type") == "injection"
+                        or (record.get("record_type") == "event"
+                            and record.get("event_type") == "injection")):
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def _injection_witness(run_dir: Path, summary: dict | None) -> str | None:
+    """A fault injection corroborated by the run itself (not the model log).
+
+    The dedicated model log is the primary witness.  When it is absent but the
+    run's own ``trace_v31.jsonl`` records an injection event (or the summary
+    records a positive injection count), the injection is still evidenced by
+    two independent per-run sources; the missing log is not treated as missing
+    evidence in that case.
+    """
+    if _trace_has_injection(run_dir):
+        return "trace_v31.jsonl:injection_event"
+    if isinstance(summary, dict):
+        count = _as_int(summary.get("injection_count"))
+        if count is not None and count > 0:
+            return "summary.json:injection_count"
+    return None
+
+
+def _missing_outputs(run_dir: Path, model: str, role: str,
+                     summary: dict | None, partial_marker: str | None
+                     ) -> list[str]:
+    missing: list[str] = []
+    if not (run_dir / "summary.json").is_file():
+        missing.append("summary.json")
+    if not (run_dir / "oracle.log").is_file():
+        missing.append("oracle.log")
+    if partial_marker is None and not (run_dir / "trace_v31.jsonl").is_file():
+        missing.append("trace_v31.jsonl")
+    if role == "fault" and partial_marker is None:
+        log_name = MODEL_LOG_NAME.get(model)
+        if log_name and not (run_dir / log_name).is_file():
+            if _injection_witness(run_dir, summary) is None:
+                missing.append(log_name)
+    return missing
+
+
+def _campaign_hard_failure(status) -> str | None:
+    text = str(status or "").strip().upper()
+    if text in {"FAILED", "TIMEOUT", "OUTPUT_INCOMPLETE", "HASH_MISMATCH"}:
+        return text
+    return None
+
+
+# ---------------------------------------------------------------------------
+# per-record collection
+# ---------------------------------------------------------------------------
+def _base_record(matrix_row: dict, mapping_row: dict | None,
+                 model: str, ctx: str, role: str, run_dir: Path) -> dict:
+    workload_path = str(matrix_row.get("WorkloadPath") or "")
+    identity = parse_identity(
+        (mapping_row or {}).get("InjectionIdentity", ""))
+    info = MODEL_INFO.get(model, ("", "", ""))
+    record = {column: NOT_AVAILABLE for column in MANIFEST_COLS}
+    record.update({
+        "RunID": matrix_row.get("RunID") or f"{model}-{ctx}",
+        "ModelID": model,
+        "ContextID": ctx,
+        "SampleRunID": matrix_row.get("SampleRunID", NOT_AVAILABLE),
+        "Seed": matrix_row.get("Seed", NOT_AVAILABLE),
+        "Role": role,
+        "Status": None,
+        "EvidenceKind": NON_FORMAL,
+        "Evidence": str(run_dir),
+        "Reason": "",
+        "MissingEvidence": "",
+        "Workload": Path(workload_path).name if workload_path else NOT_AVAILABLE,
+        "ELF": workload_path or NOT_AVAILABLE,
+        "InjectionConfig": info[1],
+        "ExpectedTerminal": info[2],
+        "InjectionEnabled": "YES" if role == "fault" else "NO",
+        "FormalManifest": "GENERATED_BY_COLLECTOR",
+        "DynInstSeq": identity["seq"],
+        "PC": identity["pc"],
+        "VA": identity["va"],
+        "PA": identity["pa"],
+        "LQEntry": identity["lq"],
+        "SQEntry": identity["sq"],
     })
-    return row
-
-
-def control_row(model: str, ctx: str):
-    fr = frozen[(model, ctx)]
-    mr = mapping_idx[(model, ctx)]
-    cr = control_idx[(model, ctx)]
-    orc = oracle_idx.get(model, {})
-    run = run_dir(model, ctx, "control")
-    s = read_json(run / "summary.json")
-    wl = workload_path(run)
-    elf_sha = sha256(Path(wl)) if wl and Path(wl).exists() else "n/a"
-    proof = cr.get("ControlZeroProof", "n/a")
-    cls = ("INJECTOR_ABSENT" if proof == "INJECTOR_ABSENT" else
-           "MOUNTED_BUT_DISABLED" if proof == "MOUNTED_BUT_DISABLED" else
-           "SUPPRESSED" if "SUPPRESS" in str(proof) else "UNVERIFIED")
-    row = {k: "n/a" for k in MANIFEST_COLS}
-    row.update({
-        "RunID": fr["RunID"], "ModelID": model, "ContextID": ctx,
-        "SampleRunID": fr["SampleRunID"], "Seed": fr["Seed"], "Role": "control",
-        "Workload": orc.get("Workload", Path(wl).name if wl else "n/a"),
-        "ELF": wl, "ELF_SHA256": elf_sha,
-        "Binary_SHA256": BINARY_SHA, "Config_SHA256": CONFIG_SHA,
-        "ROI_Start": mr["ROI_Start_Ordinal"], "ROI_End": mr["ROI_End_Ordinal"],
-        "ROI_N": mr["ROI_N"], "Warmup": "0",
-        "Percentile": mr["Percentile"],
-        "EligibleEventOrdinal": mr["Absolute_Eligible_Ordinal"],
-        "InjectionConfig": DESIGN[model][1],
-        "InjectorMounted": "YES" if cls != "INJECTOR_ABSENT" else "NO",
-        "FaultEnabled": "NO",
-        "SuppressionReason": ("injector omitted" if cls == "INJECTOR_ABSENT"
-                              else "probability=0.0"),
-        "InjectionAttemptCount": 0,
-        "InjectionAppliedCount": s.get("injection_count", 0),
-        "InjectionCount": s.get("injection_count", 0),
-        "ControlZeroProof": cls,
-        "TerminalState": s.get("terminal", "n/a"),
-        "OracleResult": ("PASS" if s.get("oracle") is True else "n/a"),
-        "Evidence": str(run),
-        "EvidenceKind": "PRE_FORMAL",
-        "FormalManifest": "GENERATED_BY_RUNNER",
-    })
-    return row
-
-
-def write_csv(path: Path, rows, fieldnames=None):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not rows:
-        path.write_text("", encoding="utf-8")
-        return
-    fieldnames = fieldnames or list(rows[0].keys())
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(rows)
-
-
-def add_sheet(wb, title, rows):
-    ws = wb.create_sheet(title)
-    for row in rows:
-        ws.append(list(row))
-    if rows:
-        for cell in ws[1]:
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.freeze_panes = "A2"
-    return ws
-
-
-def gen_xlsx(faults, controls, out: Path):
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)
-    readme = [
-        ["Item", "Value"],
-        ["Workbook", "LSU_Formal_Experiment_Config_Final.xlsx"],
-        ["Purpose", "Formal campaign launch configuration (one row per fault/control)"],
-        ["Authoritative source", str(FROZEN)],
-        ["Final binary SHA256", BINARY_SHA],
-        ["Final config SHA256", CONFIG_SHA],
-        ["Final source HEAD", SOURCE_HEAD],
-        ["Results HEAD", RESULTS_HEAD],
-        ["Status", "LAUNCH_PREFLIGHT"],
-        ["Note", "Evidence rows are PRE_FORMAL; formal runs generate their own manifest."],
-    ]
-    add_sheet(wb, "README", readme)
-    add_sheet(wb, "Fault_Config", [list(faults[0].keys())] + [[r[k] for k in faults[0]] for r in faults])
-    add_sheet(wb, "Control_Config", [list(controls[0].keys())] + [[r[k] for k in controls[0]] for r in controls])
-    roi_rows = [["ModelID", "ContextID", "SampleRunID", "Seed", "ROI_Start", "ROI_End",
-                 "ROI_N", "Percentile", "EligibleEventOrdinal", "DynInstSeq", "PC",
-                 "InjectionEligibility", "ExpectedTerminal"]]
-    for r in faults:
-        roi_rows.append([r["ModelID"], r["ContextID"], r["SampleRunID"], r["Seed"],
-                         r["ROI_Start"], r["ROI_End"], r["ROI_N"], r["Percentile"],
-                         r["EligibleEventOrdinal"], r["DynInstSeq"], r["PC"],
-                         "ELIGIBLE", r["ExpectedTerminal"]])
-    add_sheet(wb, "ROI_Census", roi_rows)
-    val = [["Check", "Result", "Detail"]]
-    ids = [r["SampleRunID"] for r in faults]
-    seeds = [r["Seed"] for r in faults]
-    val.append(["Fault rows", len(faults), "expected 60"])
-    val.append(["Control rows", len(controls), "expected 60"])
-    val.append(["Unique SampleRunID", len(set(ids)), "expected 60"])
-    val.append(["Non-empty Seed", sum(1 for s in seeds if s), "expected 60"])
-    val.append(["Fault/Control same seed",
-                all(f["Seed"] == c["Seed"] for f, c in zip(faults, controls)),
-                "per pair"])
-    val.append(["Binary SHA consistent",
-                all(r["Binary_SHA256"] == BINARY_SHA for r in faults + controls),
-                BINARY_SHA])
-    val.append(["Config SHA consistent",
-                all(r["Config_SHA256"] == CONFIG_SHA for r in faults + controls),
-                CONFIG_SHA])
-    add_sheet(wb, "Config_Validation", val)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(out)
-
-
-def main(argv=None):
-    global RUNS
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(OUT))
-    ap.add_argument("--runs", default=str(RUNS))
-    ap.add_argument("--manifest-only", action="store_true",
-                    help="generate only the 120-run campaign manifest and "
-                         "per-run campaign_manifest.json from an existing run set")
-    args = ap.parse_args(argv)
-    RUNS = Path(args.runs)
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    faults = [fault_row(m, c) for m in MODELS for c in CONTEXTS]
-    controls = [control_row(m, c) for m in MODELS for c in CONTEXTS]
-    # Controls target the same dynamic context; carry the paired fault identity.
-    for f, c in zip(faults, controls):
-        for key in ("DynInstSeq", "PC", "VA", "PA", "LQEntry", "SQEntry"):
-            c[key] = f[key]
-        c["ExpectedTerminal"] = "NO_FAULT_CONTROL_PASS"
-    if args.manifest_only:
-        write_csv(out / "LSU_120Run_Campaign_Manifest.csv", faults + controls,
-                  fieldnames=MANIFEST_COLS)
-        pairs = [{"ModelID": f["ModelID"], "ContextID": f["ContextID"],
-                  "SampleRunID": f["SampleRunID"], "Seed": f["Seed"],
-                  "FaultEvidence": f["Evidence"], "ControlEvidence": c["Evidence"],
-                  "FaultInjectionCount": f["InjectionCount"],
-                  "ControlInjectionCount": c["InjectionAppliedCount"],
-                  "ControlZeroProof": c["ControlZeroProof"],
-                  "PairMatched": "YES" if f["Seed"] == c["Seed"] else "NO"}
-                 for f, c in zip(faults, controls)]
-        write_csv(out / "LSU_60Fault_60Control_Pair_Map.csv", pairs)
-        for row in faults + controls:
-            p = Path(row["Evidence"]) / "campaign_manifest.json"
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(row, indent=2, ensure_ascii=False) + "\n",
-                         encoding="utf-8")
-        print("wrote manifest-only artifacts to", out)
-        return 0
-    pairs = []
-    for f, c in zip(faults, controls):
-        pairs.append({
-            "ModelID": f["ModelID"], "ContextID": f["ContextID"],
-            "SampleRunID": f["SampleRunID"], "Seed": f["Seed"],
-            "FaultEvidence": f["Evidence"], "ControlEvidence": c["Evidence"],
-            "FaultInjectionCount": f["InjectionCount"],
-            "ControlInjectionCount": c["InjectionAppliedCount"],
-            "ControlZeroProof": c["ControlZeroProof"],
-            "FaultTerminal": f["TerminalState"],
-            "FaultOracle": f["OracleResult"],
-            "ControlOracle": c["OracleResult"],
-            "PairMatched": "YES" if f["Seed"] == c["Seed"] and f["SampleRunID"] == c["SampleRunID"] else "NO",
+    if mapping_row:
+        record.update({
+            "ROI_Start": mapping_row.get("ROI_Start_Ordinal", NOT_AVAILABLE),
+            "ROI_End": mapping_row.get("ROI_End_Ordinal", NOT_AVAILABLE),
+            "ROI_N": mapping_row.get("ROI_N", NOT_AVAILABLE),
+            "Warmup": "0",
+            "Percentile": mapping_row.get("Percentile", NOT_AVAILABLE),
+            "EligibleEventOrdinal": mapping_row.get(
+                "Absolute_Eligible_Ordinal", NOT_AVAILABLE),
         })
-    write_csv(out / "LSU_120Run_Campaign_Manifest.csv", faults + controls,
-              fieldnames=MANIFEST_COLS)
-    write_csv(out / "LSU_60Fault_60Control_Pair_Map.csv", pairs)
-    write_csv(out / "LSU_Control_Zero_Injection_Proof.csv",
-              [{
-                  "ModelID": c["ModelID"], "ContextID": c["ContextID"],
-                  "SampleRunID": c["SampleRunID"], "Seed": c["Seed"],
-                  "ControlClass": c["ControlZeroProof"],
-                  "InjectorMounted": c["InjectorMounted"],
-                  "FaultEnabled": c["FaultEnabled"],
-                  "SuppressionReason": c["SuppressionReason"],
-                  "InjectionAttemptCount": c["InjectionAttemptCount"],
-                  "InjectionAppliedCount": c["InjectionAppliedCount"],
-                  "ControlOracle": c["OracleResult"],
-                  "Evidence": c["Evidence"],
-                  "Status": "PASS" if c["InjectionAppliedCount"] == 0 and c["OracleResult"] == "PASS" else "UNVERIFIED",
-              } for c in controls])
-    gen_xlsx(faults, controls, out / "LSU_Formal_Experiment_Config_Final.xlsx")
-    # authoritative causal: current 16-column generator output
-    shutil.copy2(CAUSAL, out / "LSU_60Context_Causal_Propagation_Final.csv")
-    shutil.copy2(ROOT / "audit_v3_3_3/LSU_Final_Binary_Provenance.md",
-                 out / "LSU_Binary_Provenance.md")
-    # archive list
-    archived = []
-    for p in [ROOT / "audit_v3_3_3/propagation/LSU_60Context_Causal_Propagation_Final.csv",
-              ROOT / "audit_v3_3_2/propagation/LSU_60Context_Causal_Propagation_Final.csv"]:
-        if p.exists():
-            archived.append({"Path": str(p), "SHA256": sha256(p), "Status": "ARCHIVED"})
-    write_csv(out / "LSU_ARCHIVED_Propagation_Versions.csv", archived)
-    # Launch readiness with the approved workload status (the historical
-    # v3.3.3 CSV is superseded for launch purposes; it is not overwritten).
-    readiness = [["ModelID", "ContextID", "SampleRunID", "Seed", "Workload",
-                  "WorkloadStatus", "EligibleEventOrdinal", "TerminalState",
-                  "OracleResult", "ControlZeroProof", "Approval",
-                  "ReadyGate"]]
-    for f, c in zip(faults, controls):
-        readiness.append([f["ModelID"], f["ContextID"], f["SampleRunID"],
-                          f["Seed"], f["Workload"],
-                          "OVERRIDE_APPROVED" if f["ModelID"] in
-                          {"FW02", "RP01", "MD04", "SQ01", "SQ03", "SP05"}
-                          else "FORMAL",
-                          f["EligibleEventOrdinal"], f["TerminalState"],
-                          f["OracleResult"], c["ControlZeroProof"],
-                          "2026-11-12", "READY" if c["ControlZeroProof"] !=
-                          "UNVERIFIED" else "UNVERIFIED"])
-    write_csv(out / "LSU_60Context_Final_Readiness.csv",
-              [dict(zip(readiness[0], r)) for r in readiness[1:]])
-    print("wrote launch artifacts to", out)
-    print("faults", len(faults), "controls", len(controls),
-          "unique IDs", len(set(r["SampleRunID"] for r in faults)))
-    print("control classes", {k: sum(1 for c in controls if c["ControlZeroProof"] == k)
-                              for k in set(c["ControlZeroProof"] for c in controls)})
-    return 0
+    return record
+
+
+def _finish(record: dict, status: str, reason: str,
+            missing: list[str] | None = None) -> dict:
+    record["Status"] = status
+    record["Reason"] = reason
+    record["MissingEvidence"] = ";".join(missing or [])
+    return record
+
+
+def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
+                 mapping_row: dict | None, role: str,
+                 expected_binary_sha: str, expected_config_sha: str,
+                 campaign_identity: dict | None) -> dict:
+    """Grade one scheduled (model, context, role) task from its run dir."""
+    model = str(matrix_row.get("FaultModelID") or "").strip()
+    sample_run_id = str(matrix_row.get("SampleRunID") or "").strip()
+    seed = matrix_row.get("Seed")
+    ctx = _ctx_of(sample_run_id)
+    run_dir = Path(runs) / f"{model}-{ctx}-{role}"
+    record = _base_record(matrix_row, mapping_row, model, ctx, role, run_dir)
+
+    # 1. run directory ------------------------------------------------------
+    if not run_dir.is_dir():
+        return _finish(record, "OUTPUT_INCOMPLETE", "RUN_DIR_MISSING",
+                       ["run_dir"])
+
+    # 2. campaign.json (runner-written manifest) ----------------------------
+    campaign_path = run_dir / "campaign.json"
+    campaign = _read_json(campaign_path)
+    if campaign is None:
+        return _finish(record, "OUTPUT_INCOMPLETE", "MANIFEST_MISSING",
+                       ["campaign.json"])
+
+    cid = campaign.get("campaign_id")
+    record["CampaignID"] = cid if cid is not None else NOT_AVAILABLE
+    record["CampaignStatus"] = campaign.get("status", NOT_AVAILABLE)
+    for key, column in (("binary_sha", "Binary_SHA256"),
+                        ("config_sha", "Config_SHA256"),
+                        ("elf_sha", "ELF_SHA256")):
+        value = campaign.get(key)
+        record[column] = value if value not in (None, "") else NOT_AVAILABLE
+
+    if not _same_value(cid, campaign_id):
+        record["Reason"] = "HISTORICAL_CAMPAIGN_MISMATCH"
+        return _finish(record, "OUTPUT_INCOMPLETE",
+                       "HISTORICAL_CAMPAIGN_MISMATCH", ["campaign_id"])
+
+    identity_checks = (
+        ("model", model), ("context", ctx), ("role", role),
+        ("sample_run_id", sample_run_id), ("seed", seed),
+    )
+    id_mismatch = [name for name, expected in identity_checks
+                   if not _same_value(campaign.get(name), expected)]
+    if id_mismatch:
+        return _finish(record, "OUTPUT_INCOMPLETE", "ID_MISMATCH",
+                       id_mismatch)
+
+    # Identity matched: the run is a legitimate formal task unless a later
+    # evidence gate fails.
+    record["EvidenceKind"] = FORMAL
+
+    # 3. SHA gate ------------------------------------------------------------
+    binary = campaign.get("binary_sha")
+    config = campaign.get("config_sha")
+    elf = campaign.get("elf_sha")
+    sha_missing = [name for name, value in
+                   (("binary_sha", binary), ("config_sha", config),
+                    ("elf_sha", elf)) if not value]
+    if sha_missing:
+        return _finish(record, "OUTPUT_INCOMPLETE", "SHA_MISSING", sha_missing)
+
+    sha_problems: list[str] = []
+    if not _sha_matches(binary, expected_binary_sha):
+        sha_problems.append("binary_sha")
+    if not _sha_matches(config, expected_config_sha):
+        sha_problems.append("config_sha")
+    if campaign_identity is not None:
+        if not _sha_matches(binary, campaign_identity.get("binary_sha")):
+            sha_problems.append("identity.binary_sha")
+        if not _sha_matches(config, campaign_identity.get("config_sha")):
+            sha_problems.append("identity.config_sha")
+        elf_map = campaign_identity.get("elf_sha")
+        workload = record.get("Workload")
+        if isinstance(elf_map, dict) and workload in elf_map:
+            if not _sha_matches(elf, elf_map[workload]):
+                sha_problems.append(f"identity.elf_sha[{workload}]")
+        elif matrix_row.get("InputHash") not in (None, "", NOT_AVAILABLE):
+            if not _sha_matches(elf, matrix_row.get("InputHash")):
+                sha_problems.append("design.InputHash")
+    # De-duplicate while keeping order.
+    sha_problems = list(dict.fromkeys(sha_problems))
+    if sha_problems:
+        return _finish(record, "HASH_MISMATCH", "SHA_DISAGREEMENT",
+                       sha_problems)
+
+    # 4. summary.json --------------------------------------------------------
+    summary = _read_json(run_dir / "summary.json")
+    if summary is None:
+        return _finish(record, "OUTPUT_INCOMPLETE", "SUMMARY_MISSING",
+                       ["summary.json"])
+
+    summary_mismatch = [
+        name for name, expected in (
+            ("model", model), ("context", ctx), ("role", role), ("seed", seed))
+        if not _same_value(summary.get(name), expected)
+    ]
+    for key, column in (("binary_sha", "Binary_SHA256"),
+                        ("config_sha", "Config_SHA256"),
+                        ("elf_sha", "ELF_SHA256")):
+        observed = summary.get(key)
+        if observed not in (None, "") and not _sha_matches(observed, campaign.get(key)):
+            summary_mismatch.append(key)
+    if summary_mismatch:
+        return _finish(record, "HASH_MISMATCH",
+                       "SUMMARY_CAMPAIGN_DISAGREEMENT", summary_mismatch)
+
+    terminal = str(summary.get("terminal") or NOT_AVAILABLE)
+    record["TerminalState"] = terminal
+    record["TerminalReason"] = str(
+        summary.get("terminal_reason") or NOT_AVAILABLE)
+    observed_oracle = summary.get("oracle")
+    record["OracleResult"] = (
+        "PASS" if observed_oracle is True else
+        "FAIL" if observed_oracle is False else
+        "NO_CHECKSUM" if "oracle" in summary else NOT_AVAILABLE)
+
+    trace_meta = summary.get("trace_completeness")
+    declared_trace = NOT_AVAILABLE
+    if isinstance(trace_meta, dict):
+        declared_trace = str(
+            trace_meta.get("trace_completeness") or NOT_AVAILABLE)
+    record["TraceCompleteness"] = declared_trace
+
+    # 5. timeout -------------------------------------------------------------
+    if (_as_bool(campaign.get("timed_out")) is True
+            or _as_bool(summary.get("timed_out")) is True
+            or _as_int(campaign.get("exit_code")) == 124
+            or _as_int(summary.get("exit_code")) == 124):
+        return _finish(record, "TIMEOUT", "EXTERNAL_TIMEOUT",
+                       ["wall_clock_timeout"])
+
+    # 6. required outputs ----------------------------------------------------
+    partial_marker = _partial_watchdog(run_dir, model)
+    missing = _missing_outputs(run_dir, model, role, summary, partial_marker)
+    if missing:
+        if "trace_v31.jsonl" in missing:
+            record["TraceCompleteness"] = "MISSING"
+        return _finish(record, "OUTPUT_INCOMPLETE", "MISSING_REQUIRED_OUTPUT",
+                       missing)
+
+    # 7. control runs --------------------------------------------------------
+    if role == "control":
+        result = classify_control_run(run_dir)
+        record["ControlZeroProof"] = result["proof_class"]
+        record["InjectorMounted"] = _yes_no_unknown(result["injector_mounted"])
+        record["FaultEnabled"] = _yes_no_unknown(result["fault_enabled"])
+        record["SuppressionReason"] = result["suppression_reason"]
+        record["InjectionAttemptCount"] = result["injection_attempt_count"]
+        record["InjectionAppliedCount"] = result["injection_applied_count"]
+        record["InjectionCount"] = result["injection_applied_count"]
+        hard_failure = _campaign_hard_failure(campaign.get("status"))
+        if hard_failure is not None:
+            return _finish(record, hard_failure,
+                           f"CAMPAIGN_STATUS_{hard_failure}")
+        control_status = result["status"]
+        if control_status in ("FAIL", "CONTROL_PROOF_INCOMPLETE"):
+            return _finish(record, control_status, f"CONTROL_{control_status}")
+        if observed_oracle is True:
+            return _finish(record, "COMPLETED", "CONTROL_ORACLE_PASS")
+        if observed_oracle is False:
+            return _finish(record, "FAILED", "CONTROL_ORACLE_FAIL")
+        return _finish(record, "FAILED", "CONTROL_ORACLE_MISSING")
+
+    # 8. fault runs ----------------------------------------------------------
+    injection_count = _as_int(summary.get("injection_count"))
+    record["InjectionCount"] = (
+        injection_count if injection_count is not None else UNKNOWN)
+
+    qualified_status = NOT_AVAILABLE
+    if model in QUALIFIED_MODELS:
+        qualified = qualified_evidence(model, run_dir)
+        qualified_status = qualified["status"]
+        record["QualifiedStatus"] = qualified_status
+        if record["TraceCompleteness"] == NOT_AVAILABLE:
+            record["TraceCompleteness"] = qualified_status
+
+    hard_failure = _campaign_hard_failure(campaign.get("status"))
+    if hard_failure is not None:
+        return _finish(record, hard_failure,
+                       f"CAMPAIGN_STATUS_{hard_failure}")
+
+    if terminal == "SDC":
+        status, reason = "ORACLE_FAIL", "TERMINAL_SDC"
+    elif terminal in MEASURED_TERMINALS:
+        status, reason = "COMPLETED", f"TERMINAL_{terminal}"
+    elif qualified_status == "QUALIFIED":
+        status, reason = "QUALIFIED", "QUALIFIED_EVIDENCE"
+    else:
+        status, reason = "FAILED", f"UNRECOGNIZED_TERMINAL_{terminal}"
+
+    if qualified_status == "TRACE_INCOMPLETE":
+        if terminal in WATCHDOG_TERMINALS:
+            # Documented measured terminal for a qualified model: the model
+            # watchdog cut the trace, so the completeness stays incomplete.
+            status, reason = "TRACE_INCOMPLETE", "TERMINAL_WATCHDOG_TRACE_CUT"
+        else:
+            status, reason = "FAILED", "QUALIFIED_TRACE_INCOMPLETE"
+
+    return _finish(record, status, reason)
+
+
+# ---------------------------------------------------------------------------
+# artifact writers
+# ---------------------------------------------------------------------------
+def _write_csv(path: Path, rows: list[dict], fieldnames) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(fieldnames),
+                                extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def _pair_rows(faults: list[dict], controls: list[dict]) -> list[dict]:
+    rows = []
+    for fault, control in zip(faults, controls):
+        rows.append({
+            "ModelID": fault["ModelID"],
+            "ContextID": fault["ContextID"],
+            "SampleRunID": fault["SampleRunID"],
+            "Seed": fault["Seed"],
+            "FaultStatus": fault["Status"],
+            "ControlStatus": control["Status"],
+            "FaultEvidenceKind": fault["EvidenceKind"],
+            "ControlEvidenceKind": control["EvidenceKind"],
+            "FaultEvidence": fault["Evidence"],
+            "ControlEvidence": control["Evidence"],
+            "FaultTerminal": fault["TerminalState"],
+            "FaultOracle": fault["OracleResult"],
+            "ControlOracle": control["OracleResult"],
+            "FaultInjectionCount": fault["InjectionCount"],
+            "ControlInjectionCount": control["InjectionCount"],
+            "ControlZeroProof": control["ControlZeroProof"],
+            "PairMatched": "YES" if (
+                _same_value(fault["Seed"], control["Seed"])
+                and fault["SampleRunID"] == control["SampleRunID"]) else "NO",
+        })
+    return rows
+
+
+def _control_proof_rows(controls: list[dict]) -> list[dict]:
+    rows = []
+    for control in controls:
+        rows.append({
+            "ModelID": control["ModelID"],
+            "ContextID": control["ContextID"],
+            "SampleRunID": control["SampleRunID"],
+            "Seed": control["Seed"],
+            "ControlStatus": control["Status"],
+            "ControlZeroProof": control["ControlZeroProof"],
+            "EvidenceKind": control["EvidenceKind"],
+            "InjectorMounted": control["InjectorMounted"],
+            "FaultEnabled": control["FaultEnabled"],
+            "SuppressionReason": control["SuppressionReason"],
+            "InjectionAttemptCount": control["InjectionAttemptCount"],
+            "InjectionAppliedCount": control["InjectionAppliedCount"],
+            "InjectionCount": control["InjectionCount"],
+            "ControlOracle": control["OracleResult"],
+            "Evidence": control["Evidence"],
+        })
+    return rows
+
+
+def write_core_artifacts(out: Path, records: list[dict],
+                         faults: list[dict], controls: list[dict]) -> None:
+    _write_csv(out / "LSU_120Run_Campaign_Manifest.csv", records,
+               MANIFEST_COLS)
+    _write_csv(out / "LSU_60Fault_60Control_Pair_Map.csv",
+               _pair_rows(faults, controls),
+               ("ModelID", "ContextID", "SampleRunID", "Seed",
+                "FaultStatus", "ControlStatus", "FaultEvidenceKind",
+                "ControlEvidenceKind", "FaultEvidence", "ControlEvidence",
+                "FaultTerminal", "FaultOracle", "ControlOracle",
+                "FaultInjectionCount", "ControlInjectionCount",
+                "ControlZeroProof", "PairMatched"))
+    _write_csv(out / "LSU_Control_Zero_Proof_Final.csv",
+               _control_proof_rows(controls),
+               ("ModelID", "ContextID", "SampleRunID", "Seed",
+                "ControlStatus", "ControlZeroProof", "EvidenceKind",
+                "InjectorMounted", "FaultEnabled", "SuppressionReason",
+                "InjectionAttemptCount", "InjectionAppliedCount",
+                "InjectionCount", "ControlOracle", "Evidence"))
+    for record in records:
+        run_name = Path(record["Evidence"]).name
+        path = out / "per_run" / run_name / "campaign_manifest.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(record, indent=2, ensure_ascii=False, sort_keys=True)
+            + "\n", encoding="utf-8")
+
+
+def _add_sheet(workbook, title, header, rows):
+    from openpyxl.styles import Alignment, Font
+
+    sheet = workbook.create_sheet(title)
+    sheet.append(list(header))
+    for row in rows:
+        sheet.append(list(row))
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+    sheet.freeze_panes = "A2"
+    return sheet
+
+
+def write_full_exports(out: Path, records: list[dict], faults: list[dict],
+                       controls: list[dict], *, runs: Path, campaign_id: str,
+                       expected_binary_sha: str,
+                       expected_config_sha: str) -> None:
+    """XLSX config workbook + readiness CSV, built from isolated records only."""
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    formal = sum(1 for row in records if row["EvidenceKind"] == FORMAL)
+    _add_sheet(workbook, "README", ("Item", "Value"), [
+        ("Workbook", "LSU_Formal_Experiment_Config_Final.xlsx"),
+        ("Purpose", "Formal campaign configuration (one row per fault/control)"),
+        ("CampaignRoot", str(runs)),
+        ("CampaignID", campaign_id),
+        ("EvidenceSource", "campaign root only (no historical audit read)"),
+        ("Final binary SHA256", expected_binary_sha),
+        ("Final config SHA256", expected_config_sha),
+        ("Scheduled tasks", len(records)),
+        ("Formal tasks", formal),
+    ])
+    _add_sheet(workbook, "Fault_Config", MANIFEST_COLS,
+               ([row[c] for c in MANIFEST_COLS] for row in faults))
+    _add_sheet(workbook, "Control_Config", MANIFEST_COLS,
+               ([row[c] for c in MANIFEST_COLS] for row in controls))
+    census = [["ModelID", "ContextID", "SampleRunID", "Seed", "ROI_Start",
+               "ROI_End", "ROI_N", "Percentile", "EligibleEventOrdinal",
+               "DynInstSeq", "PC", "ExpectedTerminal", "Status"]]
+    for row in faults:
+        census.append([row["ModelID"], row["ContextID"], row["SampleRunID"],
+                       row["Seed"], row["ROI_Start"], row["ROI_End"],
+                       row["ROI_N"], row["Percentile"],
+                       row["EligibleEventOrdinal"], row["DynInstSeq"],
+                       row["PC"], row["ExpectedTerminal"], row["Status"]])
+    _add_sheet(workbook, "ROI_Census", census[0], census[1:])
+    validation = [["Check", "Result", "Detail"]]
+    validation.append(["Scheduled tasks", len(records), "design rows x roles"])
+    validation.append(["Formal tasks", formal, "EvidenceKind=FORMAL"])
+    validation.append(["Unique SampleRunID",
+                       len({row["SampleRunID"] for row in faults}),
+                       "expected 60"])
+    validation.append(["Fault/control same seed",
+                       all(_same_value(f["Seed"], c["Seed"])
+                           for f, c in zip(faults, controls)), "per pair"])
+    validation.append(["Binary SHA consistent",
+                       all(row["Binary_SHA256"] == expected_binary_sha
+                           for row in records if row["EvidenceKind"] == FORMAL),
+                       expected_binary_sha])
+    validation.append(["Config SHA consistent",
+                       all(row["Config_SHA256"] == expected_config_sha
+                           for row in records if row["EvidenceKind"] == FORMAL),
+                       expected_config_sha])
+    _add_sheet(workbook, "Config_Validation", validation[0], validation[1:])
+    out.mkdir(parents=True, exist_ok=True)
+    workbook.save(out / "LSU_Formal_Experiment_Config_Final.xlsx")
+
+    readiness = []
+    for fault, control in zip(faults, controls):
+        problems = []
+        if fault["EvidenceKind"] != FORMAL or fault["Status"] not in SUCCESS_STATUSES:
+            problems.append(f"fault:{fault['Status']}")
+        if control["EvidenceKind"] != FORMAL or control["Status"] not in SUCCESS_STATUSES:
+            problems.append(f"control:{control['Status']}")
+        readiness.append({
+            "ModelID": fault["ModelID"],
+            "ContextID": fault["ContextID"],
+            "SampleRunID": fault["SampleRunID"],
+            "Seed": fault["Seed"],
+            "FaultStatus": fault["Status"],
+            "ControlStatus": control["Status"],
+            "EvidenceKind": (FORMAL if fault["EvidenceKind"] == control["EvidenceKind"] == FORMAL
+                             else NON_FORMAL),
+            "TerminalState": fault["TerminalState"],
+            "OracleResult": fault["OracleResult"],
+            "ControlZeroProof": control["ControlZeroProof"],
+            "QualifiedStatus": fault["QualifiedStatus"],
+            "ReadyGate": "READY" if not problems else ";".join(problems),
+        })
+    _write_csv(out / "LSU_60Context_Final_Readiness.csv", readiness,
+               ("ModelID", "ContextID", "SampleRunID", "Seed", "FaultStatus",
+                "ControlStatus", "EvidenceKind", "TerminalState",
+                "OracleResult", "ControlZeroProof", "QualifiedStatus",
+                "ReadyGate"))
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Collect the LSU v3.3.3 formal campaign manifest from the "
+                    "campaign root only.")
+    parser.add_argument("--runs", required=True,
+                        help="campaign root holding <MODEL>-<CTX>-<role>/ dirs")
+    parser.add_argument("--campaign-id", required=True,
+                        help="expected campaign_id in every campaign.json")
+    parser.add_argument("--design-matrix", required=True,
+                        help="frozen design matrix CSV (identity only)")
+    parser.add_argument("--design-mapping", required=True,
+                        help="ROI/identity mapping CSV (identity only)")
+    parser.add_argument("--out", default="audit_launch_fix_v333/artifacts",
+                        help="artifact output directory")
+    parser.add_argument("--manifest-only", action="store_true",
+                        help="write the manifest/pair/proof/per-run artifacts "
+                             "without the XLSX/readiness export")
+    parser.add_argument("--expected-binary-sha", default=DEFAULT_BINARY_SHA,
+                        help="expected gem5 binary SHA256")
+    parser.add_argument("--expected-config-sha", default=DEFAULT_CONFIG_SHA,
+                        help="expected workload config SHA256")
+    args = parser.parse_args(argv)
+
+    runs = Path(args.runs).resolve()
+    if not runs.is_dir():
+        print(f"error: --runs is not a directory: {runs}", file=sys.stderr)
+        return 2
+
+    matrix_rows = _load_csv(Path(args.design_matrix))
+    if not matrix_rows:
+        print(f"error: --design-matrix is empty/unreadable: "
+              f"{args.design_matrix}", file=sys.stderr)
+        return 2
+    mapping_rows = _load_csv(Path(args.design_mapping))
+    mapping_idx = {(str(row.get("ModelID", "")).strip(),
+                    str(row.get("ContextID", "")).strip()): row
+                   for row in mapping_rows}
+
+    campaign_identity = _read_json(runs / "campaign_identity.json")
+    if campaign_identity is not None:
+        identity_cid = campaign_identity.get("campaign_id")
+        if identity_cid not in (None, "") and \
+                not _same_value(identity_cid, args.campaign_id):
+            campaign_identity = None
+
+    records: list[dict] = []
+    for matrix_row in matrix_rows:
+        model = str(matrix_row.get("FaultModelID") or "").strip()
+        ctx = _ctx_of(matrix_row.get("SampleRunID", ""))
+        mapping_row = mapping_idx.get((model, ctx))
+        for role in ("fault", "control"):
+            records.append(collect_task(
+                runs, args.campaign_id, matrix_row, mapping_row, role,
+                args.expected_binary_sha, args.expected_config_sha,
+                campaign_identity))
+
+    faults = [record for record in records if record["Role"] == "fault"]
+    controls = [record for record in records if record["Role"] == "control"]
+    out = Path(args.out)
+    write_core_artifacts(out, records, faults, controls)
+    if not args.manifest_only:
+        write_full_exports(
+            out, records, faults, controls, runs=runs,
+            campaign_id=args.campaign_id,
+            expected_binary_sha=args.expected_binary_sha,
+            expected_config_sha=args.expected_config_sha)
+
+    formal = sum(1 for record in records if record["EvidenceKind"] == FORMAL)
+    status_tally: dict[str, int] = {}
+    for record in records:
+        status_tally[record["Status"]] = \
+            status_tally.get(record["Status"], 0) + 1
+    print(f"collected {len(records)} tasks from {runs} "
+          f"(campaign_id={args.campaign_id})")
+    print(f"formal={formal} non_formal={len(records) - formal}")
+    print("statuses " + json.dumps(dict(sorted(status_tally.items()))))
+    print("wrote artifacts to", out)
+
+    ok = all(record["EvidenceKind"] == FORMAL
+             and record["Status"] in SUCCESS_STATUSES for record in records)
+    if not ok:
+        for record in records:
+            if record["EvidenceKind"] != FORMAL or \
+                    record["Status"] not in SUCCESS_STATUSES:
+                print(f"  {record['EvidenceKind']}: {record['Status']}: "
+                      f"{record['ModelID']}-{record['ContextID']}-"
+                      f"{record['Role']} ({record['Reason']}; "
+                      f"missing={record['MissingEvidence']})",
+                      file=sys.stderr)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
