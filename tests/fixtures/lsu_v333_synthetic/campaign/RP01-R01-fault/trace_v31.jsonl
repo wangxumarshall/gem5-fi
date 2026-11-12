@@ -1,0 +1,2 @@
+{"record_type": "event", "event_type": "injection", "dyn_inst_seq": 9001, "detail": "rp01_skip_replay;ordinal=26"}
+{"record_type": "summary", "trace_version": "v3.1", "sample_run_id": "SYNTH-RP01-R01", "fault_model_id": "RP01", "run_status": "COMPLETED", "fault_activation_status": "TRIGGERED", "terminal_state": "HANG_WATCHDOG", "trace_completeness": "COMPLETE", "counts": {"events": 2, "injections": 1, "activations": 1}}

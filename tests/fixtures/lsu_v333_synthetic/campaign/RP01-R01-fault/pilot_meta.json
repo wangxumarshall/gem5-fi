@@ -1,0 +1,26 @@
+{
+  "classification": {
+    "oracle_outcome": "n/a",
+    "terminal_state": "HANG_WATCHDOG",
+    "terminal_state_reason": "INTERNAL_WATCHDOG_DEADLINE"
+  },
+  "driver": "synthetic_fixture",
+  "event_ordinal": 26,
+  "injection_count": 1,
+  "injector": {
+    "attach_mechanism": "self_attach_at_startup",
+    "gate": "ordinal",
+    "gate_enabled": true,
+    "mount_flags": [],
+    "mounted": false,
+    "probability": 1.0,
+    "zero_injection_proof": "INJECTOR_ABSENT"
+  },
+  "model": "RP01",
+  "oracle_pass": false,
+  "pilot_id": "RP01-R01-fault",
+  "run_role": "FAULT",
+  "seed": 3135797961,
+  "terminal": "HANG_WATCHDOG",
+  "terminal_state": "HANG_WATCHDOG"
+}

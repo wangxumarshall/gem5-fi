@@ -1,0 +1,28 @@
+{
+  "classification": {
+    "oracle_outcome": "FAIL",
+    "terminal_state": "HANG",
+    "terminal_state_reason": "NO_CHECKSUM_EXTERNAL_TIMEOUT"
+  },
+  "driver": "synthetic_fixture",
+  "event_ordinal": 1131,
+  "injection_count": 1,
+  "injector": {
+    "attach_mechanism": "self_attach_at_startup",
+    "gate": "ordinal",
+    "gate_enabled": true,
+    "mount_flags": [
+      "--chaos_addrpath"
+    ],
+    "mounted": true,
+    "probability": 1.0,
+    "zero_injection_proof": "MOUNTED_BUT_ACTIVE"
+  },
+  "model": "A03",
+  "oracle_pass": false,
+  "pilot_id": "A03-R03-fault",
+  "run_role": "FAULT",
+  "seed": 110775855,
+  "terminal": "HANG",
+  "terminal_state": "HANG"
+}

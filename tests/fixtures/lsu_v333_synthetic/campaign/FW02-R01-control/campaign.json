@@ -1,0 +1,16 @@
+{
+  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
+  "campaign_id": "SYNTH-V333-FORMAL",
+  "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+  "context": "R01",
+  "elf_sha": "9b4b8534cd9528624412d0c719b5c6691b94e6574e6ac2a800a3830a70e09eb7",
+  "ended_at": "2026-11-12T00:01:00Z",
+  "exit_code": 0,
+  "model": "FW02",
+  "role": "control",
+  "sample_run_id": "SYNTH-FW02-R01",
+  "seed": 2941542370,
+  "started_at": "2026-11-12T00:00:00Z",
+  "status": "COMPLETED",
+  "timed_out": false
+}

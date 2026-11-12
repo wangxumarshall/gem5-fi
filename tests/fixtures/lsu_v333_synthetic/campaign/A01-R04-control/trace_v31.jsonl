@@ -1,0 +1,2 @@
+{"record_type": "event", "event_type": "inventory", "events": 1, "note": "control: no injection event"}
+{"record_type": "summary", "trace_version": "v3.1", "sample_run_id": "SYNTH-A01-R04", "fault_model_id": "A01", "run_status": "COMPLETED", "fault_activation_status": "NOT_TRIGGERED", "terminal_state": "UNRESOLVED", "trace_completeness": "COMPLETE", "counts": {"events": 2, "injections": 0, "activations": 0}}

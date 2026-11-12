@@ -1,0 +1,28 @@
+{
+  "classification": {
+    "oracle_outcome": "FAIL",
+    "terminal_state": "SDC",
+    "terminal_state_reason": "ORACLE_FAIL"
+  },
+  "driver": "synthetic_fixture",
+  "event_ordinal": 649,
+  "injection_count": 1,
+  "injector": {
+    "attach_mechanism": "self_attach_at_startup",
+    "gate": "ordinal",
+    "gate_enabled": true,
+    "mount_flags": [
+      "--chaos_addrpath"
+    ],
+    "mounted": true,
+    "probability": 1.0,
+    "zero_injection_proof": "MOUNTED_BUT_ACTIVE"
+  },
+  "model": "A01",
+  "oracle_pass": false,
+  "pilot_id": "A01-R03-fault",
+  "run_role": "FAULT",
+  "seed": 1302709433,
+  "terminal": "SDC",
+  "terminal_state": "SDC"
+}

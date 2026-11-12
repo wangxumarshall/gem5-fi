@@ -1,0 +1,24 @@
+{
+  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
+  "context": "R01",
+  "ctx_index": 1,
+  "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+  "exit_code": 0,
+  "injection_count": 1,
+  "model": "A01",
+  "oracle": false,
+  "ordinal": 597,
+  "outdir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault",
+  "role": "fault",
+  "seed": 2108120075,
+  "terminal": "SDC",
+  "terminal_reason": "ORACLE_FAIL",
+  "timed_out": false,
+  "trace_completeness": {
+    "record_integrity": "VALID",
+    "run_status": "COMPLETED",
+    "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/trace_v31.jsonl",
+    "trace_completeness": "COMPLETE"
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes"
+}

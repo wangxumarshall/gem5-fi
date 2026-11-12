@@ -1,0 +1,27 @@
+{
+  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
+  "context": "R01",
+  "control_proof": "INJECTOR_ABSENT",
+  "ctx_index": 1,
+  "elf_sha": "9c38e74468400e0fa45bc02a001a24592a1652ba87e24594cad3f3fddd28dc87",
+  "exit_code": 0,
+  "injection_applied_count": 0,
+  "injection_attempt_count": 0,
+  "injection_count": 0,
+  "model": "RP01",
+  "oracle": true,
+  "ordinal": 26,
+  "outdir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control",
+  "role": "control",
+  "seed": 3135797961,
+  "terminal": "UNRESOLVED",
+  "terminal_reason": "NO_INJECTION_EVENT",
+  "timed_out": false,
+  "trace_completeness": {
+    "record_integrity": "VALID",
+    "run_status": "COMPLETED",
+    "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/trace_v31.jsonl",
+    "trace_completeness": "COMPLETE"
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/replay_dependency"
+}

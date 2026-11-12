@@ -1,0 +1,30 @@
+{
+  "classification": {
+    "oracle_outcome": "PASS",
+    "terminal_state": "HANG",
+    "terminal_state_reason": "NO_CHECKSUM_EXTERNAL_TIMEOUT"
+  },
+  "driver": "synthetic_fixture",
+  "event_ordinal": 623,
+  "injection_applied_count": 0,
+  "injection_attempt_count": 0,
+  "injection_count": 0,
+  "injector": {
+    "attach_mechanism": "self_attach_at_startup",
+    "gate": "probability_zero",
+    "gate_enabled": false,
+    "mount_flags": [
+      "--chaos_addrpath"
+    ],
+    "mounted": true,
+    "probability": 0.0,
+    "zero_injection_proof": "MOUNTED_BUT_DISABLED"
+  },
+  "model": "A01",
+  "oracle_pass": true,
+  "pilot_id": "A01-R02-control",
+  "run_role": "CONTROL",
+  "seed": 1113826800,
+  "terminal": "HANG",
+  "terminal_state": "HANG"
+}

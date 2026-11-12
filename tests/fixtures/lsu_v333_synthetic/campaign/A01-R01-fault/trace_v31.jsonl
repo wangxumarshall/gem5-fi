@@ -1,0 +1,3 @@
+{"record_type": "event", "event_type": "injection", "dyn_inst_seq": 12909, "detail": "pc=400578;va=493028;pa=78028;eligible_ordinal=597;lq=756"}
+{"record_type": "event", "event_type": "consumer_commit", "dyn_inst_seq": 12911, "detail": "pc=40057c"}
+{"record_type": "summary", "trace_version": "v3.1", "sample_run_id": "SYNTH-A01-R01", "fault_model_id": "A01", "run_status": "COMPLETED", "fault_activation_status": "TRIGGERED", "terminal_state": "SDC", "trace_completeness": "COMPLETE", "counts": {"events": 2, "injections": 1, "activations": 1}}
