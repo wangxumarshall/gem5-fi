@@ -112,9 +112,12 @@ unchanged. A machine-readable record is in
   fault before `checkPermissions64`; PROT_EXEC-only preserves the M07
   grant-inversion mechanism.
 - Approval basis: researcher-approved 2026-11-12; exact text from Agent C.
-- Workload: W14. Golden:
-  `runs/TEST-F1-M07-CTRL-R03/Run_Log/golden_output.txt`.
-- Trace / final verification: PENDING Main final run on the frozen binary.
+- Workload: W14 (binary SHA256 f15dc78e...). Golden:
+  `runs/TEST-F1-CTRL2-W14-R03/Run_Log/golden_output.txt` (SEGV_ACCERR on a
+  VALID L3 leaf with AP=0b10, AF=1, UXN=0).
+- Trace / final verification: READY. `TEST-F1B-M07-R03`
+  ACTIVATED/CONSUMED/FULL/COMPLETE/SDC/FAIL; the inverted grant commits the
+  EL0 load (`observed=0x88`, `injected_success=1`).
 
 ### M07-F0-W14-S01-R05
 
@@ -131,8 +134,36 @@ unchanged. A machine-readable record is in
   distinct permission-denial context from R04; the old PROT_NONE fetch was a
   translation fault and not a distinct M07 realization.
 - Approval basis: researcher-approved 2026-11-12; exact text from Agent C.
-- Workload: W14. Golden:
-  `runs/TEST-F1-M07-CTRL-R05/Run_Log/golden_output.txt`.
-- Trace / final verification: PENDING Main final run on the frozen binary.
+- Workload: W14 (binary SHA256 f15dc78e...). Golden:
+  `runs/TEST-F1-CTRL2-W14-R05/Run_Log/golden_output.txt` (SEGV_ACCERR at
+  0x400d600180, UXN=1 on a VALID leaf).
+- Trace / final verification: READY. `TEST-F1-M07-R05`
+  ACTIVATED/CONSUMED/FULL/COMPLETE/SDC/FAIL; the inverted grant executes the
+  indirect-branch target (marker 0x5a).
 
 No authoritative row was renumbered, deleted or added.
+
+
+## v2.2-FINAL — 2026-11-12 formal closure round
+
+- Platform: one final binary `b3eb1559...` built from closure commit
+  `69f0a202...` (base commit for pilot provenance `f24b6b77...`).
+- Platform capability: FEAT_EPAN advertised (ID_AA64MMFR1_EL1.PAN=3) so the
+  approved M07 R03 execute-only mapping is a real AP=0b10 EL0 denial. Scope
+  is execute-only user mappings only; read/execute and read-only mappings
+  are unchanged.
+- Checkpoint: `runs/mmu_bootF1/cpt.244799013609` (digest
+  `4aa1ba38...`), created on the final binary; every F1 control and pilot
+  restores from it.
+- Workloads: W10 per-context target VAs (733b8a80...), W10S runtime
+  --target-va (fede5f3e...), W14 R03/R05 realizations (f15dc78e...).
+- Evidence: 40/40 contexts re-run on the final binary with per-context
+  independent no-fault controls; every trace is COMPLETE, every terminal is
+  admissible (M01/M02/M04/M05/M07/M08 SDC; M03 R01-R04 SQUASHED/PASS, R05
+  SDC; M06 DETECTED_CONTAINED).
+- Validator corrections (evidence joins, not threshold lowering): M01 origin
+  suppression ancestor, M02 insert-time walk identity, M03/M04 IFU
+  injected-PA join, M05 Execute IFU path, M07 activation decision witness,
+  M06 delivery requirement; translation_start is a transaction root.
+- Preflight: 40/40 READY; seed literal N/A_DETERMINISTIC (0 gate failures);
+  binary/source provenance PASS.

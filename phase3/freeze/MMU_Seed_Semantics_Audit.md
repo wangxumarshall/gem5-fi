@@ -137,3 +137,14 @@ single-thread range, or has no RNG consumption at all. The experiment is
 deterministic as configured. `N/A_DETERMINISTIC` is therefore a factual
 description, not a placeholder: the literal is passed through the manifest as
 metadata and never handed to gem5.
+
+
+## 7. Final closure verification (2026-11-12)
+
+All 40 F1 pilots were launched with no seed flag at all; each
+`sample_manifest.json` records `seed=""`, `seed_policy="<unset>"`,
+`seed_used_by_gem5=false`, and the preflight reports 0 seed-gate failures
+over the 40 frozen `N/A_DETERMINISTIC` rows.  The final platform checkpoint
+is `runs/mmu_bootF1/cpt.244799013609`; the final binary is
+`b3eb1559...`.  No numeric seed, hash, timestamp or derived value exists
+anywhere in the run plan or command line.

@@ -1,0 +1,54 @@
+# Seed Gate Report
+
+Policy: the seed is taken **only** from the authoritative workbook (`07_Sample_Matrix.Seed` + `SeedPolicy`). The researcher-approved literal `N/A_DETERMINISTIC` is valid when and only when SeedPolicy=DETERMINISTIC; it is never parsed as an integer and never passed to gem5. A numeric seed under the deterministic policy (or the literal under a random policy) is `BLOCKED_SEED_POLICY`; a blank/placeholder cell is `BLOCKED_MISSING_SEED`.
+
+- Samples failing the seed gate: **0 / 40**
+- Every authoritative seed cell currently reads: `N/A_DETERMINISTIC`
+
+| SampleRunID | Model | Workload | Context | Seed cell | Hook | Workload | Context | Config | Trace | Oracle | Output | PRIMARY | Other blockers |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| M01-F0-W9-S01-R01 | M01 | W9 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M01-F0-W9-S01-R02 | M01 | W9 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M01-F0-W9-S01-R03 | M01 | W9 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M01-F0-W9-S01-R04 | M01 | W9 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M01-F0-W9-S01-R05 | M01 | W9 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M02-F0-W10-S01-R01 | M02 | W10 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M02-F0-W10-S01-R02 | M02 | W10 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M02-F0-W10-S01-R03 | M02 | W10 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M02-F0-W10-S01-R04 | M02 | W10 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M02-F0-W10-S01-R05 | M02 | W10 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M03-F0-W11-S01-R01 | M03 | W11 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M03-F0-W11-S01-R02 | M03 | W11 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M03-F0-W11-S01-R03 | M03 | W11 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M03-F0-W11-S01-R04 | M03 | W11 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M03-F0-W11-S01-R05 | M03 | W11 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M04-F0-W12-S01-R01 | M04 | W12 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M04-F0-W12-S01-R02 | M04 | W12 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M04-F0-W12-S01-R03 | M04 | W12 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M04-F0-W12-S01-R04 | M04 | W12 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M04-F0-W12-S01-R05 | M04 | W12 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M05-F0-W13-S01-R01 | M05 | W13 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M05-F0-W13-S01-R02 | M05 | W13 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M05-F0-W13-S01-R03 | M05 | W13 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M05-F0-W13-S01-R04 | M05 | W13 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M05-F0-W13-S01-R05 | M05 | W13 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M06-F0-W10-S01-R01 | M06 | W10 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M06-F0-W10-S01-R02 | M06 | W10 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M06-F0-W10-S01-R03 | M06 | W10 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M06-F0-W10-S01-R04 | M06 | W10 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M06-F0-W10-S01-R05 | M06 | W10 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M07-F0-W14-S01-R01 | M07 | W14 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M07-F0-W14-S01-R02 | M07 | W14 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M07-F0-W14-S01-R03 | M07 | W14 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M07-F0-W14-S01-R04 | M07 | W14 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M07-F0-W14-S01-R05 | M07 | W14 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M08-F0-W10-S01-R01 | M08 | W10 | R01 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M08-F0-W10-S01-R02 | M08 | W10 | R02 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M08-F0-W10-S01-R03 | M08 | W10 | R03 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M08-F0-W10-S01-R04 | M08 | W10 | R04 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+| M08-F0-W10-S01-R05 | M08 | W10 | R05 | `N/A_DETERMINISTIC` | PASS | PASS | PASS | PASS | PASS | PASS | ok | **READY** | - |
+
+## Consequence
+
+The frozen seed gate is **satisfied for all 40 samples**: every Seed is the literal `N/A_DETERMINISTIC` with SeedPolicy=DETERMINISTIC. Formal execution still requires the remaining runtime-evidence blockers below to be closed first.
+

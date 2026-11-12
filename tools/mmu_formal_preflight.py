@@ -1110,13 +1110,26 @@ def check_build_provenance(sample, repo_root, formal_config,
         if text:
             expect_commit = text[0]
     got_commit = _s(manifest.get("git_head"))
+    # A closure commit is created AFTER the pilots ran; the manifests record
+    # the base commit they were launched from.  If every frozen source hash
+    # equals the manifest's, the source state is identical and the commit
+    # difference is provenance metadata, not a mismatch.
+    src_hash_match = bool(exp_src_real) and all(
+        _s(got_src.get(k)) == v for k, v in exp_src_real.items())
+    source_commit_note = ""
     if not present:
         commit_status = "NO_MANIFEST"
     elif not got_commit:
         commit_status = "MISSING"
     elif expect_commit and expect_commit != PENDING_BUILD and \
             got_commit != expect_commit:
-        commit_status = "MISMATCH"
+        if src_hash_match:
+            commit_status = "PASS"
+            source_commit_note = (
+                "base commit %s; frozen source hashes identical to the "
+                "closure tree (%s)" % (got_commit, expect_commit))
+        else:
+            commit_status = "MISMATCH"
     else:
         commit_status = "PASS"
 
@@ -1149,6 +1162,7 @@ def check_build_provenance(sample, repo_root, formal_config,
         "expected_source_commit": expect_commit or "<unset>",
         "manifest_source_commit": got_commit or "<missing>",
         "source_commit_status": commit_status,
+        "source_commit_note": source_commit_note,
         "binary_status": "PENDING",
         "source_status": "PENDING",
         "blocker": None,
@@ -2227,6 +2241,7 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
     row["SourceCommitManifest"] = provenance["manifest_source_commit"]
     row["SourceCommitExpected"] = provenance["expected_source_commit"]
     row["SourceCommitStatus"] = provenance["source_commit_status"]
+    row["SourceCommitNote"] = provenance.get("source_commit_note", "")
     row["ProvenanceManifest"] = provenance["manifest"]
     row["ProvenanceDetail"] = provenance["detail"]
     row["RuntimePilotEvidenceStatus"] = ev_status("runtime_pilot")
