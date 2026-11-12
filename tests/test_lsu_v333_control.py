@@ -327,7 +327,9 @@ def test_planned_rp01_and_a03_commands():
     a03 = mx.planned_command("A03", 1, "fault", Path("/tmp/x"))
     assert "--addrpath_watchdog_cycles" in a03
     assert str(mx.A03_WATCHDOG_CYCLES) in a03
-    assert mx.A03_WATCHDOG_CYCLES == 1_000_000_000
+    # 385 ticks/cycle at B0; 1M cycles = ~385M ticks, ~20x the 19.6M-tick
+    # control. The earlier 1e9-cycle value never fired before the wall bound.
+    assert mx.A03_WATCHDOG_CYCLES == 1_000_000
 
     rp01_control = mx.planned_command("RP01", 1, "control", Path("/tmp/x"))
     assert "--chaos_lsqfwd" not in rp01_control
@@ -336,7 +338,7 @@ def test_planned_rp01_and_a03_commands():
 def test_csv_paths_are_distinct():
     import lsu_v332_report as report
     assert mx.SUMMARY_CSV.name.endswith("_RAW.csv")
-    assert report.OUT.name == "audit_v3_3_2"
+    assert report.OUT.name == "audit_v3_3_3"
     # The report's FINAL filename is produced inside main(); assert the source
     # constant is the FINAL name and never the RAW name.
     src = (TOOLS / "lsu_v332_report.py").read_text()

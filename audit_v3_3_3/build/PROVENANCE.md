@@ -53,8 +53,31 @@ The build log contains the same warning set as the v3.3.2 log: `CHAOSCache.cc` `
 
 ## 5. A01/A03 re-census (approved v3.3.3 change)
 
-After excluding translation retries, the measured main-loop eligible window is `[1040, 1222]` (N=183). The five percentile ordinals are `1058, 1094, 1131, 1168, 1204` (`start + ceil(p*N) - 1`). The A03 per-event stream shows the target PCs in `main` (`0x4005c0`, `0x40068c`, `0x4006a8`, `0x4006d0`, `0x4006d0`). SampleRunID and Seed are unchanged; the v3.3.2 window `[1040, 1234]` / N=195 is retained as history.
+- **A03 (size-agnostic persistent fault):** after excluding translation retries, the measured main-loop eligible window is `[1040, 1222]` (N=183); percentile ordinals `1058, 1094, 1131, 1168, 1204`.
+- **A01 (final correction, ledger L-A12):** the model targets an 8-byte GPR load; the 16-byte vector load at the old 50% context is excluded. The count-only 8-byte stream has 817 eligible events; the main-loop window is `[585, 713]` (N=129); percentile ordinals `597, 623, 649, 675, 701` (all `size=8`, PCs in `main`). The v3.3.2 window `[1040, 1234]` / N=195 and the pre-correction `[1040, 1222]` / N=183 are history.
+SampleRunID and Seed are unchanged.
 
 ## 6. Packaging note
 
-The 1.1 GB binary is preserved as a copy at `audit_v3_3_3/binary/gem5.opt.v333-685d88f7` for the delivery zip. It is not committed to git; the SHA above is the authority.
+The final 1.1 GB binary is preserved as a hardlink at `audit_v3_3_3/binary/gem5.opt.v333-1126e0fd`; the pre-correction `gem5.opt.v333-685d88f7` is retained as history. Neither is committed to git; the SHA above is the authority.
+
+---
+
+## 7. Correction build (v3.3.3 final)
+
+The A01 16-byte/vector-load root cause (ledger L-A12) required one correction
+cycle: restrict A01 eligibility to 8-byte loads and add a count-only
+eligible-stream census mode.
+
+| Item | Value |
+|---|---|
+| Correction source HEAD | `b5031bf7d857ca7901810a3bf3629f5649ddaaac` |
+| Correction build log | `audit_v3_3_3/build/v333_build2.log` |
+| Final binary SHA256 | `1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338` |
+| Source/binary consistency | `git diff --stat HEAD -- CHAOS/gem5/src` empty |
+| A01 8-byte census | 817 eligible, main window 585–713 (N=129), ordinals 597/623/649/675/701 |
+| A01-R03 correction smoke | injection=1, `register_writeback`=1, commit+errant_commit, oracle FAIL, SDC; control golden |
+| Build result | `scons: done building targets.`; `error:` count = 0; no new warning class |
+| Pre-correction binary | `685d88f7…`; its 120 runs are archived at `audit_v3_3_3/runs_685d88f7/` (not mixed with the final set) |
+
+The final 120-pair matrix is run on `1126e0fd…`; every row must carry this SHA.

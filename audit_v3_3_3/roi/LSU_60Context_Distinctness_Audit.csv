@@ -1,0 +1,61 @@
+ModelID,ContextID,Identity,DistinctFromOtherContexts,Terminal,EvidencePath
+A01,R01,seq=12909;pc=400578;va=None;addr=78028;lq=756,YES,SDC,audit_v3_3_3/runs/A01-R01-fault
+A01,R02,seq=13424;pc=4005e0;va=None;addr=780f8;lq=782,YES,SDC,audit_v3_3_3/runs/A01-R02-fault
+A01,R03,seq=14572;pc=4006d0;va=None;addr=78208;lq=846,YES,SDC,audit_v3_3_3/runs/A01-R03-fault
+A01,R04,seq=14972;pc=4006d0;va=None;addr=782d8;lq=872,YES,SDC,audit_v3_3_3/runs/A01-R04-fault
+A01,R05,seq=15128;pc=4006d0;va=None;addr=783a8;lq=898,YES,SDC,audit_v3_3_3/runs/A01-R05-fault
+A03,R01,A03_ACTIVATION: tick=15958635;bit=3;mode=a03_bit3_stuck0_load,YES,SDC,audit_v3_3_3/runs/A03-R01-fault
+A03,R02,A03_ACTIVATION: tick=16170385;bit=3;mode=a03_bit3_stuck0_load,YES,SDC,audit_v3_3_3/runs/A03-R02-fault
+A03,R03,A03_ACTIVATION: tick=16461060;bit=3;mode=a03_bit3_stuck0_load,YES,SDC,audit_v3_3_3/runs/A03-R03-fault
+A03,R04,A03_ACTIVATION: tick=16576175;bit=3;mode=a03_bit3_stuck0_load,YES,SDC,audit_v3_3_3/runs/A03-R04-fault
+A03,R05,A03_ACTIVATION: tick=16626995;bit=3;mode=a03_bit3_stuck0_load,YES,SDC,audit_v3_3_3/runs/A03-R05-fault
+FW02,R01,seq=12243;pc=400538;va=0x4919d0;addr=769d0;lq=749,YES,SDC,audit_v3_3_3/runs/FW02-R01-fault
+FW02,R02,seq=12479;pc=400538;va=0x491a30;addr=76a30;lq=761,YES,SDC,audit_v3_3_3/runs/FW02-R02-fault
+FW02,R03,seq=12587;pc=400538;va=0x491a90;addr=76a90;lq=773,YES,MASKED,audit_v3_3_3/runs/FW02-R03-fault
+FW02,R04,seq=13344;pc=400620;va=0x4919c0;addr=769c0;lq=791,YES,SDC,audit_v3_3_3/runs/FW02-R04-fault
+FW02,R05,seq=13572;pc=400658;va=0x4919e8;addr=769e8;lq=804,YES,SDC,audit_v3_3_3/runs/FW02-R05-fault
+FW05,R01,seq=16084;pc=400564;va=None;addr=None;lq=942,YES,SDC,audit_v3_3_3/runs/FW05-R01-fault
+FW05,R02,seq=23684;pc=400564;va=None;addr=None;lq=1342,YES,SDC,audit_v3_3_3/runs/FW05-R02-fault
+FW05,R03,seq=31284;pc=400564;va=None;addr=None;lq=1742,YES,SDC,audit_v3_3_3/runs/FW05-R03-fault
+FW05,R04,seq=38884;pc=400564;va=None;addr=None;lq=2142,YES,SDC,audit_v3_3_3/runs/FW05-R04-fault
+FW05,R05,seq=46484;pc=400564;va=None;addr=None;lq=2542,YES,SDC,audit_v3_3_3/runs/FW05-R05-fault
+SQ01,R01,seq=13328;pc=40053c;va=None;addr=0x4919f0;lq=None,YES,SDC,audit_v3_3_3/runs/SQ01-R01-fault
+SQ01,R02,seq=15122;pc=40053c;va=None;addr=0x491ac0;lq=None,YES,SDC,audit_v3_3_3/runs/SQ01-R02-fault
+SQ01,R03,seq=16847;pc=40053c;va=None;addr=0x491b88;lq=None,YES,SDC,audit_v3_3_3/runs/SQ01-R03-fault
+SQ01,R04,seq=18641;pc=40053c;va=None;addr=0x491c58;lq=None,YES,SDC,audit_v3_3_3/runs/SQ01-R04-fault
+SQ01,R05,seq=20435;pc=40053c;va=None;addr=0x491d28;lq=None,YES,SDC,audit_v3_3_3/runs/SQ01-R05-fault
+SQ03,R01,seq=13328;pc=40053c;va=None;addr=0x4919f0;lq=None,YES,MASKED,audit_v3_3_3/runs/SQ03-R01-fault
+SQ03,R02,seq=15122;pc=40053c;va=None;addr=0x491ac0;lq=None,YES,MASKED,audit_v3_3_3/runs/SQ03-R02-fault
+SQ03,R03,seq=16847;pc=40053c;va=None;addr=0x491b88;lq=None,YES,MASKED,audit_v3_3_3/runs/SQ03-R03-fault
+SQ03,R04,seq=18641;pc=40053c;va=None;addr=0x491c58;lq=None,YES,MASKED,audit_v3_3_3/runs/SQ03-R04-fault
+SQ03,R05,seq=20435;pc=40053c;va=None;addr=0x491d28;lq=None,YES,MASKED,audit_v3_3_3/runs/SQ03-R05-fault
+SP05,R01,seq=13328;pc=None;va=None;addr=None;lq=None,YES,SDC,audit_v3_3_3/runs/SP05-R01-fault
+SP05,R02,seq=15122;pc=None;va=None;addr=None;lq=None,YES,SDC,audit_v3_3_3/runs/SP05-R02-fault
+SP05,R03,seq=16847;pc=None;va=None;addr=None;lq=None,YES,SDC,audit_v3_3_3/runs/SP05-R03-fault
+SP05,R04,seq=18641;pc=None;va=None;addr=None;lq=None,YES,SDC,audit_v3_3_3/runs/SP05-R04-fault
+SP05,R05,seq=20435;pc=None;va=None;addr=None;lq=None,YES,SDC,audit_v3_3_3/runs/SP05-R05-fault
+DA04,R01,seq=14320;pc=400538;va=None;addr=0x491b29;lq=742,YES,SDC,audit_v3_3_3/runs/DA04-R01-fault
+DA04,R02,seq=15345;pc=400538;va=None;addr=0x491e5d;lq=742,YES,SDC,audit_v3_3_3/runs/DA04-R02-fault
+DA04,R03,seq=16365;pc=400538;va=None;addr=0x49218d;lq=742,YES,SDC,audit_v3_3_3/runs/DA04-R03-fault
+DA04,R04,seq=17390;pc=400538;va=None;addr=0x4924c1;lq=742,YES,SDC,audit_v3_3_3/runs/DA04-R04-fault
+DA04,R05,seq=18415;pc=400538;va=None;addr=0x4927f5;lq=742,YES,SDC,audit_v3_3_3/runs/DA04-R05-fault
+LP01,R01,seq=34741;pc=0x400588;va=0x491f0f;addr=0x76f0f;lq=2407,YES,SDC,audit_v3_3_3/runs/LP01-R01-fault
+LP01,R02,seq=54709;pc=0x400588;va=0x492c0f;addr=0x77c0f;lq=5735,YES,SDC,audit_v3_3_3/runs/LP01-R02-fault
+LP01,R03,seq=74677;pc=0x400588;va=0x49390f;addr=0x7890f;lq=9063,YES,SDC,audit_v3_3_3/runs/LP01-R03-fault
+LP01,R04,seq=94645;pc=0x400588;va=0x49460f;addr=0x7960f;lq=12391,YES,SDC,audit_v3_3_3/runs/LP01-R04-fault
+LP01,R05,seq=114613;pc=0x400588;va=0x49530f;addr=0x7a30f;lq=15719,YES,SDC,audit_v3_3_3/runs/LP01-R05-fault
+MD04,R01,seq=125104;pc=4005ec;va=None;addr=0x491990;lq=750,YES,MASKED,audit_v3_3_3/runs/MD04-R01-fault
+MD04,R02,seq=141725;pc=4006a4;va=None;addr=0x494990;lq=3822,YES,SDC,audit_v3_3_3/runs/MD04-R02-fault
+MD04,R03,seq=147152;pc=4006f8;va=None;addr=0x4929c8;lq=4839,YES,SDC,audit_v3_3_3/runs/MD04-R03-fault
+MD04,R04,seq=171530;pc=4007b8;va=None;addr=0x4939e8;lq=9951,YES,SDC,audit_v3_3_3/runs/MD04-R04-fault
+MD04,R05,seq=188215;pc=400854;va=None;addr=0x491990;lq=14038,YES,SDC,audit_v3_3_3/runs/MD04-R05-fault
+LQ04,R01,seq=3;pc=400338;va=None;addr=41ffe8;lq=1,YES,MASKED,audit_v3_3_3/runs/LQ04-R01-fault
+LQ04,R02,seq=4;pc=40033c;va=None;addr=41fff0;lq=2,YES,MASKED,audit_v3_3_3/runs/LQ04-R02-fault
+LQ04,R03,seq=5;pc=400340;va=None;addr=41fff8;lq=3,YES,MASKED,audit_v3_3_3/runs/LQ04-R03-fault
+LQ04,R04,seq=6;pc=400344;va=None;addr=420000;lq=4,YES,MASKED,audit_v3_3_3/runs/LQ04-R04-fault
+LQ04,R05,seq=7;pc=400348;va=None;addr=420008;lq=5,YES,MASKED,audit_v3_3_3/runs/LQ04-R05-fault
+RP01,R01,RP01_SKIP_REPLAY ordinal=26 load_seq=16293 load_pc=4195680 lq_idx=774 lq_gen=1283 store_seq=16292 replay_gen_pre=0 replay_gen_post=1 in_instsToReplay_pre=0 in_instsToReplay_post=0 tick=16967335,YES,HANG_WATCHDOG,audit_v3_3_3/runs/RP01-R01-fault
+RP01,R02,RP01_SKIP_REPLAY ordinal=77 load_seq=23229 load_pc=4195680 lq_idx=825 lq_gen=1334 store_seq=23228 replay_gen_pre=0 replay_gen_post=1 in_instsToReplay_pre=0 in_instsToReplay_post=0 tick=18359880,YES,HANG_WATCHDOG,audit_v3_3_3/runs/RP01-R02-fault
+RP01,R03,RP01_SKIP_REPLAY ordinal=128 load_seq=30165 load_pc=4195680 lq_idx=876 lq_gen=1385 store_seq=30164 replay_gen_pre=0 replay_gen_post=1 in_instsToReplay_pre=0 in_instsToReplay_post=0 tick=20011915,YES,HANG_WATCHDOG,audit_v3_3_3/runs/RP01-R03-fault
+RP01,R04,RP01_SKIP_REPLAY ordinal=179 load_seq=37101 load_pc=4195680 lq_idx=927 lq_gen=1436 store_seq=37100 replay_gen_pre=0 replay_gen_post=1 in_instsToReplay_pre=0 in_instsToReplay_post=0 tick=21404460,YES,HANG_WATCHDOG,audit_v3_3_3/runs/RP01-R04-fault
+RP01,R05,RP01_SKIP_REPLAY ordinal=230 load_seq=44037 load_pc=4195680 lq_idx=978 lq_gen=1487 store_seq=44036 replay_gen_pre=0 replay_gen_post=1 in_instsToReplay_pre=0 in_instsToReplay_post=0 tick=23040325,YES,HANG_WATCHDOG,audit_v3_3_3/runs/RP01-R05-fault

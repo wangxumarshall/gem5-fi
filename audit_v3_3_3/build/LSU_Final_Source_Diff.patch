@@ -1,16 +1,57 @@
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
-index 636cedf2..7fe39172 100644
+index 636cedf2..c71ff65c 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
-@@ -21,6 +21,7 @@ namespace gem5
+@@ -21,6 +21,8 @@ namespace gem5
            max_faults(p.maxFaults),
            rng_seed(p.rngSeed),
            write_log(p.writeLog),
 +          a03_watchdog_cycles(p.watchdogCycles),
++          count_only(p.countOnly),
            pre_mode(p.preMode),
            agu_size_to(p.aguSizeTo)
      {
-@@ -596,6 +597,18 @@ namespace gem5
+@@ -251,7 +253,10 @@ namespace gem5
+             // [A01 v3.3 proposal] matched control (probability 0.0): observe
+             // the ordinal-selected golden EA read-only. Never mutates addr or
+             // size and never counts an injection.
+-            if (pre_mode == "a01_bit3_load")
++            // v3.3.3 L-A12: the control must advance the SAME 8-byte-only
++            // eligible space as the fault run, or the target ordinal selects
++            // a different instruction.
++            if (pre_mode == "a01_bit3_load" && isLoad && size == 8)
+                 probeA01Control(addr, size, isLoad, dyn_seq, pc);
+             return size;
+         }
+@@ -276,6 +281,27 @@ namespace gem5
+                                          pre_mode == "s11_store_lost");
+             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad))
+                 return size;   // op class not eligible for this model
++            // [LSU][V3.3.3][A01] size filter (ledger L-A12): A01 targets a
++            // 64-bit GPR load. A 16-byte vector load (ldr q) becomes
++            // misaligned after EA^0x8, splits, and bypasses the GPR
++            // writeback observer; it is not an A01-eligible event. A03
++            // (persistent) stays size-agnostic.
++            if (pre_mode == "a01_bit3_load" && size != 8)
++                return size;
++            if (count_only) {
++                // Census-only: advance the eligible ordinal and log it; no
++                // injection decision, no fault write.
++                const uint64_t ord = lsuTrigger->noteEligibleForCensus();
++                if (write_log && log_stream && log_stream->stream()) {
++                    *(log_stream->stream()) << "CHAOS_ELIGIBLE: ordinal="
++                        << ord << ";dyn_inst_seq=" << dyn_seq
++                        << ";pc=0x" << std::hex << pc
++                        << ";size=" << std::dec << size
++                        << ";ea=0x" << std::hex << addr << std::dec
++                        << std::endl;
++                }
++                return size;
++            }
+             bool go;
+             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                 go = f6_pending;
+@@ -596,6 +622,18 @@ namespace gem5
                  a03_fault_id = faults_injected_count + 1;
                  writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
                      a03_stream_rec.activation()));
@@ -29,7 +70,7 @@ index 636cedf2..7fe39172 100644
              }
          }
          if (a03_stream_rec.record(ev)) {
-@@ -666,59 +679,119 @@ namespace gem5
+@@ -666,59 +704,119 @@ namespace gem5
              // W2 funnel summary (attempted/eligible/injected; activated is
              // the W3 L0 read-back layer's verdict — R2 ruling) + W3 L0 lines
              // (chaos_l0 discipline: to the LOG FILE, stdout stays stable).
@@ -89,9 +130,9 @@ index 636cedf2..7fe39172 100644
              // output is otherwise byte-identical.
 -            registerExitCallback([this]() { notifyFunnelAtInjection(); });
 +            registerExitCallback([this]() { emitExitReport(); });
-+        }
-+    }
-+
+         }
+     }
+ 
 +    void
 +    CHAOSAddrPath::emitExitReport()
 +    {
@@ -109,7 +150,7 @@ index 636cedf2..7fe39172 100644
 +        if (!a03_watchdog_fired && a03_watchdog_event &&
 +            a03_watchdog_event->scheduled()) {
 +            deschedule(a03_watchdog_event);
-         }
++        }
 +        if (!lsuTrigger) {
 +            // Legacy (non-trigger) path: final funnel row only — unchanged
 +            // (the lsuTrigger-only l0 lines below stay trigger-only, so the
@@ -194,11 +235,11 @@ index 636cedf2..7fe39172 100644
 +        // classifies the marker; the oracle verdict (the already-printed
 +        // final checksum) is preserved.
 +        exitSimLoop("CHAOS_A03_WATCHDOG_EXPIRED", 0);
-     }
- 
++    }
++
  } // namespace gem5
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
-index c8225a29..7b86d7b2 100644
+index c8225a29..fb42ecac 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
 @@ -5,6 +5,7 @@
@@ -235,7 +276,7 @@ index c8225a29..7b86d7b2 100644
      uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
      uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
  
-@@ -200,6 +213,26 @@ class CHAOSAddrPath : public SimObject
+@@ -200,6 +213,29 @@ class CHAOSAddrPath : public SimObject
                               Addr actual_ea, int bit, uint64_t pc);
      void writeA03LogLine(const char *tag, const std::string &detail);
  
@@ -250,6 +291,9 @@ index c8225a29..7b86d7b2 100644
 +    // flush and the gzip trailer run. 0 = disabled (default; every other
 +    // model is byte-identical).
 +    uint64_t a03_watchdog_cycles = 0;
++    // [LSU][V3.3.3][A01] count-only eligible-stream log: never injects; used
++    // to re-census the 8-byte A01 stream (ledger L-A12).
++    bool count_only;
 +    EventFunctionWrapper *a03_watchdog_event = nullptr;
 +    bool a03_watchdog_fired = false;
 +    bool a03_lifecycle_emitted = false;
@@ -263,10 +307,10 @@ index c8225a29..7b86d7b2 100644
      // activated = the read-back verdict — for THIS hook the corrupted vaddr
      // is consumed by the very next pipeline step (translateTiming consumes
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
-index 4df08f87..d55d6e2a 100644
+index 4df08f87..afb5f27e 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
-@@ -55,3 +55,14 @@ class CHAOSAddrPath(SimObject):
+@@ -55,3 +55,19 @@ class CHAOSAddrPath(SimObject):
          "a03_bit3_stuck0_load (LSU v3.2 A03: load bit3 stuck-at-0, F5)")
      aguSizeTo = Param.UInt64(0,
          "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
@@ -281,6 +325,11 @@ index 4df08f87..d55d6e2a 100644
 +    watchdogCycles = Param.UInt64(0,
 +        "A03: in-simulator watchdog clock cycles after activation "
 +        "(0 = disabled)")
++    # v3.3.3 A01 re-census (ledger L-A12): log every eligible 8-byte load as
++    # CHAOS_ELIGIBLE and never inject. The A01 size==8 filter makes this the
++    # exact eligible stream used for the percentile ROI.
++    countOnly = Param.Bool(False,
++        "A01: count-only eligible-stream log; never injects")
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc
 index 8121f436..f76871fe 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc
@@ -579,6 +628,29 @@ index d34b1e58..f14fd61b 100644
  
      void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
                            bool canwb, bool completed_before,
+diff --git a/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh b/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh
+index 9f634fd0..bf781e59 100644
+--- a/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh
++++ b/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh
+@@ -234,6 +234,18 @@ struct ChaOSLsuTrigger
+         return false;
+     }
+ 
++    // Census-only counterpart: advances the eligible ordinal without any
++    // injection decision (the v3.3.3 A01 8-byte count stream). `injected`
++    // stays 0; the caller logs the returned ordinal and never writes.
++    uint64_t
++    noteEligibleForCensus()
++    {
++        ++eligible;
++        if (!first_eligible_tick) first_eligible_tick = curTick();
++        last_eligible_tick = curTick();
++        return eligible;
++    }
++
+     // The F6 event source calls this when the configured event occurs.
+     // Returns true => inject at this event, once ever.
+     bool
 diff --git a/CHAOS/gem5/src/cpu/o3/lsq.cc b/CHAOS/gem5/src/cpu/o3/lsq.cc
 index e79fc5be..c50a28da 100644
 --- a/CHAOS/gem5/src/cpu/o3/lsq.cc
@@ -640,7 +712,7 @@ index af493088..c82d42cc 100644
              if (!storeQueue.empty())
                  storeWBIt++;
 diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
-index e2203481..a13526de 100644
+index e2203481..9d24a907 100644
 --- a/configs/se/lsu_proxy.py
 +++ b/configs/se/lsu_proxy.py
 @@ -488,7 +488,13 @@ p.add_argument("--chaos_md04", action="store_true",
@@ -658,7 +730,7 @@ index e2203481..a13526de 100644
  p.add_argument("--md04_first_clock", type=lambda x: int(x, 0), default=0)
  p.add_argument("--md04_rng_seed", type=lambda x: int(x, 0), default=20261108)
  p.add_argument("--md04_count_only", action="store_true")
-@@ -528,6 +534,14 @@ p.add_argument("--addrpath_event_ordinal", type=lambda x: int(x,0), default=0,
+@@ -528,6 +534,17 @@ p.add_argument("--addrpath_event_ordinal", type=lambda x: int(x,0), default=0,
  p.add_argument("--addrpath_f6_event", default="sq_forward",
                 choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                 help="W2: F6 event source (tlb_hit is FS-only in SE)")
@@ -670,10 +742,13 @@ index e2203481..a13526de 100644
 +               default=0,
 +               help="A03: in-simulator watchdog clock cycles after activation "
 +                    "(0 = disabled)")
++p.add_argument("--addrpath_count_only", action="store_true",
++               help="A01: log every eligible 8-byte load as CHAOS_ELIGIBLE "
++                    "and never inject (v3.3.3 ROI re-census, ledger L-A12)")
  # W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
  # via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
  # pushRequest-entry hook — exactly one hook per run (pre_mode != off
-@@ -913,9 +927,11 @@ if args.chaos_lq04:
+@@ -913,9 +930,11 @@ if args.chaos_lq04:
      # v3.2.10 LQ04: O3-only. SELF-ATTACHES at startup() to cpu.chaosLQ04
      # (the executeLoad tail calls maybeSelect; the LSQEntry side channel
      # from Task 4 carries the corrupted lifetime until the boundary
@@ -686,7 +761,7 @@ index e2203481..a13526de 100644
          eventOrdinal=args.lq04_event_ordinal,
          maxFaults=args.lq04_max_faults,
          countOnly=args.lq04_count_only,
-@@ -1089,9 +1105,13 @@ if args.chaos_l1dfwd:
+@@ -1089,9 +1108,13 @@ if args.chaos_l1dfwd:
      board.chaos_l1dfwd = l1df
  
  if args.chaos_md04:
@@ -701,11 +776,12 @@ index e2203481..a13526de 100644
          firstClock=args.md04_first_clock,
          maxFaults=args.md04_max_faults,
          rngSeed=args.md04_rng_seed,
-@@ -1134,6 +1154,7 @@ if args.chaos_addrpath:
+@@ -1134,6 +1157,8 @@ if args.chaos_addrpath:
          lsuEventOrdinal=args.addrpath_event_ordinal,
          preMode=args.agu_pre_mode,
          aguSizeTo=args.agu_size_to,
 +        watchdogCycles=args.addrpath_watchdog_cycles,
++        countOnly=args.addrpath_count_only,
      )
      board.chaos_addrpath = ap
  
@@ -1958,7 +2034,7 @@ index 00000000..76567840
 +    source = [r[rh.index("SourceSampleRunID")] for r in sheet_rows(roi)]
 +    assert all(str(x).startswith("V332-") for x in source)
 diff --git a/tools/lsu_v332_matrix.py b/tools/lsu_v332_matrix.py
-index 792ed298..b5831099 100644
+index 792ed298..b361bdc7 100644
 --- a/tools/lsu_v332_matrix.py
 +++ b/tools/lsu_v332_matrix.py
 @@ -22,12 +22,16 @@ from __future__ import annotations
@@ -1991,7 +2067,7 @@ index 792ed298..b5831099 100644
  
  MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
            "LP01", "MD04", "LQ04", "RP01")
-@@ -48,8 +56,15 @@ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
+@@ -48,8 +56,17 @@ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
  # ROI is the per-model eligible-event window inside main; ordinals are the
  # injector's global eligible ordinals.
  CONTEXTS = {
@@ -2001,7 +2077,9 @@ index 792ed298..b5831099 100644
 +    # eligible window on the fixed stream is 1040-1222 (N=183); the five
 +    # percentile ordinals are measured from that window. SampleRunID/Seed
 +    # unchanged; the v3.3.2 1040-1234/195 set is retained as history.
-+    "A01":  dict(roi=(1040, 1222), n=183,  ordinals=[1058, 1094, 1131, 1168, 1204]),
++    # A01 v3.3.3 correction (ledger L-A12): 8-byte-only eligible stream
++    # (count-only census, 817 eligible; main-loop window 585-713, N=129).
++    "A01":  dict(roi=(585, 713),   n=129,  ordinals=[597, 623, 649, 675, 701]),
 +    "A03":  dict(roi=(1040, 1222), n=183,  ordinals=[1058, 1094, 1131, 1168, 1204],
 +                 workload=WORKLOADS / "agu_addrmodes",
 +                 seeds=[663646247, 1626885462, 110775855, 2766846323,
@@ -2009,7 +2087,7 @@ index 792ed298..b5831099 100644
      "FW02": dict(roi=(8, 67),      n=60,   ordinals=[13, 25, 37, 49, 61],
                   workload=DIRECTED / "sq_forward_w4v2"),
      "FW05": dict(roi=(1, 2000),    n=2000, ordinals=[200, 600, 1000, 1400, 1800]),
-@@ -74,8 +89,102 @@ CONTEXTS = {
+@@ -74,8 +91,102 @@ CONTEXTS = {
  # Per-model special handling.
  DIRECT = {"A03"}          # fault runs are direct + bounded
  RP01 = "RP01"
@@ -2113,7 +2191,7 @@ index 792ed298..b5831099 100644
  
  
  def parse_kv(text: str) -> dict:
-@@ -114,9 +223,19 @@ def first_injection(outdir: Path):
+@@ -114,9 +225,19 @@ def first_injection(outdir: Path):
  
  
  def parse_addrpath_log(path: Path) -> dict:
@@ -2136,7 +2214,7 @@ index 792ed298..b5831099 100644
      if not path.exists():
          return info
      for line in path.read_text(errors="replace").splitlines():
-@@ -125,18 +244,78 @@ def parse_addrpath_log(path: Path) -> dict:
+@@ -125,18 +246,78 @@ def parse_addrpath_log(path: Path) -> dict:
          elif line.startswith("A03_STREAM:"):
              info["stream_rows"] += 1
              kv = parse_kv(line)
@@ -2219,7 +2297,7 @@ index 792ed298..b5831099 100644
  def parse_rp01_stdout(path: Path) -> dict:
      info = {"eligible": 0, "skips": 0, "watchdog": False,
              "first_eligible": None, "first_skip": None, "checksum": None}
-@@ -156,6 +335,51 @@ def parse_rp01_stdout(path: Path) -> dict:
+@@ -156,6 +337,51 @@ def parse_rp01_stdout(path: Path) -> dict:
          m = re.search(r"checksum=0x([0-9a-fA-F]+)", line)
          if m:
              info["checksum"] = m.group(1)
@@ -2271,7 +2349,7 @@ index 792ed298..b5831099 100644
      return info
  
  
-@@ -173,6 +397,179 @@ def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload):
+@@ -173,6 +399,179 @@ def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload):
      return cmd
  
  
@@ -2451,7 +2529,7 @@ index 792ed298..b5831099 100644
  def run_direct(cmd_base, outdir, timeout):
      outdir.mkdir(parents=True, exist_ok=True)
      # Drop any dry-run outdir token and inject ours right after the binary.
-@@ -196,13 +593,10 @@ def run_direct(cmd_base, outdir, timeout):
+@@ -196,13 +595,10 @@ def run_direct(cmd_base, outdir, timeout):
              "elapsed": round(time.time() - started, 3)}
  
  
@@ -2469,7 +2547,7 @@ index 792ed298..b5831099 100644
  
  
  def run_context(model, ctx_idx, role):
-@@ -223,59 +617,66 @@ def run_context(model, ctx_idx, role):
+@@ -223,59 +619,66 @@ def run_context(model, ctx_idx, role):
                 "binary_sha": None}
  
      if model == RP01:
@@ -2586,7 +2664,7 @@ index 792ed298..b5831099 100644
      else:
          cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
          proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
-@@ -283,69 +684,121 @@ def run_context(model, ctx_idx, role):
+@@ -283,69 +686,121 @@ def run_context(model, ctx_idx, role):
          summary["cmd"] = cmd
          summary["exit_code"] = proc.returncode
          meta_path = outdir / "pilot_meta.json"
@@ -2736,10 +2814,14 @@ index 792ed298..b5831099 100644
          w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
          w.writeheader()
 diff --git a/tools/lsu_v332_report.py b/tools/lsu_v332_report.py
-index 21ca8667..e39797ef 100644
+index 21ca8667..df3eee9c 100644
 --- a/tools/lsu_v332_report.py
 +++ b/tools/lsu_v332_report.py
-@@ -11,9 +11,20 @@ from __future__ import annotations
+@@ -8,16 +8,28 @@ observed is written as `n/a` or `NOT_OBSERVED`.
+ """
+ from __future__ import annotations
+ 
++import argparse
  import csv
  import json
  import re
@@ -2747,6 +2829,10 @@ index 21ca8667..e39797ef 100644
  from pathlib import Path
  
  ROOT = Path(__file__).resolve().parents[1]
+-RUNS = ROOT / "audit_v3_3_2/runs"
+-OUT = ROOT / "audit_v3_3_2"
+-BINARY_SHA = "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"
+-HEAD = "fc608224"
 +sys.path.insert(0, str(Path(__file__).resolve().parent))
 +from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
 +    a03_terminal,
@@ -2757,10 +2843,14 @@ index 21ca8667..e39797ef 100644
 +    read_command,
 +)
 +
- RUNS = ROOT / "audit_v3_3_2/runs"
- OUT = ROOT / "audit_v3_3_2"
- BINARY_SHA = "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"
-@@ -33,8 +44,10 @@ WORKLOAD = {
++RUNS = ROOT / "audit_v3_3_3/runs"
++OUT = ROOT / "audit_v3_3_3"
++BINARY_SHA = "685d88f77324d8ba75916e577b8bb68947ddf20fc13b51e859cff1cbdc1b8187"
++HEAD = "93bca301"
+ 
+ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
+           "LP01", "MD04", "LQ04", "RP01")
+@@ -33,8 +45,11 @@ WORKLOAD = {
      "RP01": "replay_partial_v332 (candidate)",
  }
  ROI = {  # measured ROI (start,end), N, percentile ordinals
@@ -2768,12 +2858,13 @@ index 21ca8667..e39797ef 100644
 -    "A03": ((1040, 1234), 195, [1059, 1098, 1137, 1176, 1215]),
 +    # v3.3.3 re-census after the PRE retry exclusion (L-A01): 1040-1222 (183)
 +    # on the fixed stream; the v3.3.2 1040-1234/195 set is history.
-+    "A01": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
++    # A01 v3.3.3 correction (L-A12): 8-byte-only stream, 585-713 (129).
++    "A01": ((585, 713), 129, [597, 623, 649, 675, 701]),
 +    "A03": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
      "FW02": ((8, 67), 60, [13, 25, 37, 49, 61]),
      "FW05": ((1, 2000), 2000, [200, 600, 1000, 1400, 1800]),
      "SQ01": ((1006, 1133), 128, [1018, 1044, 1069, 1095, 1121]),
-@@ -48,10 +61,10 @@ ROI = {  # measured ROI (start,end), N, percentile ordinals
+@@ -48,10 +63,10 @@ ROI = {  # measured ROI (start,end), N, percentile ordinals
  }
  CONSUMER_EVENTS = {"consumer_commit", "commit", "errant_commit"}
  QUALIFIER = {
@@ -2787,7 +2878,7 @@ index 21ca8667..e39797ef 100644
      "RP01": "HANG_BY_INTERNAL_WATCHDOG; PARTIAL TRACE; NO SDC CLAIM",
      "MD04": "R01=MASKED; CANDIDATE VIOLATION WORKLOAD",
      "FW02": "CANDIDATE W4 LOAD-PRESERVING WORKLOAD",
-@@ -104,45 +117,100 @@ def fault_row(model: str, ctx: int):
+@@ -104,45 +119,100 @@ def fault_row(model: str, ctx: int):
      seed = (s.get("seed") or meta.get("seed")
              or (meta.get("excel_identity") or {}).get("seed"))
      if not seed and (outdir / "command.txt").exists():
@@ -2910,7 +3001,7 @@ index 21ca8667..e39797ef 100644
      else:
          inj = s.get("first_injection") or {}
          idx = trace_index(outdir / "trace_v31.jsonl")
-@@ -192,30 +260,49 @@ def control_row(model: str, ctx: int):
+@@ -192,34 +262,62 @@ def control_row(model: str, ctx: int):
      outdir = RUNS / f"{model}-R{ctx:02d}-control"
      s = jload(outdir / "summary.json")
      meta = jload(outdir / "pilot_meta.json")
@@ -2973,7 +3064,21 @@ index 21ca8667..e39797ef 100644
      }
  
  
-@@ -317,13 +404,18 @@ def main():
+-def main():
++def main(argv=None):
++    global RUNS, OUT
++    ap = argparse.ArgumentParser(
++        description="Build the LSU v3.3.3 60-context acceptance tables from "
++                    "real run artifacts. Defaults point at audit_v3_3_3.")
++    ap.add_argument("--runs", default=str(ROOT / "audit_v3_3_3/runs"))
++    ap.add_argument("--out", default=str(ROOT / "audit_v3_3_3"))
++    args = ap.parse_args(argv)
++    RUNS = Path(args.runs)
++    OUT = Path(args.out)
+     OUT.mkdir(parents=True, exist_ok=True)
+     faults, controls = [], []
+     mapping, distinct, matrix, causal = [], [], [], []
+@@ -317,13 +415,18 @@ def main():
              "FaultTrace": f.get("trace_completeness"),
              "ControlInjected": c.get("injection_count"),
              "ControlZeroProof": c.get("zero_injection_proof"),

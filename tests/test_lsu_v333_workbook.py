@@ -132,7 +132,7 @@ def test_gem5_and_workload_hashes_are_separate(scaffold):
     rows = sheet_rows(ws)
     gem5 = {r[gi] for r in rows}
     workloads = {r[wi] for r in rows}
-    assert gem5 == {"070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"}
+    assert gem5 == {"1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"}
     assert len(workloads) > 1
     assert not (gem5 & workloads)
 

@@ -1,6 +1,6 @@
 # LSU v3.3.3 — One-Pass Final Closure Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Turn the 12-model / 60-context LSU fault-injection study from `PARTIALLY_READY` into a reproducible, causally-complete `READY_FOR_FORMAL_EXPERIMENT` design on one final binary.
 
@@ -42,19 +42,19 @@
 **Interfaces:**
 - Produces: the IssueID namespace (`L-A01`…, `L-B01`…, `L-C01`…, `L-D01`…) used by every later task and by the workbook's Readiness sheet.
 
-- [ ] **Step 1: Write the ledger**
+- [x] **Step 1: Write the ledger**
 
 Every row has `IssueID,ModelID,ContextID,Category,RootCause,Evidence,AffectedFiles,AffectedContexts,ProposedFix,Validation,ApprovalRequired,RegressionRisk,FinalStatus`. Categories: A code/hook, B workload/context, C trace/propagation/oracle, D Excel/seed/control/binary/runner. Merge symptoms of one root cause.
 
-- [ ] **Step 2: Write the consolidated repair plan**
+- [x] **Step 2: Write the consolidated repair plan**
 
 For each IssueID answer: (1) root cause, (2) why it survived earlier rounds, (3) correct source layer, (4) affected models/contexts, (5) does it change fault semantics, (6) rebuild required, (7) which pilots to rerun, (8) one-shot validation, (9) researcher approval needed.
 
-- [ ] **Step 3: Write the decision packet**
+- [x] **Step 3: Write the decision packet**
 
 Cover FW02 W4-v2, RP01 `replay_partial_v332`, MD04 `md04_violations_v332`, SQ01/SQ03/SP05 `sq_reload_v3212`, the SQ03 MASKED/visibility label, the A01/A03 PRE-retry fix + ordinal re-census, the A03 SDC/post-oracle-hang classification, the A01-R02 SQUASHED qualifier, and the config freeze (Warm-up=0, measured ROI, final binary). Each item: original problem, candidate evidence, semantics, five-context feasibility, chain closure, golden/oracle, impact on SampleRunID/Seed/Excel, recommendation, risk.
 
-- [ ] **Step 4: Verify the artifacts are internally consistent**
+- [x] **Step 4: Verify the artifacts are internally consistent**
 
 Run:
 ```bash
@@ -68,7 +68,7 @@ EOF
 ```
 Expected: `ledger rows <N> unique IDs OK`.
 
-- [ ] **Step 5: Commit the diagnosis artifacts**
+- [x] **Step 5: Commit the diagnosis artifacts**
 
 ```bash
 git add audit_v3_3_3/README_GROUND_TRUTH.md audit_v3_3_3/reports audit_v3_3_3/LSU_v3.3.3_Master_Defect_Ledger.csv audit_v3_3_3/LSU_v3.3.3_Consolidated_Repair_Plan.md audit_v3_3_3/LSU_v3.3.3_Researcher_Decision_Packet.md docs/superpowers/plans/2026-11-12-lsu-v333-final-closure.md
@@ -85,10 +85,10 @@ git push origin lsu-v3.3.1-context-workload-20261111
 **Interfaces:**
 - Produces: `audit_v3_3_3/decisions/LSU_v3.3.3_Researcher_Approval.md` recording ADOPT/CONDITIONAL/REJECT per workload and approval of the A01/A03 fix + config freeze.
 
-- [ ] **Step 1: Ask once**, with the packet as the evidence. Do not ask per-model questions.
-- [ ] **Step 2: Record the answer verbatim** in the decisions file, including any conditions.
-- [ ] **Step 3: If a workload is rejected**, stop that model's context freeze and report it; continue all approval-independent work (Tasks 3–6).
-- [ ] **Step 4: Commit the decision record** (explicit path, feature branch).
+- [x] **Step 1: Ask once**, with the packet as the evidence. Do not ask per-model questions.
+- [x] **Step 2: Record the answer verbatim** in the decisions file, including any conditions.
+- [x] **Step 3: If a workload is rejected**, stop that model's context freeze and report it; continue all approval-independent work (Tasks 3–6).
+- [x] **Step 4: Commit the decision record** (explicit path, feature branch).
 
 ---
 
@@ -103,11 +103,11 @@ git push origin lsu-v3.3.1-context-workload-20261111
 - Consumes: `DynInstPtr inst` (`translationStarted()`, `seqNum`, `pcState().instAddr()`), `CHAOSAddrPathPre::maybeCorruptPre`.
 - Produces: one eligible event per unique dynamic instruction; no `a01_ea_discarded` records caused by `saved_request_reuse`.
 
-- [ ] **Step 1: Write the failing static assertion**
+- [x] **Step 1: Write the failing static assertion**
 
 Add to `tools/lsu_v332_supplement.py` (or a small checker) a function `assert_pre_retry_guard()` that greps `lsq.cc` for the guard `if (cpu->chaosAddrPathPre && !inst->translationStarted())`. Run it; expected `AssertionError` before the edit.
 
-- [ ] **Step 2: Implement the guard**
+- [x] **Step 2: Implement the guard**
 
 Wrap the PRE block:
 ```cpp
@@ -117,11 +117,11 @@ if (cpu->chaosAddrPathPre && !inst->translationStarted()) {
 ```
 Keep the A03/A01 staging exactly as-is for the first pass. On the retry branch, increment `obs_pre_retry_skipped` (new counter) and emit one `CHAOS_L0_DECLINE: pre_retry_skipped=N` line at exit; never fabricate an injection.
 
-- [ ] **Step 3: Static verification**
+- [x] **Step 3: Static verification**
 
 Run the checker; expected PASS. Run `grep -n "translationStarted()" CHAOS/gem5/src/cpu/o3/lsq.cc` and confirm the PRE block is before the request-reuse branch and guarded.
 
-- [ ] **Step 4: Build once (deferred to Task 7) and run the targeted A01 test**
+- [x] **Step 4: Build once (deferred to Task 7) and run the targeted A01 test**
 
 On the new binary, run A01 at one context (count-only or fault) and assert:
 ```bash
@@ -130,7 +130,7 @@ grep -c "register_writeback" <outdir>/trace_v31.jsonl # expected >=1 for a fault
 ```
 Also assert the A01 control still prints golden `728e604ffcec539d`.
 
-- [ ] **Step 5: Commit (after Task 7 build verification)**
+- [x] **Step 5: Commit (after Task 7 build verification)**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/lsq.cc CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc tools/lsu_v332_supplement.py
@@ -153,7 +153,7 @@ git push origin lsu-v3.3.1-context-workload-20261111
 - Consumes: `chaos_a03::streamEvent`, `activationDetail`, `lifecycleDetail`, `writeA03LogLine`, `notifyFunnelAtInjection`.
 - Produces: `A03_WATCHDOG_EXPIRED` marker, `A03_STUCK_LIFECYCLE` line, `a03_injected_applications` count, terminal `SDC/POST_ORACLE_SIM_HANG` or `HANG_WATCHDOG`.
 
-- [ ] **Step 1: Add the parameter**
+- [x] **Step 1: Add the parameter**
 
 In `CHAOSAddrPath.py`:
 ```python
@@ -162,7 +162,7 @@ watchdogCycles = Param.UInt64(0,
 ```
 In `lsu_proxy.py`, `--addrpath_watchdog_cycles` default 0; pass `watchdogCycles=args.addrpath_watchdog_cycles` in the `CHAOSAddrPath(...)` construction.
 
-- [ ] **Step 2: Schedule the watchdog at activation**
+- [x] **Step 2: Schedule the watchdog at activation**
 
 In `a03NoteEligibleLoad`, after `a03_stream_rec.activate(act)` succeeds:
 ```cpp
@@ -173,11 +173,11 @@ if (watchdog_cycles && !a03_watchdog_event) {
 }
 ```
 
-- [ ] **Step 3: Implement `a03Watchdog()`**
+- [x] **Step 3: Implement `a03Watchdog()`**
 
 Emit `A03_STUCK_LIFECYCLE` (via `a03_stream_rec.lifecycle(...)`), the final `CHAOS_L0_DECLINE`/funnel lines, then `A03_WATCHDOG_EXPIRED: tick=... activated=1 stream_rows=...`, flush the addrpath log, and call `exitSimLoop("CHAOS_A03_WATCHDOG_EXPIRED", 0)` so exit callbacks (and the gzip trailer) run. Do not use `fatal` here; the runner classifies the marker.
 
-- [ ] **Step 4: Fix the A03 parser in `tools/lsu_v332_matrix.py`**
+- [x] **Step 4: Fix the A03 parser in `tools/lsu_v332_matrix.py`**
 
 `parse_addrpath_log` must report:
 - `stream_rows` = count of `A03_STREAM:` rows,
@@ -186,11 +186,11 @@ Emit `A03_STUCK_LIFECYCLE` (via `a03_stream_rec.lifecycle(...)`), the final `CHA
 - `watchdog_expired` = presence of `A03_WATCHDOG_EXPIRED`.
 Write these into `summary.json.a03` and never use the log-cap line as `injection_count`.
 
-- [ ] **Step 5: A03 oracle parser**
+- [x] **Step 5: A03 oracle parser**
 
 Accept the workload's bare 16-hex final line (no `0x`, no `checksum=`); compare to golden `728e604ffcec539d`. If present and different → `oracle=FAIL`, `terminal=SDC`, `qualifier=POST_ORACLE_SIM_HANG` (when the watchdog fired); if absent → `terminal=HANG_WATCHDOG`. If `A03_LOG_CAPPED` is set but the checksum is present, keep `capped=true` as a logging fact, not a terminal.
 
-- [ ] **Step 6: Static verification**
+- [x] **Step 6: Static verification**
 
 ```bash
 grep -n "watchdogCycles\|a03Watchdog\|A03_WATCHDOG_EXPIRED" CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.{py,hh,cc}
@@ -198,7 +198,7 @@ python3 -m py_compile tools/lsu_v332_matrix.py
 ```
 Expected: all symbols found; compile OK.
 
-- [ ] **Step 7: Commit (after Task 7 build verification)**
+- [x] **Step 7: Commit (after Task 7 build verification)**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc configs/se/lsu_proxy.py tools/lsu_v332_matrix.py
@@ -219,26 +219,26 @@ git push origin lsu-v3.3.1-context-workload-20261111
 - Consumes: `storeWBIt->data()`, `request->_size`, `inst->sqIdx`, `inst->sqEntryGeneration`, `curTick()`.
 - Produces: `sp05_stage;store_data_fnv=<16hex>;data_correct=0;stage_outcome=CHAIN_VISIBILITY_LOST` plus an `sp05_write_skipped` node.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add `test_sp05_store_data_is_recorded` to `docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py` that parses a synthetic `sp05_stage` line and asserts a 16-hex `store_data_fnv` and `data_correct=0`/`CHAIN_VISIBILITY_LOST`. Run `pytest ... -k sp05_store_data -v`; expected FAIL before the change.
 
-- [ ] **Step 2: Extend the API and record the hash**
+- [x] **Step 2: Extend the API and record the hash**
 
 Use the existing `fnv1a64`/hex helper. In `noteSP05Injection`, when `store_data && data_len`, set `fe.data_fnv = hex(fnv1a64(store_data, data_len))` and `fe.data_hex`; set `fe.store_commit_tick = commit_tick`. Emit a chain node `sp05_write_skipped` with `write_skipped=1;mem_sent=0`.
 
-- [ ] **Step 3: Pass the real bytes at the call site**
+- [x] **Step 3: Pass the real bytes at the call site**
 
 In the SP05 branch of `lsq_unit.cc`, pass `storeWBIt->data()` and `request->_size`; derive `commit_tick` from the SQ entry/instruction commit state (if unavailable, pass `curTick()` and record `commit_tick_source=injection_bound` rather than 0).
 
-- [ ] **Step 4: Verification**
+- [x] **Step 4: Verification**
 
 ```bash
 pytest docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py -k sp05_store_data -v
 ```
 Expected: PASS. After Task 7, one SP05 run must show `store_data_fnv=<16hex>`, `data_correct=0`, `stage_outcome=CHAIN_VISIBILITY_LOST`, and a `sp05_write_skipped` record; the reload hash must equal the zero-word hash `a8c7f832281a39c5`.
 
-- [ ] **Step 5: Commit (after Task 7 build verification)**
+- [x] **Step 5: Commit (after Task 7 build verification)**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc CHAOS/gem5/src/cpu/o3/lsq_unit.cc docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
@@ -261,7 +261,7 @@ git push origin lsu-v3.3.1-context-workload-20261111
 - Consumes: `command.txt`, `summary.json`, `pilot_meta.json`, `lsq_fwd_injections.log`, `stdout.log`.
 - Produces: `ControlZeroProof` ∈ {INJECTOR_ABSENT, MOUNTED_BUT_DISABLED, MOUNTED_BUT_SUPPRESSED}; non-null `seed`, `terminal`, `workload`, `fault_command`; `MT-*.csv` distinct outputs.
 
-- [ ] **Step 1: Write failing unit tests**
+- [x] **Step 1: Write failing unit tests**
 
 In `tests/test_lsu_v333_control.py` add:
 ```python
@@ -274,19 +274,19 @@ def test_control_classification_counts():
 ```
 and `test_md04_probability_default_follows_global()`; `test_a03_bare_hex_oracle()`; `test_rp01_watchdog_from_log()`. Run them; expected FAIL.
 
-- [ ] **Step 2: Implement the classification helpers**
+- [x] **Step 2: Implement the classification helpers**
 
 Read the executed `command.txt` (not the run_pilot argv); treat `--chaos_lsqfwd`, `--chaos_addrpath`, `--chaos_l1dfwd`, `--chaos_lq04`, `--chaos_md04` as mounts; `probability==0.0` → `MOUNTED_BUT_DISABLED`; explicit suppression → `MOUNTED_BUT_SUPPRESSED`; no mount → `INJECTOR_ABSENT`. Keep a per-run `mount_evidence` field.
 
-- [ ] **Step 3: Harden MD04/DA04/LQ04/RP01/SQ01/SQ03/SP05 controls**
+- [x] **Step 3: Harden MD04/DA04/LQ04/RP01/SQ01/SQ03/SP05 controls**
 
 MD04: `md04_probability = args.probability if args.md04_probability is None else args.md04_probability`, default `None`. Add an `enabled` gate in each injector consulted before any injection; `probability<=0` must short-circuit before watchdog scheduling and before any log open. Keep fault semantics unchanged.
 
-- [ ] **Step 4: Fix the parsers and fields**
+- [x] **Step 4: Fix the parsers and fields**
 
 A03: bare-hex checksum; real injected count; cap separate. RP01: watchdog marker from `lsq_fwd_injections.log`, `terminal=HANG_WATCHDOG`, `watchdog=internal`, `deadline_cycles`, `no_checksum`. Seed/terminal/workload/fault_command populated from `pilot_meta`/command. Separate matrix/report CSV paths (`..._RAW.csv`, `..._FINAL.csv`). Add a file lock.
 
-- [ ] **Step 5: Verification**
+- [x] **Step 5: Verification**
 
 ```bash
 pytest tests/test_lsu_v333_control.py -v
@@ -294,7 +294,7 @@ python3 tools/lsu_v332_matrix.py --models all --roles fault,control --dry-run | 
 ```
 Expected: all tests PASS; dry-run prints commands for all 12 models incl. RP01, no writes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add configs/se/lsu_proxy.py tools/lsu_v332_matrix.py tools/lsu_v332_report.py docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py tests/test_lsu_v333_control.py
@@ -315,7 +315,7 @@ git push origin lsu-v3.3.1-context-workload-20261111
 - Consumes: `trace_v31.jsonl`, `prop_trace.csv.gz`, model logs, `summary.json`.
 - Produces: 60-row `LSU_60Context_Causal_Propagation.csv` with per-stage evidence paths, chain-closure verdict, terminal reason, and masking mechanism.
 
-- [ ] **Step 1: Write failing tests for the known corrections**
+- [x] **Step 1: Write failing tests for the known corrections**
 
 ```python
 def test_a03_is_sdc_not_hang(): ...
@@ -325,11 +325,11 @@ def test_a01_r02_squash_is_unrelated_but_valid(): ...
 ```
 Run; expected FAIL on the v3.3.2 inputs.
 
-- [ ] **Step 2: Implement chain scoping**
+- [x] **Step 2: Implement chain scoping**
 
 Chain = injection ptag plus the fault instruction's `dyn_inst_seq`; downstream/consumer edges must include different-seq `consumer_commit`/`errant_commit` records bound to the chain ptag, not only same-seq events. `Activation` must be the target ordinal/activation record, never the tautology `injection seq=N`. Carry PC, VA/PA, SQ/LQ entry, generation, tick, and the model-record mechanism.
 
-- [ ] **Step 3: Terminal adjudication**
+- [x] **Step 3: Terminal adjudication**
 
 Use `terminal_rules.py` plus explicit model rules:
 - A01-R03: `INJECTION_NOT_ACTIVATED` / `NO_EFFECTIVE_INJECTION` (discard reason).
@@ -340,11 +340,11 @@ Use `terminal_rules.py` plus explicit model rules:
 - LQ04/MD04-R01: `MASKED` with the measured mechanism (not a generic label).
 - FW02-R03: `MASKED` with `normal_decision=forwarded; fault_decision=suppressed; replay_count=0`.
 
-- [ ] **Step 4: Trace completeness**
+- [x] **Step 4: Trace completeness**
 
 `COMPLETE` requires injection + activation + divergence + (consumer or terminal-type witness) + commit/squash/hang evidence; an injection-only chain is `INCOMPLETE`. Never let `COMPLETE` pass on structure alone.
 
-- [ ] **Step 5: Verification**
+- [x] **Step 5: Verification**
 
 ```bash
 pytest tests/test_lsu_v333_propagation.py -v
@@ -359,7 +359,7 @@ EOF
 ```
 Expected: tests PASS; 60 rows; A03 shows SDC 5 on the v3.3.2 inputs once the checksum parser is used.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/lsu_v333_propagation.py tools/lsu_v332_report.py tests/test_lsu_v333_propagation.py
@@ -380,7 +380,7 @@ git push origin lsu-v3.3.1-context-workload-20261111
 **Interfaces:**
 - Produces: `GIT_HEAD`, `SOURCE_DIFF_SHA`, `BINARY_SHA256`, `CONFIG_SHA`, `ELF_SHA` map for every later table.
 
-- [ ] **Step 1: Check the diff and freeze HEAD**
+- [x] **Step 1: Check the diff and freeze HEAD**
 
 ```bash
 git status --short
@@ -389,14 +389,14 @@ git rev-parse HEAD
 ```
 Expected: only the planned files changed; no unrelated files staged.
 
-- [ ] **Step 2: Build once**
+- [x] **Step 2: Build once**
 
 ```bash
 cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt 2>&1 | tee /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/build/v333_build.log
 ```
 (If the host OOMs or the build is clean-from-scratch, use `-j16`; do not abort during the slow configure phase.) Expected: `scons: done building targets.` and `grep -c "error:"` = 0.
 
-- [ ] **Step 3: Install and hash**
+- [x] **Step 3: Install and hash**
 
 ```bash
 cp CHAOS/gem5/build/ARM/gem5.opt build/ARM/gem5.opt
@@ -406,18 +406,18 @@ for f in workloads/directed/sq_forward_w4v2 workloads/directed/replay_partial_v3
 ```
 Expected: binary SHA recorded; all ELF SHAs recorded.
 
-- [ ] **Step 4: Verify source/binary consistency**
+- [x] **Step 4: Verify source/binary consistency**
 
 ```bash
 git diff --stat HEAD -- CHAOS/gem5/src
 ```
 Expected: empty (the built source equals HEAD after the fix commits). If not, commit the source first.
 
-- [ ] **Step 5: Write PROVENANCE.md**
+- [x] **Step 5: Write PROVENANCE.md**
 
 `Git HEAD → build log → binary SHA → config SHA → workload SHA` in one table, with the exact build command and timestamp.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add audit_v3_3_3/build audit_v3_3_3/binary
