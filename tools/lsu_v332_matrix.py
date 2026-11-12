@@ -503,6 +503,40 @@ def write_campaign_json(outdir, record: dict) -> Path:
     return path
 
 
+def write_campaign_identity(out_base, campaign_id: str, *, tasks=None,
+                            sha_fn=None) -> Path:
+    """Write the campaign-root identity record read by the formal collector.
+
+    ``elf_sha`` is keyed by workload basename.  The record is metadata only:
+    it never replaces a per-run ``campaign.json`` and it is written before the
+    first task so a partial campaign still carries provenance.
+    """
+    sha_fn = sha_fn or _sha256
+    if tasks is None:
+        tasks = [(model, ctx, resolve_workload(model,
+                                               CONTEXTS[model].get("workload")))
+                 for model in MODELS for ctx in range(1, 6)]
+    elf_sha: dict[str, str] = {}
+    for _model, _ctx, workload in tasks:
+        if not workload:
+            continue
+        path = Path(workload)
+        if path.is_file():
+            elf_sha.setdefault(path.name, sha_fn(path))
+    record = {
+        "campaign_id": campaign_id,
+        "binary_sha": sha_fn(Path(GEM5)) if Path(GEM5).is_file() else None,
+        "config_sha": sha_fn(Path(CONFIG)) if Path(CONFIG).is_file() else None,
+        "elf_sha": elf_sha,
+    }
+    out_base = Path(out_base)
+    out_base.mkdir(parents=True, exist_ok=True)
+    path = out_base / "campaign_identity.json"
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8")
+    return path
+
+
 def campaign_exit_code(rows) -> int:
     """0 iff every scheduled task ended COMPLETED/ORACLE_FAIL, else 1."""
     rows = list(rows)
@@ -893,9 +927,12 @@ def build_rp01_cmd(role, ordinal, seed, workload, outdir) -> list[str]:
             "--probability", "1.0" if role == "fault" else "0.0",
             "--chaos_propagation",
             "--prop_trace_file", "prop_trace.csv.gz"]
+    # The frozen seed is carried by BOTH roles so fault/control pairing is
+    # visible in the executed command text, not only in the identity record.
+    base += ["--rng_seed", str(seed)]
     if role == "fault":
         base += ["--chaos_lsqfwd", "--lsq_struct_mode", "rp01_skip_replay",
-                 "--max_faults", "1", "--rng_seed", str(seed),
+                 "--max_faults", "1",
                  "--rp01_event_ordinal", str(ordinal),
                  "--rp01_watchdog_cycles", str(RP01_DEADLINE_CYCLES)]
     return base
@@ -1344,7 +1381,8 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
                    ended_at=ended_at, timed_out=timed_out,
                    timeout_seconds=timeout_seconds,
                    output_validation=validation,
-                   crash_by_fault=crash_by_fault)
+                   crash_by_fault=crash_by_fault,
+                   parse_error=parse_error)
     if summary.get("exit_code") is None:
         summary["exit_code"] = exit_code
     if summary.get("pid") is None:
@@ -1425,6 +1463,12 @@ def main(argv=None):
 
     OUT_BASE.mkdir(parents=True, exist_ok=True)
     SUMMARY_CSV.parent.mkdir(parents=True, exist_ok=True)
+    # Campaign-root provenance record: written before the first task so the
+    # formal collector can verify every run against one frozen identity.
+    identity_tasks = [
+        (model, ctx, resolve_workload(model, CONTEXTS[model].get("workload")))
+        for model in selected for ctx in ctxs]
+    write_campaign_identity(OUT_BASE, args.campaign_id, tasks=identity_tasks)
     rows = []
     # Serialize the run set (L-D14): another matrix invocation waits instead of
     # clobbering outdirs / the RAW CSV.
@@ -1463,7 +1507,7 @@ def write_csv(rows, path=SUMMARY_CSV):
             "control_proof", "exit_code", "timed_out", "elapsed",
             "status", "campaign_id", "terminal_source", "started_at",
             "ended_at", "pid", "binary_sha", "config_sha", "elf_sha",
-            "outdir", "fault_command", "error"]
+            "outdir", "fault_command", "error", "parse_error"]
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
         w.writeheader()

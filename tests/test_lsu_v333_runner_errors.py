@@ -631,3 +631,62 @@ def test_run_context_preflight_failure_never_runs(monkeypatch, tmp_path):
     assert json.loads((out / "campaign.json").read_text())["status"] == \
         mx.STATUS_HASH_MISMATCH
     assert not (out / "summary.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# 12. diagnostics completeness (launch preflight findings F-E2/F-E4)
+# ---------------------------------------------------------------------------
+def test_run_context_parse_error_recorded_in_summary_and_csv(
+        monkeypatch, tmp_path):
+    """A parse error must survive into summary.json and the RAW CSV."""
+    monkeypatch.setattr(mx, "OUT_BASE", tmp_path)
+
+    def fake_run(cmd, *, outdir, timeout, cwd=None,
+                 stdout_name="stdout.log", stderr_name="stderr.log"):
+        outdir = Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+        (outdir / "trace_v31.jsonl").write_text("")
+        (outdir / "prop_trace.csv.gz").write_bytes(b"")
+        (outdir / "oracle.log").write_text("PASS\n")
+        (outdir / MODEL_LOG["A01"]).write_text("injected=1\n")
+        (outdir / "pilot_meta.json").write_text("{not json")
+        (outdir / stdout_name).write_text("")
+        (outdir / stderr_name).write_text("")
+        return {"cmd": cmd, "pid": 7, "exit_code": 0, "timed_out": False,
+                "elapsed": 0.1, "status": None, "stdout": "", "stderr": ""}
+
+    monkeypatch.setattr(mx, "preflight_task", _fake_preflight_ok)
+    monkeypatch.setattr(mx, "run_subprocess", fake_run)
+    row = mx.run_context("A01", 1, "fault")
+    out = tmp_path / "A01-R01-fault"
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["status"] == mx.STATUS_FAILED
+    assert summary["parse_error"]
+    csv_path = tmp_path / "raw.csv"
+    mx.write_csv([row], csv_path)
+    header = csv_path.read_text().splitlines()[0].split(",")
+    assert "parse_error" in header
+    assert row["parse_error"] == summary["parse_error"]
+
+
+def test_write_campaign_identity_records_frozen_provenance(tmp_path):
+    """The campaign root carries one identity record for the collector."""
+    elf = tmp_path / "agu_addrmodes"
+    elf.write_bytes(b"fake elf")
+    tasks = [("A01", 1, elf)]
+    path = mx.write_campaign_identity(
+        tmp_path, "LSU-TEST", tasks=tasks, sha_fn=lambda p: "a" * 64)
+    data = json.loads(Path(path).read_text())
+    assert data["campaign_id"] == "LSU-TEST"
+    assert data["binary_sha"]
+    assert data["config_sha"]
+    assert data["elf_sha"]["agu_addrmodes"] == "a" * 64
+
+
+def test_rp01_control_command_carries_the_frozen_seed():
+    """Fault/control pairing is visible in the executed command text."""
+    _sid, seed = mx.FROZEN_ID[("RP01", "R01")]
+    for role in ("fault", "control"):
+        cmd = mx.planned_command("RP01", 1, role, Path("/tmp/x"))
+        assert "--rng_seed" in cmd, (role, cmd)
+        assert str(seed) in cmd, (role, cmd)
