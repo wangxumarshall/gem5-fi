@@ -190,6 +190,96 @@ p.add_argument("--chaos_propagation", action="store_true",
 p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
 p.add_argument("--prop_run_id", default="")
 p.add_argument("--prop_sample_run_id", default="")
+# [MMU-TRACE v1] Fault-free unified MMU/TLB/PTW/LSU event trace. VA-gated so
+# a full-system run does not emit millions of unrelated events.
+p.add_argument("--prop_mmu_trace", action="store_true",
+               help="emit fault-free unified MMU trace events (VA-gated)")
+p.add_argument("--prop_mmu_va_lo", type=lambda x: int(x, 0), default=0,
+               help="MMU trace VA lower bound (inclusive); 0 = unbounded")
+p.add_argument("--prop_mmu_va_hi", type=lambda x: int(x, 0), default=0,
+               help="MMU trace VA upper bound (exclusive); 0 = unbounded")
+# [MMU-TRACE v2] One-shot M01/M02 smoke fault configuration. Empty model =
+# both hooks are strict no-ops (fault-free execution unchanged).
+p.add_argument("--mmu_fault_model", default="",
+               choices=["", "M01", "M02", "M03", "M04", "M05", "M06",
+                        "M07", "M08"],
+               help="MMU fault model ('' = off)")
+# [Phase 2.2] Independent injection switch. Fault injection must not be a
+# side effect of trace/log configuration: --prop_mmu_trace off and
+# --prop_write_log false only stop observation; the selected model still
+# mutates state (and the guest result still shows it).
+p.add_argument("--mmu_fault_enable", type=lambda x: str(x).lower() in
+               ("1", "true", "on", "yes"), default=True,
+               help="enable the selected MMU fault model (default true; "
+                    "false = configured but inert)")
+p.add_argument("--prop_write_log", type=lambda x: str(x).lower() in
+               ("1", "true", "on", "yes"), default=True,
+               help="CHAOSPropagation generic trace/log writing (default "
+                    "true); NEVER gates fault injection")
+p.add_argument("--mmu_m01_va", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m01_asid", type=int, default=-1,
+               help="M01 target ASID (-1 = any)")
+p.add_argument("--mmu_m01_vmid", type=int, default=-1,
+               help="M01 target VMID (-1 = any)")
+# [MMU-TRACE v3] Target regime/security-state constraints (-1 = any keeps
+# the Phase-2 behaviour byte-compatible).
+p.add_argument("--mmu_m01_regime", type=int, default=-1,
+               help="M01 target TranslationRegime (EL10=0,EL20=1,EL2=2,EL3=3;"
+                    " -1 = any)")
+p.add_argument("--mmu_m01_security_state", type=int, default=-1,
+               help="M01 target SecurityState (NonSecure=0,Secure=1;"
+                    " -1 = any)")
+p.add_argument("--mmu_m01_n", type=int, default=12)
+p.add_argument("--mmu_m02_va", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m02_old_pfn", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m02_xor_mask", type=lambda x: int(x, 0), default=1)
+p.add_argument("--mmu_m02_dram_lo", type=lambda x: int(x, 0),
+               default=0x80000000)
+p.add_argument("--mmu_m02_dram_hi", type=lambda x: int(x, 0),
+               default=0x100000000)
+# [MMU-PHASE3] Generic target selector shared by M03-M08. Every field is a
+# strict guard; -1 / "" / 0-where-documented means unconstrained.
+p.add_argument("--mmu_target_va", type=lambda x: int(x, 0), default=0,
+               help="target canonical VA (0 = any)")
+p.add_argument("--mmu_target_asid", type=int, default=-1,
+               help="target ASID (-1 = any)")
+p.add_argument("--mmu_target_vmid", type=int, default=-1,
+               help="target VMID (-1 = any)")
+p.add_argument("--mmu_target_n", type=int, default=-1,
+               help="target page size exponent (-1 = any)")
+p.add_argument("--mmu_target_regime", type=int, default=-1,
+               help="target TranslationRegime (-1 = any)")
+p.add_argument("--mmu_target_security_state", type=int, default=-1,
+               help="target SecurityState (-1 = any)")
+p.add_argument("--mmu_target_instance", default="",
+               help="target TLB instance ('' = any)")
+p.add_argument("--mmu_target_walk_level", type=int, default=-1,
+               help="target walk level (-1 = any)")
+p.add_argument("--mmu_target_seq", type=lambda x: int(x, 0), default=0,
+               help="target DynInst seq (0 = any)")
+p.add_argument("--mmu_target_mode", default="",
+               help="target mode Read|Write|Execute|Atomic ('' = any)")
+p.add_argument("--mmu_eligible_event_index", type=lambda x: int(x, 0),
+               default=1,
+               help="1-based ordinal of the target event among eligible events")
+p.add_argument("--mmu_fault_persistence", default="one_shot",
+               choices=["one_shot", "entry_lifetime"],
+               help="one_shot | entry_lifetime (corrupted TLB entry persists)")
+p.add_argument("--mmu_m03_candidate_asid", type=int, default=-1,
+               help="M03: required foreign candidate ASID (-1 = any != current)")
+p.add_argument("--mmu_m04_decoy_pfn", type=lambda x: int(x, 0), default=0,
+               help="M04: verified workload-owned decoy PFN from the W12 "
+                    "control run (0 = no activation; never auto-picked)")
+p.add_argument("--mmu_m05_decoy_va", type=lambda x: int(x, 0), default=0,
+               help="M05: decoy VA whose live L2 partial entry supplies the "
+                    "next-table base (0 = unset)")
+p.add_argument("--mmu_m05_decoy_table_base", type=lambda x: int(x, 0),
+               default=0,
+               help="M05: explicit decoy next-table base PA override "
+                    "(0 = derive from --mmu_m05_decoy_va)")
+p.add_argument("--mmu_m08_pa_xor_mask", type=lambda x: int(x, 0),
+               default=0x1000,
+               help="M08: XOR mask on the final request PA (bit 12 default)")
 p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
                help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
                     "first-eligible — 60/60 seeds hit the same dead event).")
@@ -594,13 +684,48 @@ if args.chaos_propagation:
     board.chaos_propagation = CHAOSPropagation(
         cpu=_prop_cpu,
         traceFile=args.prop_trace_file,
-        writeLog=True,
+        writeLog=args.prop_write_log,
         runId=args.prop_run_id,
         sampleRunId=args.prop_sample_run_id,
+        mmuTrace=args.prop_mmu_trace,
+        mmuTraceVaLo=args.prop_mmu_va_lo,
+        mmuTraceVaHi=args.prop_mmu_va_hi,
+        mmuFaultModel=args.mmu_fault_model,
+        mmuFaultEnable=args.mmu_fault_enable,
+        mmuM01Va=args.mmu_m01_va,
+        mmuM01Asid=args.mmu_m01_asid,
+        mmuM01Vmid=args.mmu_m01_vmid,
+        mmuM01Regime=args.mmu_m01_regime,
+        mmuM01SecurityState=args.mmu_m01_security_state,
+        mmuM01N=args.mmu_m01_n,
+        mmuM02Va=args.mmu_m02_va,
+        mmuM02OldPfn=args.mmu_m02_old_pfn,
+        mmuM02XorMask=args.mmu_m02_xor_mask,
+        mmuM02DramLo=args.mmu_m02_dram_lo,
+        mmuM02DramHi=args.mmu_m02_dram_hi,
+        mmuTargetVa=args.mmu_target_va,
+        mmuTargetAsid=args.mmu_target_asid,
+        mmuTargetVmid=args.mmu_target_vmid,
+        mmuTargetN=args.mmu_target_n,
+        mmuTargetRegime=args.mmu_target_regime,
+        mmuTargetSecurityState=args.mmu_target_security_state,
+        mmuTargetInstance=args.mmu_target_instance,
+        mmuTargetWalkLevel=args.mmu_target_walk_level,
+        mmuTargetSeq=args.mmu_target_seq,
+        mmuTargetMode=args.mmu_target_mode,
+        mmuEligibleEventIndex=args.mmu_eligible_event_index,
+        mmuFaultPersistence=args.mmu_fault_persistence,
+        mmuM03CandidateAsid=args.mmu_m03_candidate_asid,
+        mmuM04DecoyPfn=args.mmu_m04_decoy_pfn,
+        mmuM05DecoyVa=args.mmu_m05_decoy_va,
+        mmuM05DecoyTableBase=args.mmu_m05_decoy_table_base,
+        mmuM08PaXorMask=args.mmu_m08_pa_xor_mask,
     )
     print("[arm_chaos_fs] CHAOSPropagation attached (trace=%s, run_id=%r, "
-          "sample_run_id=%r)" % (args.prop_trace_file, args.prop_run_id,
-                                 args.prop_sample_run_id))
+          "sample_run_id=%r, mmu_trace=%r, va=[%#x,%#x), fault_model=%r)" %
+          (args.prop_trace_file, args.prop_run_id, args.prop_sample_run_id,
+           args.prop_mmu_trace, args.prop_mmu_va_lo, args.prop_mmu_va_hi,
+           args.mmu_fault_model))
 
 simulator = Simulator(
     board=board, full_system=True,

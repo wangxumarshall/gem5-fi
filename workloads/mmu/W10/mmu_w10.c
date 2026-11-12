@@ -123,6 +123,24 @@ read_smaps_page_size(uintptr_t va, char *out, size_t outlen)
     return out[0] ? 0 : -1;
 }
 
+/* Per-context target VA constants.  The target load MUST use its OWN
+ * compile-time VA, not the pointer computed for the selected context: the
+ * strcmp dispatch chain is only resolved in commit, so O3 executes the
+ * target load of an EARLIER context block on the wrong path before the
+ * branch resolves.  When every block dereferenced the same live pointer
+ * (measured on TEST-M08-R02C/R03B/R04B) that wrong-path load performed the
+ * cold walk first, filled the TLB of the context under test, and the
+ * architecturally correct load then hit the TLB; the one-shot M08 fault
+ * landed on a squashed request and was never consumed.  With a distinct
+ * constant per context, a wrong-path block touches a VA that is not mapped
+ * in a scoped run, so the selected context's VA is still cold when its own
+ * load executes.  main() maps exactly W10_CTX_VA(idx) for the selected
+ * context, and run_context() verifies the pointer matches. */
+#define W10_VA_STRIDE 0x100000UL
+#define W10_CTX_VA(i) (W10_TARGET + (uintptr_t)(i) * W10_VA_STRIDE)
+
+static int ctx_index(const char *ctx);
+
 static int
 run_context(const char *ctx, volatile uint8_t *p, uint8_t expect, uint8_t *scalar,
             unsigned *branch, unsigned *vec0)
@@ -131,14 +149,26 @@ run_context(const char *ctx, volatile uint8_t *p, uint8_t expect, uint8_t *scala
     *branch = 0;
     *vec0 = 0;
 
-    if (!strcmp(ctx, "R01")) {
-        v = *p;
+    const int idx = ctx_index(ctx);
+    if (idx < 0) {
+        fprintf(stderr, "unknown ctx %s\n", ctx);
+        return -1;
+    }
+    if (p != (volatile uint8_t *)W10_CTX_VA(idx)) {
+        fprintf(stderr, "W10_FATAL ctx=%s mapped pointer %p != constant VA "
+                "0x%" PRIxPTR "\n", ctx, (const void *)p,
+                (uintptr_t)W10_CTX_VA(idx));
+        return -1;
+    }
+
+    if (idx == 0) {
+        v = *(volatile uint8_t *)W10_CTX_VA(0);
         sink = v;
-    } else if (!strcmp(ctx, "R02")) {
-        v = *p;
+    } else if (idx == 1) {
+        v = *(volatile uint8_t *)W10_CTX_VA(1);
         sink = (uint64_t)v + 0x11;
-    } else if (!strcmp(ctx, "R03")) {
-        v = *p;
+    } else if (idx == 2) {
+        v = *(volatile uint8_t *)W10_CTX_VA(2);
         if (v == expect) {
             *branch = 1;
             sink = 0x100;
@@ -147,25 +177,23 @@ run_context(const char *ctx, volatile uint8_t *p, uint8_t expect, uint8_t *scala
             sink = 0x200;
         }
         __asm__ __volatile__("" ::: "memory");
-    } else if (!strcmp(ctx, "R04")) {
-        v = *p;
-        volatile uint8_t *q = p + (v & 0x0F);
+    } else if (idx == 3) {
+        volatile uint8_t *tp = (volatile uint8_t *)W10_CTX_VA(3);
+        v = *tp;
+        volatile uint8_t *q = tp + (v & 0x0F);
         uint8_t w = *q;
         sink = w;
-    } else if (!strcmp(ctx, "R05")) {
+    } else {
 #if defined(__aarch64__)
-        uint8x16_t vec = vld1q_u8((const uint8_t *)p);
+        uint8x16_t vec = vld1q_u8((const uint8_t *)W10_CTX_VA(4));
         vec = vaddq_u8(vec, vdupq_n_u8(1));
         *vec0 = vgetq_lane_u8(vec, 0);
         sink = *vec0;
-        v = *p;
+        v = *(volatile uint8_t *)W10_CTX_VA(4);
 #else
-        v = *p;
+        v = *(volatile uint8_t *)W10_CTX_VA(4);
         sink = v;
 #endif
-    } else {
-        fprintf(stderr, "unknown ctx %s\n", ctx);
-        return -1;
     }
     *scalar = v;
     return 0;

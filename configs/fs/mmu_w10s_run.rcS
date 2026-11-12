@@ -5063,21 +5063,41 @@ mkdir -p "$BUF_DIR" 2>/dev/null || BUF_DIR=/tmp
 [ -w "$BUF_DIR" ] || BUF_DIR=/tmp
 echo "[mmu-w10s] buffer_dir=$BUF_DIR"
 echo "[mmu-w10s] base template: BOTH variants; scope with W10S_VARIANT markers"
+# ---- run-time variant parameters ----------------------------------------
+# The formal Excel WorkloadID is W10; W10S is the internal store Variant.
+# TargetVA is a run-time input: this base template carries the frozen
+# defaults, and a per-run scoped rcS is produced with
+#   workloads/mmu/W10S/gen_rcs.sh --mode warm|cold --target-va 0x... --out ...
+# which writes exactly one variant with one W10S_TARGET_VA line.  The
+# workload binary itself takes --target-va; no VA is compiled in.
+W10S_TARGET_VA_M06_R02=${W10S_TARGET_VA_M06_R02:-0x4001100000}
+W10S_TARGET_VA_M08_R05=${W10S_TARGET_VA_M08_R05:-0x4001400000}
+W10S_BUFFER_VA=${W10S_BUFFER_VA:-0x4002000000}
+W10S_PAGES=${W10S_PAGES:-4096}
+W10S_MAX_PAGES=${W10S_MAX_PAGES:-65536}
 # ---- W10S_VARIANT M06_R02 BEGIN ----
-echo "[mmu-w10s] variant=M06_R02 mode=cold target_va=0x4001100000"
+echo "[mmu-w10s] variant=M06_R02 mode=cold target_va=$W10S_TARGET_VA_M06_R02"
 if command -v timeout >/dev/null 2>&1; then
-  timeout -s KILL 60 /tmp/mmu-w10s --cold --target-va 0x4001100000 --file-dir "$BUF_DIR"
+  timeout -s KILL 60 /tmp/mmu-w10s --cold --target-va "$W10S_TARGET_VA_M06_R02" \
+    --buffer-va "$W10S_BUFFER_VA" --pages "$W10S_PAGES" \
+    --max-pages "$W10S_MAX_PAGES" --file-dir "$BUF_DIR"
 else
-  /tmp/mmu-w10s --cold --target-va 0x4001100000 --file-dir "$BUF_DIR"
+  /tmp/mmu-w10s --cold --target-va "$W10S_TARGET_VA_M06_R02" \
+    --buffer-va "$W10S_BUFFER_VA" --pages "$W10S_PAGES" \
+    --max-pages "$W10S_MAX_PAGES" --file-dir "$BUF_DIR"
 fi
 echo "[mmu-w10s] variant=M06_R02 rc=$?"
 # ---- W10S_VARIANT M06_R02 END ----
 # ---- W10S_VARIANT M08_R05 BEGIN ----
-echo "[mmu-w10s] variant=M08_R05 mode=warm target_va=0x4001400000"
+echo "[mmu-w10s] variant=M08_R05 mode=warm target_va=$W10S_TARGET_VA_M08_R05"
 if command -v timeout >/dev/null 2>&1; then
-  timeout -s KILL 60 /tmp/mmu-w10s --warm --target-va 0x4001400000 --file-dir "$BUF_DIR"
+  timeout -s KILL 60 /tmp/mmu-w10s --warm --target-va "$W10S_TARGET_VA_M08_R05" \
+    --buffer-va "$W10S_BUFFER_VA" --pages "$W10S_PAGES" \
+    --max-pages "$W10S_MAX_PAGES" --file-dir "$BUF_DIR"
 else
-  /tmp/mmu-w10s --warm --target-va 0x4001400000 --file-dir "$BUF_DIR"
+  /tmp/mmu-w10s --warm --target-va "$W10S_TARGET_VA_M08_R05" \
+    --buffer-va "$W10S_BUFFER_VA" --pages "$W10S_PAGES" \
+    --max-pages "$W10S_MAX_PAGES" --file-dir "$BUF_DIR"
 fi
 echo "[mmu-w10s] variant=M08_R05 rc=$?"
 # ---- W10S_VARIANT M08_R05 END ----

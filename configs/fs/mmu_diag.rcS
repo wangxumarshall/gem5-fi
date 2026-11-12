@@ -1,0 +1,9 @@
+#!/bin/sh
+echo "[diag] id: $(id)"
+echo "[diag] mounts:"; grep -E ' / |/root' /proc/mounts
+echo "[diag] ls:"; ls -ld /root /root/mmu_w9 /root/mmu_w10
+echo "[diag] stat:"; stat /root/mmu_w9 /root/mmu_w10 2>&1
+echo "[diag] file:"; file /root/mmu_w9 /root/mmu_w10 2>&1 || true
+echo "[diag] exec:"
+/root/mmu_w9 --ctx R01; echo "rc=$?"
+m5 exit
