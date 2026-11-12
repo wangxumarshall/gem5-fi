@@ -64,7 +64,7 @@ M02 R02 PFN (`0x83480->0x83481`), Golden Control Report sentence
       `MMU_Formal_Config.yaml` from the corrected workbook; fix
       `10_MMU_Golden_Control_Report.md` stale `0x834b6` sentence.
       Verify: re-read all four artifacts and diff the 40 IDs/seeds.
-- [ ] U3 Validator strict evidence: new `tools/mmu_evidence_chain.py` with
+- [x] U3 Validator strict evidence: new `tools/mmu_evidence_chain.py` with
       per-context identity joins for the five; `mmu_formal_validate.py`
       consumes it, removes the `consumed_at_activation` shortcut for
       M03/M04/M07, emits non-empty `required_kinds` for every model, and adds
@@ -74,13 +74,13 @@ M02 R02 PFN (`0x83480->0x83481`), Golden Control Report sentence
       Verify: validate all 40 runs; the five must show
       `ACTIVATED/CONSUMED/FULL/COMPLETE/SDC/FAIL` with non-empty required
       kinds and explicit identity evidence; no other run may regress.
-- [ ] U4 Causal slice tool: `tools/mmu_causal_slice.py` exports, for each of
+- [x] U4 Causal slice tool: `tools/mmu_causal_slice.py` exports, for each of
       the five, the exact raw PROP-EVT lines + structured JSON
       (`entry_id/gen`, lookup id, fetch request id, dyn seq, PC, VA, PA,
       guest marker, commit/squash status or the honest absence).
       Verify: each slice JSON re-reads and every event id exists in the raw
       trace; SHA256 of the source trace recorded.
-- [ ] U5 Regenerate the five verdicts (and the other 35 if required by the
+- [x] U5 Regenerate the five verdicts (and the other 35 if required by the
       strict rules) from existing traces; rerun 40/40 static preflight.
       Verify: `40/40 READY`, and the five verdicts are real.
 - [ ] U6 Build `MMU_Final_Formal_Readiness_Package_v2.zip` with all 18

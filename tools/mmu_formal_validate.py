@@ -45,6 +45,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mmu_trace_validate_v4 as v4
+import mmu_evidence_chain as evidence_chain
 
 v3 = v4.v3
 
@@ -69,8 +70,15 @@ CONSUME_KINDS = {
     "M05": ["tlb_lookup_hit", "fault_entry_consume", "fault_entry_reuse",
             "ptw_start", "pte_read", "translation_result", "lsu_request"],
     "M06": ["pte_decode", "arch_translation_fault", "translation_fault"],
-    "M07": ["mmu_fault_activate", "translation_result", "lsu_request"],
+    "M07": ["translation_result", "lsu_request"],
     "M08": ["translation_result", "lsu_request"],
+}
+
+# The five instruction-side contexts whose propagation must be proven by an
+# explicit identity join, not by temporal adjacency or an activation row.
+STRICT_CONTEXTS = {
+    ("M03", "R05"), ("M04", "R05"), ("M05", "R05"),
+    ("M07", "R04"), ("M07", "R05"),
 }
 
 RESPONSE_KINDS = {"cache_response", "memory_response"}
@@ -363,9 +371,10 @@ def select_consumption(events, by_id, model, fid, activation):
     consume = _first(evs, CONSUME_KINDS.get(model, []), after)
     if consume is not None:
         return consume, "explicit_consumer"
-    # Immediate models consume the fault at the activation event itself.
-    if model in ("M03", "M04", "M07", "M08") and activation is not None:
-        return activation, "consumed_at_activation"
+    # No model is allowed to claim consumption at activation.  M03/M04/M07
+    # (and M08) must name a later event that reads the faulted state; the
+    # five instruction-side contexts are additionally checked by
+    # mmu_evidence_chain's identity joins.  A missing consumer is reported.
     if model == "M06" and activation is not None:
         pte = _first(_fault_events(events, fid), ["pte_decode"], after)
         if pte is not None:
@@ -1149,41 +1158,69 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
     elif observed & SQUASH_KINDS:
         terminal = "squash"
 
-    required = _path_required(model, observed, target_mode or "", terminal)
-    missing_kinds = [k for k in required if k not in observed]
-    # M04/M05 consumption is an either/or witness.
-    if model == "M04" and "tlb_lookup_hit" in missing_kinds and \
-            ({"fault_entry_consume", "fault_entry_reuse"} & observed):
-        missing_kinds.remove("tlb_lookup_hit")
-    if model == "M05" and "tlb_lookup_hit" in missing_kinds and \
-            ({"fault_entry_consume", "fault_entry_reuse"} & observed):
-        missing_kinds.remove("tlb_lookup_hit")
-    # M03/M04 Execute: an IFU fetch that returned the injected PA is the
-    # consumption witness even when the lookup row is untagged (no Request
-    # sequence on fetch).  The join is VA + injected-PA identity.
-    if model in ("M03", "M04") and ifu_carrier_ids and \
-            "tlb_lookup_hit" in missing_kinds:
-        missing_kinds.remove("tlb_lookup_hit")
-    # M07: the activation event itself records the REAL pre/post grant
-    # decision (permission_before=false -> permission_after=true).  When the
-    # deny is reached on a warm hit that has no transaction yet, the separate
-    # permission_eval observation is not emitted; the activation row is the
-    # stronger witness, so the requirement is satisfied by it.
-    m07_activation_witness = bool(
-        model == "M07" and activation is not None and
-        activation.get("permission_before") == "false" and
-        activation.get("permission_after") == "true")
-    if m07_activation_witness and "permission_eval" in missing_kinds:
-        missing_kinds.remove("permission_eval")
+    # ---- strict identity chains (the five instruction-side contexts) ------
+    spec_mode = target_mode or ""
+    strict = None
+    strict_guards = []
+    if (model, context) in STRICT_CONTEXTS:
+        oracle_text = ""
+        if golden_path and os.path.isfile(golden_path):
+            oracle_text = open(golden_path, "r", errors="replace").read()
+        strict = evidence_chain.evaluate(
+            model, context, events, target_va, spec_mode, oracle_text)
 
-    live_evs = fault_evs + [e for e in associated if e not in fault_evs]
-    missing_edges = _edge_checks(live_evs, by_id, required, model, terminal)
-    if model in ("M01", "M02"):
-        missing_edges = v3_missing_edges
-        missing_kinds = v3_missing_kinds
+    if strict is not None:
+        required = list(strict.get("required_kinds") or [])
+        missing_kinds = list(strict.get("missing_kinds") or [])
+        missing_edges = list(strict.get("missing_edges") or [])
+        strict_guards = list(strict.get("guards") or [])
+        # The strict chain names the real consuming request.  Never fall back
+        # to the activation event as a consumption witness.
+        sc = strict.get("consumption") or {}
+        cid = sc.get("event_id")
+        consumption = next((e for e in events if e["event_id"] == cid), None)
+        consumption_id = cid or 0
+        consumption_kind = _kind(consumption) if consumption else ""
+        consumption_basis = "strict_identity_chain"
+        if strict.get("consumption_basis"):
+            consumption_basis += ":" + strict["consumption_basis"]
+        live_evs = fault_evs + [e for e in associated if e not in fault_evs]
+    else:
+        required = _path_required(model, observed, spec_mode, terminal)
+        if not required:
+            required = evidence_chain.required_kinds(
+                model, context, spec_mode, observed, workload)
+        missing_kinds = [k for k in required if k not in observed]
+        # M04/M05 consumption is an either/or witness.
+        if model == "M04" and "tlb_lookup_hit" in missing_kinds and \
+                ({"fault_entry_consume", "fault_entry_reuse"} & observed):
+            missing_kinds.remove("tlb_lookup_hit")
+        if model == "M05" and "tlb_lookup_hit" in missing_kinds and \
+                ({"fault_entry_consume", "fault_entry_reuse"} & observed):
+            missing_kinds.remove("tlb_lookup_hit")
+        # M03/M04 Execute: an IFU fetch that returned the injected PA is the
+        # consumption witness even when the lookup row is untagged.
+        if model in ("M03", "M04") and ifu_carrier_ids and \
+                "tlb_lookup_hit" in missing_kinds:
+            missing_kinds.remove("tlb_lookup_hit")
+        # M07: the activation row records the real pre/post grant decision
+        # when the separate permission_eval row is absent.
+        m07_activation_witness = bool(
+            model == "M07" and activation is not None and
+            activation.get("permission_before") == "false" and
+            activation.get("permission_after") == "true")
+        if m07_activation_witness and "permission_eval" in missing_kinds:
+            missing_kinds.remove("permission_eval")
+
+        live_evs = fault_evs + [e for e in associated if e not in fault_evs]
+        missing_edges = _edge_checks(live_evs, by_id, required, model, terminal)
+        if model in ("M01", "M02"):
+            missing_edges = v3_missing_edges
+            missing_kinds = v3_missing_kinds
 
     missing = ["missing_kind:%s" % k for k in sorted(set(missing_kinds))]
     missing += missing_edges
+    missing += ["identity:%s" % g for g in sorted(set(strict_guards))]
     missing += ["lineage:%s" % c for c in sorted(set(contradictions))]
     missing = sorted(set(missing))
 
@@ -1220,6 +1257,9 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
             consumption_status = "NOT_OBSERVED"
     else:
         consumption_status = "NOT_OBSERVED"
+    if strict is not None:
+        consumption_status = "CONSUMED" if strict.get("ok") else \
+            "NOT_CONSUMED"
 
     # Propagation means reaching architectural state.  A squash is a real
     # terminal for the trace but NOT architectural propagation.
@@ -1313,6 +1353,17 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
 
     oracle_result, oracle_evidence = evaluate_oracle(
         model, workload, context, golden_rows, proof, terminal_state)
+    if strict is not None:
+        # The strict identity chain is the propagation witness.  FULL requires
+        # both the joined chain and an oracle diff; a chain that is not
+        # complete can never be FULL.
+        if strict.get("ok") and oracle_result == "FAIL":
+            propagation = "FULL"
+        elif strict.get("ok"):
+            propagation = "PARTIAL"
+        else:
+            propagation = ("PARTIAL" if (observed or associated)
+                           else "NOT_OBSERVED")
     if str(fid) == "0" and activation_status in ("NOT_ACTIVATED",
                                                  "NO_ELIGIBLE_EVENT"):
         # No injected fault exists, so the golden comparison is moot.  Do not
@@ -1385,6 +1436,15 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
         trace_completeness = "PARTIAL"
     else:
         trace_completeness = "INCOMPLETE"
+    if strict is not None:
+        # Completeness is defined by the real, identity-joined event set of
+        # this context; a guard failure is never COMPLETE.
+        if strict.get("ok") and not missing:
+            trace_completeness = "COMPLETE"
+        elif strict.get("ok"):
+            trace_completeness = "PARTIAL"
+        else:
+            trace_completeness = "TRACE_INCOMPLETE"
     if integrity["status"] == "FAIL":
         # A broken parent graph can never be claimed COMPLETE.
         if trace_completeness == "COMPLETE":
@@ -1456,6 +1516,14 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
             "exception_delivered": m06_exc_deliv,
         } if model == "M06" else None,
         "ifu_lookup_identity_join": ifu_carrier_ids,
+        "strict_evidence_chain": strict,
+        "fault_activation_basis":
+            (strict or {}).get("activation_basis") or activation_kind,
+        "fault_consumption_basis": consumption_basis,
+        "terminal_evidence_basis":
+            ("STRICT_IDENTITY_CHAIN_PLUS_GUEST_ORACLE"
+             if strict is not None and strict.get("ok")
+             else "TRACE_PLUS_GUEST_ORACLE"),
         "terminal_text_crash_evidence": crash_evidence,
         "timed_out": timed_out,
     }
@@ -1474,6 +1542,11 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
         "FaultConsumptionStatus": consumption_status,
         "PropagationStatus": propagation,
         "TraceCompleteness": trace_completeness,
+        # Explicit separation required by the 2026-11-12 review:
+        # activation != consumption != propagation completeness != terminal.
+        "FaultActivated": activation_status,
+        "FaultStateConsumed": consumption_status,
+        "PropagationComplete": propagation,
         "MissingCausalEdges": missing,
         "TerminalState": terminal_state,
         "OracleResult": oracle_result,
