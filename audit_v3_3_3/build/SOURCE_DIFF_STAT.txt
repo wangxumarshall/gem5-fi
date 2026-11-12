@@ -1,0 +1,26 @@
+ .../gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc | 169 +++--
+ .../gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh |  33 +
+ .../gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py |  11 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc       |   9 +-
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh       |   1 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py       |   4 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc   |  29 +-
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.cc       |   6 +-
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.cc    |  63 +-
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.hh    |   9 +-
+ CHAOS/gem5/src/cpu/o3/lsq.cc                       |  15 +-
+ CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |  11 +-
+ configs/se/lsu_proxy.py                            |  27 +-
+ .../lsu/implementation_v3_2/platform/run_pilot.py  | 141 +++-
+ .../implementation_v3_2/platform/terminal_rules.py |  21 +-
+ .../platform/tests/test_prop_converter.py          |  93 +++
+ tests/test_lq04_platform.py                        |   8 +-
+ tests/test_lsu_12model_closure.py                  |  42 +-
+ tests/test_lsu_v333_control.py                     | 347 +++++++++
+ tests/test_lsu_v333_propagation.py                 | 181 +++++
+ tests/test_lsu_v333_workbook.py                    | 245 ++++++
+ tools/lsu_v332_matrix.py                           | 643 +++++++++++++---
+ tools/lsu_v332_report.py                           | 176 +++--
+ tools/lsu_v333_propagation.py                      | 838 +++++++++++++++++++++
+ tools/lsu_v333_workbook.py                         | 775 +++++++++++++++++++
+ 25 files changed, 3651 insertions(+), 246 deletions(-)
