@@ -3,7 +3,8 @@
 **Date:** 2026-11-13
 **Worktree:** `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12`
 **Branch:** `lsu-v3.3.1-context-workload-20261111`
-**Verified tree HEAD:** `896b64b1` (this report is committed immediately after that tree; no source change follows)
+**Verified source tree:** `896b64b1` (all launch tooling changes)
+**Final tooling HEAD:** `e291857e` (adds this report and evidence logs only; no source change follows)
 **Campaign ID:** `LSU-V333-FINAL-20261112`
 **Campaign root:** `runs/lsu/formal_v333_final_20261112` (absent before and after every check)
 
