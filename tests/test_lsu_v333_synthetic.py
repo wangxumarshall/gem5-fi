@@ -577,7 +577,11 @@ def test_runner_child_exception_recorded_and_partial_campaign_continues(
     calls = []
 
     def handler(cmd, outdir):
-        if outdir.name == "A01-R02-fault":
+        # v3.3.3 attempt isolation: execution writes into
+        # <run>/attempts/attempt_NNN, so the task tag is two levels up.
+        tag = (outdir.parent.parent.name if outdir.parent.name == "attempts"
+               else outdir.name)
+        if tag == "A01-R02-fault":
             raise OSError("synthetic child executable missing")
         _stub_outputs(outdir, "A01", "fault")
         (outdir / "pilot_meta.json").write_text(json.dumps(_meta_for(cmd)))
@@ -597,16 +601,19 @@ def test_runner_child_exception_recorded_and_partial_campaign_continues(
     bad = [r for r in rows if r["context"] == "R02"][0]
     assert good["status"] == mx.STATUS_ORACLE_FAIL
     assert bad["status"] == mx.STATUS_FAILED
+    # Attempt isolation: the flat run dir exposes the canonical attempt as a
+    # convenience view; the raw evidence lives under attempts/.
+    good_adir = runs / "A01-R01-fault" / "attempts" / "attempt_001"
+    bad_adir = runs / "A01-R02-fault" / "attempts" / "attempt_001"
+    assert (good_adir / "summary.json").exists()
     assert (runs / "A01-R01-fault" / "summary.json").exists()
     # The failed task still records its own evidence; it is never dropped.
-    assert (runs / "A01-R02-fault" / "summary.json").exists()
-    assert (runs / "A01-R02-fault" / "campaign.json").exists()
-    bad_campaign = json.loads(
-        (runs / "A01-R02-fault" / "campaign.json").read_text())
+    assert (bad_adir / "summary.json").exists()
+    assert (bad_adir / "campaign.json").exists()
+    bad_campaign = json.loads((bad_adir / "campaign.json").read_text())
     assert bad_campaign["status"] == mx.STATUS_FAILED
     assert "OSError" in (bad_campaign.get("parse_error") or "")
-    bad_summary = json.loads(
-        (runs / "A01-R02-fault" / "summary.json").read_text())
+    bad_summary = json.loads((bad_adir / "summary.json").read_text())
     assert bad_summary["status"] == mx.STATUS_FAILED
     assert bad.get("terminal") not in {"SDC", "MASKED"}
 

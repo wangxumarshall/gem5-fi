@@ -22,21 +22,21 @@ from __future__ import annotations
 
 import argparse
 import csv
-import fcntl
 import hashlib
 import json
 import os
 import re
 import shlex
-import shutil
 import signal
 import subprocess
 import sys
 import time
 from collections import Counter
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+import lsu_run_state as run_state
+from lsu_campaign_lock import LockHeld, campaign_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/platform"
@@ -50,8 +50,18 @@ OUT_BASE = ROOT / "runs/lsu/formal_v333"
 # by tools/lsu_v332_report.py. The two paths must never collide (the _J file
 # is the v3.3.2 evidence of that collision; it is history and stays untouched).
 SUMMARY_CSV = OUT_BASE / "LSU_Fault_Control_Pair_RAW.csv"
-LOCK_FILE = OUT_BASE / ".lsu_v332_matrix.lock"
+# The campaign lock is resolved at CALL time from the selected --out-base
+# (tools/lsu_campaign_lock.py); there is deliberately no module-level path.
 FORCE = False
+# Frozen launch provenance: the per-model ELF SHA table the dry-run gates on.
+FROZEN_PROVENANCE = (ROOT / "audit_launch_fix_v333" / "authorization"
+                     / "LSU_Final_Binary_Provenance.md")
+# Campaign-root index, rewritten atomically after every task.
+CAMPAIGN_INDEX_NAME = "campaign_index.json"
+# An accepted attempt must still expose these two evidence files before the
+# index may report it COMPLETED (the attempt record carries the full
+# validation result; these files prove the terminal write happened).
+RESUME_REQUIRED = ("summary.json", "campaign.json")
 
 # Authoritative formal identity: SampleRunID + Seed are read from the frozen
 # matrix and passed through to every run (never generated here).
@@ -888,11 +898,14 @@ def parse_rp01_evidence(outdir: Path) -> dict:
     return info
 
 
-def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload):
+def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload,
+                  pilot_id=None):
+    # ``--outdir`` is the attempt directory; the identity the collector keys
+    # on stays the task tag (run dir basename), never "attempt_NNN".
     cmd = [sys.executable, str(RUN_PILOT), "--model", model,
            "--context-index", str(ctx_idx),
            "--event-ordinal", str(ordinal),
-           "--pilot-id", outdir.name,
+           "--pilot-id", pilot_id or Path(outdir).name,
            "--outdir", str(outdir),
            "--timeout", "180"]
     if workload:
@@ -1068,19 +1081,15 @@ def write_direct_artifacts(model, role, outdir, command, workload, ordinal,
     return {"oracle_pass": oracle_pass, "manifest": manifest, "meta": meta}
 
 
-@contextmanager
-def matrix_lock(path: Path = LOCK_FILE):
-    """Serialize matrix run sets (L-D14): concurrent writers cannot clobber."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fh = open(path, "w")
-    try:
-        fcntl.flock(fh, fcntl.LOCK_EX)
-        fh.write(str(os.getpid()))
-        fh.flush()
-        yield fh
-    finally:
-        fcntl.flock(fh, fcntl.LOCK_UN)
-        fh.close()
+def matrix_lock(out_base=None, campaign_id=None):
+    """Compatibility shim around the campaign-scoped lock.
+
+    Kept for callers/tests that monkeypatch ``matrix_lock``; it resolves the
+    lock path at CALL time from ``out_base`` (never a module-level default)
+    and delegates to :func:`lsu_campaign_lock.campaign_lock`.
+    """
+    return campaign_lock(Path(out_base) if out_base is not None else OUT_BASE,
+                         campaign_id or CAMPAIGN_ID_DEFAULT)
 
 
 def run_direct(cmd_base, outdir, timeout):
@@ -1113,6 +1122,296 @@ def any_watchdog_marker(outdir: Path) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# v3.3.3 attempt isolation / canonical selection / campaign index
+# ---------------------------------------------------------------------------
+def load_frozen_elf_table(path: Path | None = None) -> dict[str, str]:
+    """The frozen per-workload ELF SHA256 table from the provenance document.
+
+    Parsed from the real file (never duplicated as constants) so a stale or
+    edited provenance table is detected by the dry-run, not silently trusted.
+    """
+    path = Path(path or FROZEN_PROVENANCE)
+    table: dict[str, str] = {}
+    if not path.is_file():
+        return table
+    pattern = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([0-9a-fA-F]{64})`\s*\|\s*$")
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = pattern.match(line)
+        if match:
+            table[match.group(1)] = match.group(2).lower()
+    return table
+
+
+def _attempt_artifact_hashes(adir: Path, names) -> dict[str, str]:
+    """SHA256 of every required artifact, recorded in the attempt record."""
+    hashes = {}
+    for name in names:
+        path = Path(adir) / name
+        if path.is_file():
+            hashes[name] = _sha256(path)
+    return hashes
+
+
+def _publish_attempt_view(run_dir: Path, adir: Path) -> None:
+    """Point the run-dir root convenience view at ``adir``.
+
+    Only symlinks that this tool created (targets under ``attempts/``) are
+    replaced; legacy regular files are never touched.
+    """
+    run_dir = Path(run_dir)
+    for name in run_state.VIEW_NAMES:
+        dst = run_dir / name
+        if not dst.is_symlink():
+            continue
+        try:
+            target = Path(os.readlink(dst))
+        except OSError:
+            continue
+        if target.parts and target.parts[0] == "attempts":
+            try:
+                dst.unlink()
+            except OSError:
+                pass
+    run_state.link_canonical_view(run_dir, adir)
+
+
+def _task_attempt_state(run_dir: Path, campaign_id: str) -> dict:
+    return run_state.scan_task_state(run_dir, campaign_id,
+                                     required_outputs=RESUME_REQUIRED)
+
+
+def _ensure_canonical(run_dir: Path, campaign_id: str) -> dict:
+    """Register the first accepted attempt as canonical if it is missing.
+
+    Repairs the crash window between the terminal attempt write and the
+    canonical write without ever re-executing or replacing an existing
+    canonical.
+    """
+    state = _task_attempt_state(run_dir, campaign_id)
+    if state["state"] not in run_state.CANONICAL_ACCEPTED:
+        return state
+    if state.get("canonical") is not None:
+        return state
+    accepted = []
+    for adir in sorted(run_state.attempts_root(run_dir).glob("attempt_*")):
+        rec = run_state.read_attempt_record(adir)
+        if rec is None or rec.get("status") not in run_state.CANONICAL_ACCEPTED:
+            continue
+        if any(not (adir / name).is_file() for name in RESUME_REQUIRED):
+            continue
+        accepted.append((adir, rec))
+    if not accepted:
+        return state
+    adir, rec = accepted[0]              # the FIRST accepted attempt wins
+    run_state.write_canonical(run_dir, {
+        "campaign_id": campaign_id,
+        "attempt_id": adir.name,
+        "model": rec.get("model"),
+        "context": rec.get("context"),
+        "role": rec.get("role"),
+        "sample_run_id": rec.get("sample_run_id"),
+        "seed": rec.get("seed"),
+        "status": rec.get("status"),
+        "registered_at": _now_iso(),
+        "registration": "RESUME_REPAIR",
+    })
+    _publish_attempt_view(run_dir, adir)
+    return _task_attempt_state(run_dir, campaign_id)
+
+
+def build_campaign_index(out_base, campaign_id: str, tasks) -> dict:
+    """Derive the campaign index from DISK; never asserts a status itself."""
+    out_base = Path(out_base)
+    entries = []
+    for model, ctx, role in tasks:
+        run_dir = out_base / run_state.task_tag(model, ctx, role)
+        state = _task_attempt_state(run_dir, campaign_id)
+        entries.append({
+            "model": model,
+            "context": f"R{int(ctx):02d}",
+            "role": role,
+            "run_dir": str(run_dir),
+            "state": state["state"],
+            "attempt_id": state.get("attempt_id"),
+            "canonical_attempt_id": (
+                (state.get("canonical") or {}).get("attempt_id")),
+            "reason": state.get("reason"),
+        })
+    counts = Counter(entry["state"] for entry in entries)
+    for status in TASK_STATUSES:
+        counts.setdefault(status, 0)
+    return {
+        "campaign_id": campaign_id,
+        "out_base": str(out_base),
+        "updated_at": _now_iso(),
+        "task_count": len(entries),
+        "counts": dict(counts),
+        "tasks": entries,
+    }
+
+
+def write_campaign_index(out_base, index: dict) -> Path:
+    """Atomically replace ``<out-base>/campaign_index.json``."""
+    path = Path(out_base) / CAMPAIGN_INDEX_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(index, fh, indent=2, sort_keys=True)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+    return path
+
+
+def _resumed_row(model, ctx_idx, role, run_dir, state, campaign_id,
+                 fallback=None) -> dict:
+    """A row for a task resume skipped (never re-executed)."""
+    row = dict(fallback or {})
+    adir = None
+    if state.get("canonical"):
+        adir = run_state.canonical_dir(run_dir)
+    elif state.get("attempt_id"):
+        adir = run_state.attempt_dir(run_dir, state["attempt_id"])
+    summary = {}
+    if adir is not None and (adir / "summary.json").is_file():
+        try:
+            summary = json.loads((adir / "summary.json").read_text())
+        except (OSError, ValueError):
+            summary = {}
+    row.update({
+        "model": model,
+        "context": f"R{int(ctx_idx):02d}",
+        "role": role,
+        "campaign_id": campaign_id,
+        "status": state["state"],
+        "outdir": str(run_dir),
+        "attempt_id": state.get("attempt_id"),
+        "attempt_dir": str(adir) if adir is not None else None,
+        "resumed": True,
+        "terminal": row.get("terminal", summary.get("terminal")),
+        "sample_run_id": (row.get("sample_run_id")
+                          or summary.get("sample_run_id")
+                          or (state.get("canonical") or {}).get("sample_run_id")),
+        "seed": (row.get("seed") if row.get("seed") is not None
+                 else summary.get("seed")),
+        "terminal_source": row.get("terminal_source",
+                                   TERMINAL_SOURCE_NORMAL),
+    })
+    return row
+
+
+# ---------------------------------------------------------------------------
+# v3.3.3 dry-run: validate the complete frozen matrix without executing
+# ---------------------------------------------------------------------------
+def dry_run_validation(*, models, ctxs, roles, out_base, campaign_id,
+                       expected_binary_sha, expected_config_sha,
+                       sha_fn=None, elf_table=None,
+                       workload_fn=None) -> dict:
+    """Gate the whole launch matrix; returns a JSON-serialisable summary."""
+    sha_fn = sha_fn or _sha256
+    workload_fn = workload_fn or resolve_workload
+    elf_table = (load_frozen_elf_table() if elf_table is None else elf_table)
+    out_base = Path(out_base)
+    errors: list[str] = []
+
+    tasks = [(model, int(ctx), role)
+             for model in models for ctx in ctxs for role in roles]
+    unique_tasks = len(set(tasks))
+    gate = {"task_count": len(tasks), "unique_task_count": unique_tasks,
+            "unique_tasks": unique_tasks == len(tasks) == 120}
+    if not gate["unique_tasks"]:
+        errors.append(f"UNIQUE_TASKS: {unique_tasks} unique of {len(tasks)}")
+
+    identities = {}
+    for model, ctx, role in tasks:
+        key = (model, ctx)
+        if key not in identities:
+            identities[key] = FROZEN_ID.get((model, f"R{ctx:02d}"))
+    pairs_ok = True
+    for model, ctx, _role in tasks:
+        if FROZEN_ID.get((model, f"R{ctx:02d}")) is None:
+            pairs_ok = False
+            errors.append(f"MISSING_IDENTITY: {model} R{ctx:02d}")
+    ids = [sid for sid, _seed in identities.values() if sid]
+    seeds = [seed for _sid, seed in identities.values() if seed]
+    gate["unique_sample_run_ids"] = len(set(ids))
+    gate["unique_seeds"] = len(set(seeds))
+    gate["sample_run_ids_ok"] = len(set(ids)) == 60
+    gate["seeds_ok"] = len(set(seeds)) == 60
+    if not gate["sample_run_ids_ok"]:
+        errors.append(f"UNIQUE_SAMPLE_RUN_IDS: {len(set(ids))} != 60")
+    if not gate["seeds_ok"]:
+        errors.append(f"UNIQUE_SEEDS: {len(set(seeds))} != 60")
+    # Every fault/control pair must share the frozen SampleRunID and Seed.
+    by_pair = {}
+    for model, ctx, role in tasks:
+        by_pair.setdefault((model, ctx), {})[role] = \
+            FROZEN_ID.get((model, f"R{ctx:02d}"))
+    pairing_ok = all(len(v) == 2 and len(set(v.values())) == 1
+                     for v in by_pair.values())
+    gate["pairing_ok"] = bool(pairs_ok and pairing_ok)
+    if not gate["pairing_ok"]:
+        errors.append("FAULT_CONTROL_PAIRING")
+
+    outdirs = [str(out_base / run_state.task_tag(model, ctx, role))
+               for model, ctx, role in tasks]
+    gate["unique_outdirs"] = len(set(outdirs))
+    gate["unique_outdirs_ok"] = len(set(outdirs)) == len(outdirs)
+    if not gate["unique_outdirs_ok"]:
+        errors.append("DUPLICATE_OUTDIRS")
+    collisions = [d for d in sorted(set(outdirs)) if Path(d).exists()]
+    gate["existing_outdir_collisions"] = len(collisions)
+    if collisions:
+        errors.append("EXISTING_OUTDIR:" + ",".join(collisions[:3]))
+
+    binary_sha = sha_fn(Path(GEM5)) if Path(GEM5).is_file() else None
+    config_sha = sha_fn(Path(CONFIG)) if Path(CONFIG).is_file() else None
+    gate["binary_sha"] = binary_sha
+    gate["config_sha"] = config_sha
+    gate["expected_binary_sha"] = expected_binary_sha
+    gate["expected_config_sha"] = expected_config_sha
+    gate["binary_sha_ok"] = binary_sha == expected_binary_sha
+    gate["config_sha_ok"] = config_sha == expected_config_sha
+    if not gate["binary_sha_ok"]:
+        errors.append("BINARY_SHA_MISMATCH")
+    if not gate["config_sha_ok"]:
+        errors.append("CONFIG_SHA_MISMATCH")
+
+    elf_checks = []
+    elf_ok = True
+    for model in models:
+        workload = workload_fn(model, CONTEXTS[model].get("workload"))
+        name = Path(workload).name if workload else None
+        expected = elf_table.get(name) if name else None
+        observed = None
+        if workload is not None and Path(workload).is_file():
+            observed = sha_fn(Path(workload))
+        ok = bool(expected and observed and observed == expected)
+        elf_ok = elf_ok and ok
+        elf_checks.append({"model": model, "workload": str(workload)
+                           if workload else None, "basename": name,
+                           "expected": expected, "observed": observed,
+                           "ok": ok})
+        if not ok:
+            errors.append(f"ELF_SHA:{model}:{name}:{observed}:{expected}")
+    gate["elf_ok"] = elf_ok
+    gate["elf_checks"] = elf_checks
+    gate["campaign_id"] = campaign_id
+    gate["campaign_id_ok"] = bool(str(campaign_id).strip())
+    if not gate["campaign_id_ok"]:
+        errors.append("INVALID_CAMPAIGN_ID")
+
+    passed_keys = ("unique_tasks", "sample_run_ids_ok", "seeds_ok",
+                   "pairing_ok", "unique_outdirs_ok", "binary_sha_ok",
+                   "config_sha_ok", "elf_ok", "campaign_id_ok")
+    gate["existing_outdir_collisions_ok"] = not collisions
+    passed_keys = passed_keys + ("existing_outdir_collisions_ok",)
+    gate["ok"] = all(gate[k] for k in passed_keys) and not errors
+    gate["errors"] = errors
+    return gate
+
+
 def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
     spec = CONTEXTS[model]
     ordinal = spec["ordinals"][ctx_idx - 1]
@@ -1122,15 +1421,31 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
     # passing it explicitly would switch run_pilot's manifest/oracle source.
     workload_override = spec.get("workload")
     workload = resolve_workload(model, workload_override)
-    tag = f"{model}-R{ctx_idx:02d}-{role}"
-    outdir = OUT_BASE / tag
+    tag = run_state.task_tag(model, ctx_idx, role)
+    run_dir = OUT_BASE / tag
     started_at = _now_iso()
+
+    # Duplicate submission: an accepted canonical result is immutable, so the
+    # task is never re-executed (and never replaced) as a "new attempt".
+    prior = _task_attempt_state(run_dir, campaign_id)
+    if prior["state"] in run_state.CANONICAL_ACCEPTED:
+        return {"model": model, "context": f"R{ctx_idx:02d}", "role": role,
+                "campaign_id": campaign_id, "status": STATUS_FAILED,
+                "outdir": str(run_dir),
+                "attempt_id": prior.get("attempt_id"),
+                "error": ("outdir_unique: canonical result already exists "
+                          f"({prior.get('attempt_id')}); refusing duplicate "
+                          "submission"),
+                "duplicate": True}
+
+    attempt_id = run_state.next_attempt_id(run_dir)
+    adir = run_state.attempt_dir(run_dir, attempt_id)
 
     # ---- Preflight BEFORE any gem5 process --------------------------------
     pre = preflight_task(
         model=model, role=role, binary=GEM5, config=CONFIG,
         workload=workload, seed=seed, sample_run_id=sample_run_id,
-        outdir=outdir, expected_binary_sha=EXPECTED_BINARY_SHA,
+        outdir=adir, expected_binary_sha=EXPECTED_BINARY_SHA,
         expected_config_sha=EXPECTED_CONFIG_SHA,
         expected_elf_sha=EXPECTED_ELF_SHA, force=FORCE)
     binary_sha = pre["binary_sha"]
@@ -1140,26 +1455,43 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
                 "ordinal": ordinal, "seed": seed,
                 "sample_run_id": sample_run_id,
                 "workload": str(workload) if workload else None,
-                "outdir": str(outdir), "campaign_id": campaign_id,
+                "outdir": str(run_dir), "attempt_id": attempt_id,
+                "attempt_dir": str(adir), "campaign_id": campaign_id,
                 "binary_sha": binary_sha, "config_sha": config_sha,
                 "elf_sha": elf_sha, "started_at": started_at}
     if not pre["ok"]:
-        # Never run gem5, and never write into (or delete) a run dir this
-        # task does not own.  A fresh empty dir may hold the evidence.
-        if not outdir.exists():
-            write_campaign_json(outdir, campaign_record(
-                campaign_id=campaign_id, model=model,
-                context=f"R{ctx_idx:02d}", role=role,
-                sample_run_id=sample_run_id, seed=seed,
-                status=pre["status"], binary_sha=binary_sha,
-                config_sha=config_sha, elf_sha=elf_sha,
-                started_at=started_at, ended_at=_now_iso(),
-                exit_code=None, timed_out=False,
-                terminal_source=TERMINAL_SOURCE_NORMAL,
-                preflight=pre["evidence"]))
+        # Never run gem5.  The refusal is still preserved as attempt evidence
+        # (a HASH_MISMATCH attempt makes resume refuse rather than retry).
+        adir.mkdir(parents=True, exist_ok=True)
+        ended_at = _now_iso()
+        run_state.write_attempt_record(adir, {
+            "attempt_id": attempt_id, "campaign_id": campaign_id,
+            "model": model, "context": f"R{ctx_idx:02d}", "role": role,
+            "sample_run_id": sample_run_id, "seed": seed,
+            "status": pre["status"], "started_at": started_at,
+            "ended_at": ended_at, "binary_sha": binary_sha,
+            "config_sha": config_sha, "elf_sha": elf_sha,
+            "run_dir": str(run_dir), "attempt_dir": str(adir),
+            "reason": "PREFLIGHT",
+            "preflight": pre["evidence"],
+            "error": "preflight " + ",".join(
+                pre["evidence"]["missing"] or
+                pre["evidence"]["sha_mismatches"]),
+        })
+        write_campaign_json(adir, campaign_record(
+            campaign_id=campaign_id, model=model,
+            context=f"R{ctx_idx:02d}", role=role,
+            sample_run_id=sample_run_id, seed=seed,
+            status=pre["status"], binary_sha=binary_sha,
+            config_sha=config_sha, elf_sha=elf_sha,
+            started_at=started_at, ended_at=ended_at,
+            exit_code=None, timed_out=False,
+            terminal_source=TERMINAL_SOURCE_NORMAL,
+            preflight=pre["evidence"]))
+        _publish_attempt_view(run_dir, adir)
         row = dict(base_row)
         row.update(
-            status=pre["status"], ended_at=_now_iso(),
+            status=pre["status"], ended_at=ended_at,
             terminal_source=TERMINAL_SOURCE_NORMAL,
             error="preflight " + ",".join(
                 pre["evidence"]["missing"] or
@@ -1167,19 +1499,25 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
             preflight=pre["evidence"])
         return row
 
-    if outdir.exists():
-        if FORCE:
-            shutil.rmtree(outdir)
-        else:
-            # Defensive: preflight already flagged a non-empty collision.
-            outdir = Path(outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
+    adir.mkdir(parents=True, exist_ok=True)
+    outdir = adir                       # every execution writes into the attempt
+    run_state.write_attempt_record(adir, {
+        "attempt_id": attempt_id, "campaign_id": campaign_id,
+        "model": model, "context": f"R{ctx_idx:02d}", "role": role,
+        "sample_run_id": sample_run_id, "seed": seed,
+        "status": STATUS_RUNNING, "started_at": started_at,
+        "ended_at": None, "binary_sha": binary_sha,
+        "config_sha": config_sha, "elf_sha": elf_sha,
+        "run_dir": str(run_dir), "attempt_dir": str(adir),
+        "reason": "EXECUTING",
+    })
 
     summary = {"model": model, "context": f"R{ctx_idx:02d}",
                "ctx_index": ctx_idx, "role": role, "ordinal": ordinal,
                "seed": seed, "sample_run_id": sample_run_id,
                "workload": str(workload) if workload else None,
-               "outdir": str(outdir), "binary": str(GEM5),
+               "outdir": str(run_dir), "attempt_dir": str(adir),
+               "attempt_id": attempt_id, "binary": str(GEM5),
                "binary_sha": binary_sha, "config_sha": config_sha,
                "elf_sha": elf_sha, "campaign_id": campaign_id,
                "started_at": started_at, "status": STATUS_RUNNING}
@@ -1189,7 +1527,8 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
         status=STATUS_RUNNING, binary_sha=binary_sha, config_sha=config_sha,
         elf_sha=elf_sha, started_at=started_at, ended_at=None,
         exit_code=None, timed_out=False,
-        terminal_source=TERMINAL_SOURCE_NORMAL))
+        terminal_source=TERMINAL_SOURCE_NORMAL,
+        attempt_id=attempt_id))
 
     info = None
     meta = {}
@@ -1276,7 +1615,7 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
         else:
             timeout_seconds = 400
             cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role,
-                                workload_override)
+                                workload_override, pilot_id=tag)
             info = run_subprocess(
                 cmd, outdir=outdir, timeout=400, cwd=ROOT,
                 stdout_name="runner_stdout.log",
@@ -1346,6 +1685,9 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
         summary["mount_evidence"] = control
         if role == "control" and summary.get("injection_count") is None:
             summary["injection_count"] = 0
+        # The oracle verdict key always exists so "oracle parsed" is a real
+        # fact of the run, even when the verdict itself is unknown (None).
+        summary.setdefault("oracle", None)
         if summary.get("binary_sha") is None:
             summary["binary_sha"] = binary_sha
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError,
@@ -1398,13 +1740,80 @@ def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
         terminal=summary.get("terminal"),
         terminal_reason=summary.get("terminal_reason"),
         output_validation=validation,
-        parse_error=parse_error))
+        parse_error=parse_error, attempt_id=attempt_id))
+
+    # A terminal attempt record is written ONLY after the evidence exists:
+    # the required outputs, their SHA256 hashes, and the parsed oracle.
+    artifact_names = required_outputs(model, role)
+    artifacts = _attempt_artifact_hashes(outdir, artifact_names)
+    oracle_parsed = ("oracle" in summary and "terminal" in summary)
+    outputs_complete = (not validation["missing"]
+                        and set(artifact_names) <= set(artifacts))
+    accepted = (status in run_state.CANONICAL_ACCEPTED
+                and outputs_complete and oracle_parsed)
+    run_state.write_attempt_record(adir, {
+        "attempt_id": attempt_id, "campaign_id": campaign_id,
+        "model": model, "context": f"R{ctx_idx:02d}", "role": role,
+        "sample_run_id": sample_run_id, "seed": seed,
+        "status": status, "started_at": started_at, "ended_at": ended_at,
+        "binary_sha": binary_sha, "config_sha": config_sha,
+        "elf_sha": elf_sha, "run_dir": str(run_dir),
+        "attempt_dir": str(adir), "terminal": summary.get("terminal"),
+        "terminal_reason": summary.get("terminal_reason"),
+        "oracle": summary.get("oracle"), "oracle_parsed": oracle_parsed,
+        "exit_code": exit_code, "timed_out": timed_out,
+        "terminal_source": source, "pid": (info or {}).get("pid"),
+        "artifacts": artifacts,
+        "output_validation": validation,
+        "accepted_canonical": accepted,
+        "reason": (validation.get("missing") and
+                   "MISSING_OUTPUT:" + ",".join(validation["missing"]))
+                  or summary.get("terminal_reason"),
+    })
+    if accepted:
+        try:
+            run_state.write_canonical(run_dir, {
+                "campaign_id": campaign_id, "attempt_id": attempt_id,
+                "model": model, "context": f"R{ctx_idx:02d}", "role": role,
+                "sample_run_id": sample_run_id, "seed": seed,
+                "status": status, "terminal": summary.get("terminal"),
+                "written_at": ended_at, "registration": "RUNNER",
+            })
+        except RuntimeError as exc:
+            # A different canonical already exists: never replace it.  This
+            # task is recorded as an integrity failure, not as a new result.
+            status = STATUS_HASH_MISMATCH
+            summary["status"] = status
+            summary["canonical_conflict"] = repr(exc)
+            (outdir / "summary.json").write_text(json.dumps(summary,
+                                                           indent=2))
+            write_campaign_json(outdir, campaign_record(
+                campaign_id=campaign_id, model=model,
+                context=f"R{ctx_idx:02d}", role=role,
+                sample_run_id=sample_run_id, seed=seed, status=status,
+                binary_sha=binary_sha, config_sha=config_sha,
+                elf_sha=elf_sha, started_at=started_at, ended_at=ended_at,
+                exit_code=exit_code, timed_out=timed_out,
+                terminal_source=source, pid=(info or {}).get("pid"),
+                timeout_seconds=timeout_seconds,
+                terminal=summary.get("terminal"),
+                terminal_reason=summary.get("terminal_reason"),
+                output_validation=validation, parse_error=parse_error,
+                attempt_id=attempt_id, canonical_conflict=repr(exc)))
+            record = run_state.read_attempt_record(adir) or {}
+            record.update(status=status, reason="CANONICAL_CONFLICT",
+                          accepted_canonical=False,
+                          canonical_conflict=repr(exc))
+            run_state.write_attempt_record(adir, record)
+    _publish_attempt_view(run_dir, adir)
 
     row = dict(base_row)
     row.update(summary)
     row.update(status=status, terminal_source=source, ended_at=ended_at,
                timed_out=timed_out, exit_code=exit_code,
-               output_validation=validation, parse_error=parse_error)
+               output_validation=validation, parse_error=parse_error,
+               attempt_id=attempt_id, attempt_dir=str(adir),
+               canonical=accepted and status in run_state.CANONICAL_ACCEPTED)
     return row
 
 
@@ -1416,11 +1825,16 @@ def main(argv=None):
     ap.add_argument("--contexts", default="1,2,3,4,5")
     ap.add_argument("--out-base", default=str(ROOT / "runs/lsu/formal_v333"),
                     help="run directory base (default: the formal campaign)")
-    ap.add_argument("--out-csv",
-                    default=str(ROOT / "runs/lsu/formal_v333/"
-                                      "LSU_Fault_Control_Pair_RAW.csv"))
+    ap.add_argument("--out-csv", default=None,
+                    help="RAW CSV path (default: "
+                         "<out-base>/LSU_Fault_Control_Pair_RAW.csv, resolved "
+                         "at call time; never a hard-coded historical root)")
     ap.add_argument("--force", action="store_true",
-                    help="allow overwriting an existing run dir")
+                    help="allow overwriting an existing run dir (never "
+                         "bypasses the campaign lock)")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an existing campaign: skip accepted "
+                         "tasks, retry failed ones as a new attempt")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the exact command for every row and exit; "
                          "no run dir, summary or CSV is written")
@@ -1435,7 +1849,9 @@ def main(argv=None):
     args = ap.parse_args(argv)
     OUT_BASE = Path(args.out_base)
     FORCE = args.force
-    SUMMARY_CSV = Path(args.out_csv)
+    # Resolve the RAW CSV against the SELECTED campaign root at call time.
+    SUMMARY_CSV = (Path(args.out_csv) if args.out_csv else
+                   OUT_BASE / "LSU_Fault_Control_Pair_RAW.csv")
     global EXPECTED_BINARY_SHA, EXPECTED_CONFIG_SHA, EXPECTED_ELF_SHA
     EXPECTED_BINARY_SHA = args.expected_binary_sha
     EXPECTED_CONFIG_SHA = args.expected_config_sha
@@ -1448,54 +1864,105 @@ def main(argv=None):
         if model not in CONTEXTS:
             print(f"skip unknown model {model}", file=sys.stderr)
 
+    task_triples = [(model, ctx, role) for model in selected
+                    for ctx in ctxs for role in roles]
+
     if args.dry_run:
+        # Validation only: no campaign directory, no gem5 process.
         count = 0
-        for model in selected:
-            for ctx in ctxs:
-                for role in roles:
-                    outdir = OUT_BASE / f"{model}-R{ctx:02d}-{role}"
-                    cmd = planned_command(model, ctx, role, outdir)
-                    print(f"DRY-RUN {model} R{ctx:02d} {role}: "
-                          f"{' '.join(cmd)}", flush=True)
-                    count += 1
+        for model, ctx, role in task_triples:
+            outdir = OUT_BASE / run_state.task_tag(model, ctx, role)
+            cmd = planned_command(model, ctx, role, outdir)
+            print(f"DRY-RUN {model} R{ctx:02d} {role}: "
+                  f"{' '.join(cmd)}", flush=True)
+            count += 1
+        gate = dry_run_validation(
+            models=selected, ctxs=ctxs, roles=roles, out_base=OUT_BASE,
+            campaign_id=args.campaign_id,
+            expected_binary_sha=args.expected_binary_sha,
+            expected_config_sha=args.expected_config_sha)
         print(f"dry-run: {count} commands; no run dirs written")
-        return 0
+        print("DRY_RUN_SUMMARY " + json.dumps(gate, sort_keys=True),
+              flush=True)
+        if gate["ok"]:
+            print("READY_TO_LAUNCH_FORMAL_CAMPAIGN=YES", flush=True)
+            return 0
+        print("READY_TO_LAUNCH_FORMAL_CAMPAIGN=NO", file=sys.stderr)
+        return 2
+
+    # Without --resume the campaign root must be fresh: a stale root could
+    # silently mix evidence from a different/partial campaign.
+    if not args.resume and OUT_BASE.exists() and any(OUT_BASE.iterdir()):
+        print(f"REFUSING non-empty campaign root {OUT_BASE}: "
+              "pass --resume to continue an existing campaign",
+              file=sys.stderr)
+        return 2
 
     OUT_BASE.mkdir(parents=True, exist_ok=True)
     SUMMARY_CSV.parent.mkdir(parents=True, exist_ok=True)
-    # Campaign-root provenance record: written before the first task so the
-    # formal collector can verify every run against one frozen identity.
-    identity_tasks = [
-        (model, ctx, resolve_workload(model, CONTEXTS[model].get("workload")))
-        for model in selected for ctx in ctxs]
-    write_campaign_identity(OUT_BASE, args.campaign_id, tasks=identity_tasks)
     rows = []
-    # Serialize the run set (L-D14): another matrix invocation waits instead of
-    # clobbering outdirs / the RAW CSV.
-    with matrix_lock():
-        for model in selected:
-            for ctx in ctxs:
-                for role in roles:
-                    print(f"== {model} R{ctx:02d} {role}", flush=True)
-                    try:
-                        rows.append(run_context(model, ctx, role,
-                                                campaign_id=args.campaign_id))
-                    except Exception as exc:  # keep the matrix going; record it
-                        # An escaped exception is an execution failure: it is
-                        # never silently dropped and always trips the exit.
-                        row = {"model": model, "context": f"R{ctx:02d}",
-                               "role": role, "status": STATUS_FAILED,
-                               "campaign_id": args.campaign_id,
-                               "terminal_source": TERMINAL_SOURCE_NORMAL,
-                               "error": repr(exc)}
-                        rows.append(row)
-                        print(f"   ERROR {exc!r}", file=sys.stderr)
-                    print(f"   status {rows[-1].get('status')}", flush=True)
-        write_csv(rows, Path(args.out_csv))
+    try:
+        # Campaign-scoped lock, resolved at CALL time from --out-base.  --force
+        # never bypasses it: a second runner would corrupt shared evidence.
+        with campaign_lock(OUT_BASE, args.campaign_id):
+            # Campaign-root provenance record: written before the first task.
+            identity_tasks = [
+                (model, ctx,
+                 resolve_workload(model, CONTEXTS[model].get("workload")))
+                for model in selected for ctx in ctxs]
+            write_campaign_identity(OUT_BASE, args.campaign_id,
+                                    tasks=identity_tasks)
+            for model, ctx, role in task_triples:
+                print(f"== {model} R{ctx:02d} {role}", flush=True)
+                try:
+                    if args.resume:
+                        run_dir = OUT_BASE / run_state.task_tag(model, ctx,
+                                                               role)
+                        state = _ensure_canonical(run_dir, args.campaign_id)
+                        if state["state"] == STATUS_HASH_MISMATCH:
+                            print("   RESUME REFUSED: "
+                                  f"{run_dir} {state.get('reason')} "
+                                  "(HASH_MISMATCH is never retried)",
+                                  file=sys.stderr)
+                            return 2
+                        if state["state"] in run_state.CANONICAL_ACCEPTED:
+                            rows.append(_resumed_row(
+                                model, ctx, role, run_dir, state,
+                                args.campaign_id))
+                            print(f"   status {rows[-1].get('status')} "
+                                  "(resumed; no execution)", flush=True)
+                            write_campaign_index(
+                                OUT_BASE, build_campaign_index(
+                                    OUT_BASE, args.campaign_id,
+                                    task_triples))
+                            continue
+                    rows.append(run_context(model, ctx, role,
+                                            campaign_id=args.campaign_id))
+                except Exception as exc:  # keep the matrix going; record it
+                    # An escaped exception is an execution failure: it is
+                    # never silently dropped and always trips the exit.
+                    row = {"model": model, "context": f"R{ctx:02d}",
+                           "role": role, "status": STATUS_FAILED,
+                           "campaign_id": args.campaign_id,
+                           "terminal_source": TERMINAL_SOURCE_NORMAL,
+                           "error": repr(exc)}
+                    rows.append(row)
+                    print(f"   ERROR {exc!r}", file=sys.stderr)
+                print(f"   status {rows[-1].get('status')}", flush=True)
+                write_campaign_index(
+                    OUT_BASE,
+                    build_campaign_index(OUT_BASE, args.campaign_id,
+                                         task_triples))
+            write_csv(rows, SUMMARY_CSV)
+    except LockHeld as exc:
+        print(f"LOCK_HELD: {exc}", file=sys.stderr)
+        print(f"REFUSING to run: {OUT_BASE} is owned by another campaign "
+              "(--force does not bypass the lock)", file=sys.stderr)
+        return 3
     counts = status_summary(rows)
     print("status summary: " + ", ".join(
         f"{k}={v}" for k, v in sorted(counts.items())))
-    print(f"wrote {args.out_csv} ({len(rows)} rows)")
+    print(f"wrote {SUMMARY_CSV} ({len(rows)} rows)")
     return campaign_exit_code(rows)
 
 
@@ -1507,7 +1974,8 @@ def write_csv(rows, path=SUMMARY_CSV):
             "control_proof", "exit_code", "timed_out", "elapsed",
             "status", "campaign_id", "terminal_source", "started_at",
             "ended_at", "pid", "binary_sha", "config_sha", "elf_sha",
-            "outdir", "fault_command", "error", "parse_error"]
+            "outdir", "attempt_id", "attempt_dir", "resumed", "canonical",
+            "fault_command", "error", "parse_error"]
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
         w.writeheader()
