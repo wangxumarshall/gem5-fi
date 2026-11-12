@@ -1,0 +1,7 @@
+b26f1cc9e1758cc5764486af9ba53e2059e67f48482e6c29a41d31de6b0098db  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+cbbf50a3ecd24ac52fc7b81d7fe3a09383c35e8f85ca9303f6fa5e2d86a3ea90  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+2b17526114bf3b6490bc37b411e0867482f4c237d5d8de73bb397af74a049636  CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+11cb70090f384a1f65df662f9cf4bfe73d1d1942136c84d7da3d224982977727  CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+aad8be14fd8a8491459614cb89236116dd0638e2a66e2b88762f000f636706f3  CHAOS/gem5/src/cpu/o3/lsq.cc
+1dee2c122dd77e37a14bb1d01fa4c12ea03a33db03a80ac798bdfb939c1f146a  CHAOS/gem5/src/cpu/o3/lsq.hh
+865b9c7b3296b87045a13da5f8c65fbe6c97355efe816a2f213d7e571ae8a2ba  CHAOS/gem5/src/cpu/o3/lsq_unit.cc
