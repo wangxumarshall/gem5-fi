@@ -31,6 +31,10 @@ Both modes:
     plan and execution;
   * resolve an independent control oracle from the preflight mapping (or an
     explicit --control-run) and record its SHA256 in the manifest;
+  * resolve M02's `--mmu_m02_old_pfn` per context from an INDEPENDENT
+    no-fault scoped W10 control (directory / JSON map / golden file), and
+    refuse the run (`BLOCKED_MISSING_W10_PFN_MAPPING`) when it cannot be
+    resolved.  No literal old_pfn exists in this tool;
   * capture command, gem5 exit code, board.terminal, config, prop_evt.txt.gz,
     golden output and SHA256;
   * wait until prop_evt.txt.gz size+mtime are stable across two checks before
@@ -197,7 +201,7 @@ def _find_sample(samples, sample_id):
 
 def _model_fault_args(model, target_va, target_asid, mode, eligible_index,
                       context, extra, m04_decoy_pfn="0",
-                      m05_decoy_table_base="0"):
+                      m05_decoy_table_base="0", m02_old_pfn="0"):
     """Model-specific CLI arguments (Phase-3 verified model parameters)."""
     if model == "M01":
         if target_asid is None:
@@ -214,10 +218,20 @@ def _model_fault_args(model, target_va, target_asid, mode, eligible_index,
         if target_va is None:
             raise RunRefused("BLOCKED_CONFIG",
                              "M02 needs a target VA", 2)
+        # The old_pfn is the per-context W10 target PFN resolved from an
+        # independent no-fault control.  A literal is never trusted: the
+        # legacy 0x83480 came from an `--ctx all` control and is wrong for a
+        # scoped run (measured 0x834b6 for R02).
+        if str(m02_old_pfn).strip() in ("", "0", "0x0"):
+            raise RunRefused(
+                "BLOCKED_MISSING_W10_PFN_MAPPING",
+                "M02 old_pfn was not resolved from an independent no-fault "
+                "W10 control", 5)
         return [
             "--mmu_fault_model", "M02", "--mmu_fault_enable", "true",
             "--mmu_m02_va", hex(target_va),
-            "--mmu_m02_old_pfn", "0x83480", "--mmu_m02_xor_mask", "1",
+            "--mmu_m02_old_pfn", str(m02_old_pfn),
+            "--mmu_m02_xor_mask", "1",
             "--mmu_m02_dram_lo", "0x80000000",
             "--mmu_m02_dram_hi", "0x100000000",
         ]
@@ -258,7 +272,7 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                eligible_index=None, timeout=3600, extra=None,
                excel_path=None, csv_path=None, m04_decoy_pfn="0",
                m05_decoy_table_base="0", control_run=None,
-               trace_wait_sec=120):
+               trace_wait_sec=120, w10_control_golden=None):
     """Build a fully-resolved run plan (no side effects, no gem5)."""
     excel, samples, ctx, hooks, workloads, run_script_defaults, \
         config_text = pf.build_environment(repo_root, excel_path, csv_path)
@@ -386,6 +400,31 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         decoy_source = ("W12 control %s sha256=%s" %
                         (decoy_map["path"], decoy_map.get("sha256", "")))
 
+    # M02: the old_pfn is the per-context W10 target PFN.  Resolve it from an
+    # INDEPENDENT no-fault scoped W10 control (directory, JSON map, or a
+    # single golden file).  Never fall back to a literal.  The legacy
+    # `--ctx all` control reports a different PFN (0x83480) and is rejected
+    # by the loader because its allocation history does not transfer.
+    m02_old_pfn = "0"
+    m02_source = ""
+    if model == "M02":
+        pfn_map = pf.load_w10_pfn_map(repo_root, w10_control_golden)
+        rec_p = (pfn_map.get("contexts") or {}).get(context)
+        if not rec_p or not rec_p.get("target_pfn"):
+            raise RunRefused(
+                "BLOCKED_MISSING_W10_PFN_MAPPING",
+                "no independent no-fault W10 control PFN for %s in %s%s; "
+                "run a scoped no-fault control and collect it with "
+                "tools/mmu_collect_w10_pfn.py" %
+                (context, pfn_map.get("path"),
+                 (" (%s)" % pfn_map.get("detail"))
+                 if pfn_map.get("detail") else ""), 5)
+        m02_old_pfn = "0x%x" % rec_p["target_pfn"]
+        m02_source = ("W10 control %s sha256=%s" %
+                      (rec_p.get("source_run") or pfn_map.get("path"),
+                       (rec_p.get("source_sha256") or
+                        pfn_map.get("sha256") or "")[:16]))
+
     if eligible_index is None or eligible_index < 1:
         raise RunRefused(
             "BLOCKED_CONFIG", "eligible-event index is missing/invalid", 5)
@@ -495,7 +534,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
     command += _model_fault_args(model, target_va, target_asid,
                                  target_mode, eligible_index, context, extra,
                                  m04_decoy_pfn=m04_decoy_pfn,
-                                 m05_decoy_table_base=m05_decoy_table_base)
+                                 m05_decoy_table_base=m05_decoy_table_base,
+                                 m02_old_pfn=m02_old_pfn)
 
     # Hard guarantee: no seed is ever forwarded to gem5.  There is no --seed
     # in configs/fs/lsu_b0_fs.py nor in configs/se/arm_chaos_fs.py, and any
@@ -529,6 +569,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                              if rec else ""),
         "decoy_pfn": m04_decoy_pfn,
         "decoy_source": decoy_source,
+        "m02_old_pfn": m02_old_pfn,
+        "m02_old_pfn_source": m02_source,
         "control_oracle": control,
         "control_oracle_sha256": control.get("sha256", ""),
         "control_oracle_source": control.get("source", ""),
@@ -952,6 +994,11 @@ def main(argv=None):
                     help="explicit independent control-run directory/file; "
                          "its SHA256 is recorded in the manifest (default: "
                          "resolved by the preflight mapping)")
+    ap.add_argument("--w10-control-golden", default=None,
+                    help="independent no-fault W10 control (directory, JSON "
+                         "map, or golden file) used to resolve the M02 "
+                         "per-context old_pfn (default: "
+                         "phase3/formal/w10_pfn_map.json, then runs/)")
     ap.add_argument("--trace-wait-sec", type=float, default=120.0,
                     help="max seconds to wait for prop_evt.txt.gz size/mtime "
                          "to stabilise after gem5 exits")
@@ -1031,7 +1078,8 @@ def main(argv=None):
             m04_decoy_pfn=args.m04_decoy_pfn,
             m05_decoy_table_base=args.m05_decoy_table_base,
             control_run=args.control_run,
-            trace_wait_sec=args.trace_wait_sec)
+            trace_wait_sec=args.trace_wait_sec,
+            w10_control_golden=args.w10_control_golden)
     except RunRefused as exc:
         print(json.dumps({
             "run_kind": "FORMAL" if args.sample else "PILOT",

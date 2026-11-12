@@ -72,6 +72,8 @@ Status vocabulary (exactly):
     BLOCKED_TRACE
     BLOCKED_ORACLE
     BLOCKED_CONFIG
+    BLOCKED_MISSING_DECOY_MAPPING
+    BLOCKED_MISSING_W10_PFN_MAPPING
     BLOCKED_BINARY
     BLOCKED_SOURCE
 
@@ -155,6 +157,7 @@ STATUS_PRECEDENCE = [
     "BLOCKED_CONTEXT",
     "BLOCKED_CONFIG",
     "BLOCKED_MISSING_DECOY_MAPPING",
+    "BLOCKED_MISSING_W10_PFN_MAPPING",
     "BLOCKED_TRACE",
     "BLOCKED_ORACLE",
     # The researcher must freeze SampleRunIDs before a formal run may start.
@@ -219,6 +222,16 @@ CONTROL_ORACLE_RUNS = {
 # history; the fail-closed M04 check proved the old PFNs do not transfer to
 # scoped runs.  The map is data-driven (JSON or directory), never hardcoded.
 W12_CONTROL_DEFAULT = "phase3/formal/w12_decoy_map.json"
+
+# M02's `--mmu_m02_old_pfn` is the per-context W10 target PFN.  It MUST be
+# resolved from an independent NO-FAULT, single-context W10 control.  The
+# legacy `--ctx all` control (runs/TEST-ENV-CTRL-W10) has a different guest
+# allocation history: it reports 0x83480 with sentinel 0x7d, while a scoped
+# R02 run reports 0x834b6 with sentinel 0x63.  The scoped value is the
+# authoritative one; nothing is hardcoded here.
+W10_PFN_MAP_DEFAULT = "phase3/formal/w10_pfn_map.json"
+W10_CONTROL_ROOT_DEFAULT = "runs"
+W10_CONTROL_NAME_RE = re.compile(r"W10(?!S).*R0[1-5]$")
 
 # Per-context controls take precedence over the model/workload default.
 CONTROL_ORACLE_CONTEXT_RUNS = {
@@ -1060,11 +1073,74 @@ def check_build_provenance(sample, repo_root, formal_config,
     if not isinstance(got_src, dict):
         got_src = {}
 
+    # Final-binary authority: only phase3/final/FINAL_BINARY.sha256 (written
+    # by Main when the binary is frozen) may override the frozen config.  If
+    # it is absent the field is explicitly PENDING; it is never guessed.
+    final_path = os.path.join(repo_root, "phase3", "final",
+                              "FINAL_BINARY.sha256")
+    final_sha = ""
+    final_detail = "phase3/final/FINAL_BINARY.sha256 absent (PENDING)"
+    if os.path.isfile(final_path):
+        text = _read_text(final_path).strip().split()
+        final_sha = text[0] if text else ""
+        final_detail = ("read from %s" % _rel(repo_root, final_path)
+                        if final_sha else "empty FINAL_BINARY.sha256")
+    expected_bin = final_sha or exp_bin
+    final_binary_status = ("PASS" if final_sha and final_sha == exp_bin
+                           else "PENDING" if not final_sha
+                           else "CONFIG_MISMATCH")
+    if final_sha and exp_bin and final_sha != exp_bin:
+        final_binary_status = "CONFIG_MISMATCH"
+
+    # Source commit: config/final file are the expectation; the pilot
+    # manifest `git_head` is the recorded fact.
+    expect_commit = _s(cfg.get("source_commit"))
+    commit_path = os.path.join(repo_root, "phase3", "final",
+                               "FINAL_SOURCE_COMMIT")
+    if os.path.isfile(commit_path):
+        text = _read_text(commit_path).strip().split()
+        if text:
+            expect_commit = text[0]
+    got_commit = _s(manifest.get("git_head"))
+    if not present:
+        commit_status = "NO_MANIFEST"
+    elif not got_commit:
+        commit_status = "MISSING"
+    elif expect_commit and expect_commit != PENDING_BUILD and \
+            got_commit != expect_commit:
+        commit_status = "MISMATCH"
+    else:
+        commit_status = "PASS"
+
+    # The on-disk binary itself must equal the frozen hash (real evidence,
+    # not only a manifest claim).
+    actual_bin = ""
+    gem5_path = os.path.join(repo_root, "CHAOS", "gem5", "build", "ARM",
+                             "gem5.opt")
+    if os.path.isfile(gem5_path):
+        actual_bin = _sha256_file(gem5_path)
+    actual_bin_status = "ABSENT"
+    if actual_bin:
+        if expected_bin and expected_bin not in (PENDING_BUILD,):
+            actual_bin_status = ("PASS" if actual_bin == expected_bin
+                                 else "MISMATCH")
+        else:
+            actual_bin_status = "PENDING"
+
     result = {
         "manifest": manifest_path,
         "manifest_present": present,
-        "expected_gem5_sha256": exp_bin or "<unset>",
+        "expected_gem5_sha256": expected_bin or "<unset>",
+        "config_gem5_sha256": exp_bin or "<unset>",
+        "final_gem5_sha256": final_sha or "<PENDING_MAIN_FREEZE>",
+        "final_binary_status": final_binary_status,
+        "final_binary_detail": final_detail,
+        "actual_binary_sha256": actual_bin or "<absent>",
+        "actual_binary_status": actual_bin_status,
         "manifest_gem5_sha256": got_bin or "<unset>",
+        "expected_source_commit": expect_commit or "<unset>",
+        "manifest_source_commit": got_commit or "<missing>",
+        "source_commit_status": commit_status,
         "binary_status": "PENDING",
         "source_status": "PENDING",
         "blocker": None,
@@ -1090,16 +1166,30 @@ def check_build_provenance(sample, repo_root, formal_config,
         return result
 
     problems = []
+    details = []
     if exp_bin_real:
-        if got_bin == exp_bin:
+        if got_bin == expected_bin:
             result["binary_status"] = "PASS"
         else:
             result["binary_status"] = "MISMATCH"
             problems.append("BLOCKED_BINARY")
-            result["detail"] = ("manifest gem5_sha256=%s != frozen %s" %
-                                (got_bin or "<missing>", exp_bin))
+            details.append("manifest gem5_sha256=%s != frozen %s" %
+                           (got_bin or "<missing>", expected_bin))
     else:
         result["binary_status"] = "PENDING"
+    if actual_bin_status == "MISMATCH":
+        problems.append("BLOCKED_BINARY")
+        details.append("on-disk gem5.opt sha256=%s != frozen %s" %
+                       (actual_bin, expected_bin))
+    if final_binary_status == "CONFIG_MISMATCH":
+        problems.append("BLOCKED_BINARY")
+        details.append("FINAL_BINARY.sha256=%s != frozen config %s" %
+                       (final_sha, exp_bin))
+    if commit_status in ("MISSING", "MISMATCH"):
+        problems.append("BLOCKED_SOURCE")
+        details.append("source commit %s (manifest=%s expected=%s)" %
+                       (commit_status, got_commit or "<missing>",
+                        expect_commit or "<unset>"))
 
     if exp_src_real:
         mismatched = [path for path, want in exp_src_real.items()
@@ -1107,15 +1197,18 @@ def check_build_provenance(sample, repo_root, formal_config,
         if mismatched:
             result["source_status"] = "MISMATCH"
             problems.append("BLOCKED_SOURCE")
-            result["detail"] = ("source hash mismatch for %s" %
-                                ",".join(sorted(mismatched)))
+            details.append("source hash mismatch for %s" %
+                           ",".join(sorted(mismatched)))
         else:
             result["source_status"] = "PASS"
     else:
         result["source_status"] = "PENDING"
 
     if not problems:
-        result["detail"] = "manifest binary/source hashes match frozen config"
+        result["detail"] = ("manifest binary/source hashes match frozen "
+                            "config; source commit %s" % commit_status)
+    else:
+        result["detail"] = "; ".join(details)
     result["blocker"] = problems[0] if problems else None
     return result
 
@@ -1265,6 +1358,387 @@ def check_decoy_mapping(sample, decoy_map):
                   (rec["decoy_pfn"], rec.get("target_pfn", 0),
                    decoy_map["path"],
                    (decoy_map.get("sha256") or "")[:16]))
+
+
+def _parse_w10_line(line):
+    """Parse one W10_RESULT line into a per-context target-PFN record."""
+    if "W10_RESULT" not in line:
+        return None
+    kv = {}
+    for tok in line.split():
+        if "=" in tok:
+            key, value = tok.split("=", 1)
+            kv[key] = value
+    ctx = kv.get("ctx")
+    if ctx not in CONTEXT_IDS:
+        return None
+    try:
+        target_pfn = int(kv.get("target_pfn", ""), 0)
+        neighbor_pfn = int(kv.get("neighbor_pfn", "0"), 0)
+        target_va = int(kv.get("target", "0"), 0)
+    except ValueError:
+        return None
+    if target_pfn <= 0:
+        return None
+    return ctx, {
+        "target_pfn": target_pfn,
+        "neighbor_pfn": neighbor_pfn,
+        "target_va": target_va,
+        "pfn_match": kv.get("pfn_match", ""),
+        "result": kv.get("result", ""),
+        "line": line,
+    }
+
+
+def _run_is_faulted(run_dir):
+    """True when the run command injects a fault (never a control)."""
+    cmd = _read_text(os.path.join(run_dir, "Run_Log", "command.txt"))
+    if not cmd:
+        cmd = _read_text(os.path.join(run_dir, "command.txt"))
+    low = cmd.lower()
+    return ("--mmu_fault_enable true" in low or
+            "--mmu_fault_model" in low)
+
+
+def _control_golden(run_dir):
+    for cand in (os.path.join(run_dir, "Run_Log", "golden_output.txt"),
+                 os.path.join(run_dir, "Run_Log", "observed_output.txt"),
+                 os.path.join(run_dir, "board.terminal"),
+                 os.path.join(run_dir, "Run_Log", "board.terminal"),
+                 os.path.join(run_dir, "run", "board.terminal")):
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+def load_w10_pfn_map(repo_root, path=None):
+    """Load per-context W10 target PFNs from independent NO-FAULT controls.
+
+    Accepted inputs (in order):
+      1. a JSON map (``w10_pfn_map.json``);
+      2. a directory of per-context scoped controls named ``...W10...R0x``;
+      3. a single golden output file.
+
+    A directory entry is rejected when its command contains fault-injection
+    flags, when its name is not a single-context ``R0x`` control, when the
+    parsed line's ``ctx`` disagrees with its name/VA, or when the line is not
+    a successful (``pfn_match=1 result=PASS``) observation.  The legacy
+    ``--ctx all`` control does not match the R0x naming rule and its PFN is
+    therefore never used.  Absent contexts make the M02 runner block.
+    """
+    rel = path or os.environ.get("MMU_W10_CONTROL_GOLDEN")
+    if not rel:
+        default_map = os.path.join(repo_root, W10_PFN_MAP_DEFAULT)
+        rel = default_map if os.path.isfile(default_map) else \
+            W10_CONTROL_ROOT_DEFAULT
+    full = rel if os.path.isabs(rel) else os.path.join(repo_root, rel)
+    out = {"path": full, "present": False, "contexts": {}, "sha256": None,
+           "sources": [], "rejected": [], "detail": ""}
+
+    if os.path.isfile(full) and full.endswith(".json"):
+        data = {}
+        try:
+            data = json.loads(_read_text(full))
+        except ValueError as exc:
+            out["detail"] = "unreadable JSON map: %s" % exc
+            return out
+        for ctx, rec in (data.get("contexts") or {}).items():
+            if ctx not in CONTEXT_IDS or not isinstance(rec, dict):
+                continue
+            try:
+                pfn = int(rec.get("target_pfn", 0), 0) \
+                    if not isinstance(rec.get("target_pfn"), int) \
+                    else rec["target_pfn"]
+            except (TypeError, ValueError):
+                continue
+            if pfn <= 0:
+                continue
+            rec = dict(rec)
+            rec["target_pfn"] = pfn
+            out["contexts"][ctx] = rec
+        out["sources"] = data.get("sources", [])
+        out["sha256"] = _sha256_file(full)
+        out["present"] = bool(out["contexts"])
+        out["detail"] = "%s: %d/%d contexts" % (
+            _rel(repo_root, full), len(out["contexts"]), len(CONTEXT_IDS))
+        return out
+
+    if os.path.isfile(full):
+        out["sha256"] = _sha256_file(full)
+        for line in _read_text(full).splitlines():
+            parsed = _parse_w10_line(line)
+            if not parsed:
+                continue
+            ctx, rec = parsed
+            if not _w10_record_valid(ctx, rec):
+                out["rejected"].append({"source": full, "ctx": ctx,
+                                        "reason": "pfn_match/result/VA"})
+                continue
+            rec["source_run"] = os.path.basename(full)
+            rec["source_sha256"] = out["sha256"]
+            out["contexts"][ctx] = rec
+        out["present"] = bool(out["contexts"])
+        out["detail"] = "%s: %d/%d contexts" % (
+            _rel(repo_root, full), len(out["contexts"]), len(CONTEXT_IDS))
+        return out
+
+    if os.path.isdir(full):
+        if any(os.path.isdir(os.path.join(full, sub))
+               for sub in ("Run_Log", "run", "Trace")):
+            run_dirs = [full]
+        else:
+            run_dirs = [os.path.join(full, name)
+                        for name in sorted(os.listdir(full))
+                        if os.path.isdir(os.path.join(full, name))]
+        for run in run_dirs:
+            name = os.path.basename(run.rstrip("/"))
+            if not W10_CONTROL_NAME_RE.search(name):
+                continue
+            if _run_is_faulted(run):
+                out["rejected"].append(
+                    {"source": run, "reason": "fault-enabled run"})
+                continue
+            gold = _control_golden(run)
+            if not gold:
+                out["rejected"].append(
+                    {"source": run, "reason": "no golden/terminal"})
+                continue
+            sha = _sha256_file(gold)
+            out["sources"].append({"run": name, "golden": gold,
+                                   "sha256": sha})
+            name_ctx = re.search(r"(R0[1-5])$", name)
+            name_ctx = name_ctx.group(1) if name_ctx else ""
+            for line in _read_text(gold).splitlines():
+                parsed = _parse_w10_line(line)
+                if not parsed:
+                    continue
+                ctx, rec = parsed
+                if name_ctx and ctx != name_ctx:
+                    out["rejected"].append(
+                        {"source": gold, "ctx": ctx,
+                         "reason": "ctx disagrees with run name %s" %
+                                   name_ctx})
+                    continue
+                if not _w10_record_valid(ctx, rec):
+                    out["rejected"].append(
+                        {"source": gold, "ctx": ctx,
+                         "reason": "pfn_match/result/VA"})
+                    continue
+                rec["source_run"] = name
+                rec["source_sha256"] = sha
+                out["contexts"][ctx] = rec
+        out["present"] = bool(out["contexts"])
+        out["detail"] = "%s: %d/%d contexts%s" % (
+            _rel(repo_root, full), len(out["contexts"]), len(CONTEXT_IDS),
+            ("; rejected %d candidate(s)" % len(out["rejected"]))
+            if out["rejected"] else "")
+        return out
+
+    out["detail"] = "control map/root not found: %s" % full
+    return out
+
+
+def _w10_record_valid(ctx, rec):
+    """A W10 control line must be a successful same-VA observation."""
+    if rec.get("pfn_match") != "1" or rec.get("result") != "PASS":
+        return False
+    expected = W10_CONTEXT_VA.get(rec.get("target_va"))
+    return expected == ctx
+
+
+def check_w10_pfn_mapping(sample, pfn_map):
+    """M02 must receive the per-context PFN from an independent control."""
+    if sample.get("ModelID") != "M02":
+        return True, "not M02"
+    ctx = sample.get("ContextID", "")
+    rec = (pfn_map.get("contexts") or {}).get(ctx)
+    if not rec or not rec.get("target_pfn"):
+        return False, (
+            "no independent no-fault W10 control PFN for %s in %s%s" %
+            (ctx, pfn_map.get("path"),
+             (" (%s)" % pfn_map.get("detail"))
+             if pfn_map.get("detail") else ""))
+    return True, ("old_pfn 0x%x from %s sha256=%s" %
+                  (rec["target_pfn"], rec.get("source_run") or
+                   pfn_map.get("path"),
+                   (rec.get("source_sha256") or
+                    pfn_map.get("sha256") or "")[:16]))
+
+
+def _find_source_file(repo_root, basename):
+    """Locate a C++ source by basename, preferring arch/arm."""
+    src_root = os.path.join(repo_root, "CHAOS", "gem5", "src")
+    matches = []
+    for dirpath, _dirnames, filenames in os.walk(src_root):
+        if basename in filenames:
+            matches.append(os.path.join(dirpath, basename))
+    matches.sort(key=lambda p: (0 if os.sep + "arch" + os.sep + "arm" + os.sep
+                                in p else 1, len(p)))
+    return matches[0] if matches else None
+
+
+def check_injection_location(model, injection_cfg, hooks, repo_root):
+    """The worksheet's InjectionLocation must exist in the real C++.
+
+    Worksheet 05 gives SourceFile/Function/FaultLocation.  The check locates
+    the file under CHAOS/gem5/src (arm preferred), proves the named function
+    is present, and requires the model's real hook site to be in one of the
+    declared files.  A design-doc string alone never passes.
+    """
+    row = (injection_cfg or {}).get(model, {})
+    src_field = _s(row.get("SourceFile"))
+    fn_field = _s(row.get("Function"))
+    location = _s(row.get("FaultLocation"))
+    if not src_field or not fn_field:
+        return False, "worksheet 05 has no SourceFile/Function for %s" % model
+    files = [f for f in re.split(r"\s*/\s*", src_field) if f]
+    funcs = [f for f in re.split(r"\s*/\s*", fn_field) if f]
+    located = []
+    problems = []
+    for name in files:
+        path = _find_source_file(repo_root, name)
+        if not path:
+            problems.append("source file %s not found under CHAOS/gem5/src"
+                            % name)
+            continue
+        text = _read_text(path)
+        lines = text.splitlines()
+        hits = []
+        for fn in funcs:
+            token = fn.split("::")[-1]
+            hit = next((i for i, ln in enumerate(lines, 1) if token in ln), 0)
+            if hit:
+                hits.append((token, hit))
+        if not hits:
+            problems.append("function(s) %s not present in %s" %
+                            ("/".join(funcs), _rel(repo_root, path)))
+        else:
+            located.append((path, hits))
+    hook_files = {s.get("file", "") for s in
+                  (hooks.get(model, {}) or {}).get("sites", [])}
+    hook_ok = any(_rel(repo_root, path) in hook_files for path, _ in located)
+    accessor_re = re.compile(r"\bmmu%s[A-Za-z0-9_]*" % re.escape(model))
+    accessor_note = ""
+    if not hook_ok:
+        # Some models inject through a named accessor (e.g. M02's
+        # mmuM02ShouldCorrupt in table_walker.cc) rather than a
+        # mmuFaultActivate("Mxx") call; accept the accessor only inside the
+        # declared injection file.
+        for path, _hits in located:
+            match = accessor_re.search(_read_text(path))
+            if match:
+                hook_ok = True
+                accessor_note = (" injection via %s in %s" %
+                                 (match.group(0), _rel(repo_root, path)))
+                break
+    if not hook_ok:
+        problems.append("real hook site is not in the declared source file")
+    if problems:
+        return False, "; ".join(problems)
+    evidence = ", ".join("%s:%d(%s)" % (_rel(repo_root, p), h[0][1], h[0][0])
+                         for p, h in located)
+    return True, "%s [%s]%s" % (location or fn_field, evidence, accessor_note)
+
+
+def check_runner_pfn_hardcode(repo_root):
+    """No runner may carry a literal M02 old_pfn (0x83480 or otherwise)."""
+    bad = []
+    for rel in ("tools/mmu_formal_runner.py",
+                "phase3/run_scripts/run_mmu_case.sh"):
+        text = _read_text(os.path.join(repo_root, rel))
+        for match in re.finditer(
+                r"--mmu_m02_old_pfn\s+(0x[0-9a-fA-F]+|\d+)", text):
+            bad.append("%s: %s" % (rel, match.group(0)))
+    if bad:
+        return False, "hardcoded M02 old_pfn: " + "; ".join(bad)
+    return True, "M02 old_pfn is resolved from the control map, not literal"
+
+
+def check_trace_schema(repo_root, ctx):
+    """Worksheet 09 schema fields must be really emitted and parsed."""
+    rows = ctx.get("pages", {}).get("09_Trace_Configuration", [])
+    status = {_s(r.get("Field")): _s(r.get("CurrentStatus")).upper()
+              for r in rows}
+    required = ["FaultID", "EventID", "ParentEventID", "DynamicInstSeqNum",
+                "VA", "PA"]
+    problems = []
+    for field in required:
+        got = status.get(field)
+        if not got:
+            problems.append("worksheet 09 lacks %s" % field)
+        elif got == "MISSING":
+            problems.append("worksheet 09 %s=MISSING" % field)
+    prop = _read_text(os.path.join(
+        repo_root, "CHAOS", "gem5", "src", "cpu", "o3", "CHAOSPropagation",
+        "CHAOSPropagation.cc"))
+    v3 = _read_text(os.path.join(repo_root, "tools",
+                                 "mmu_trace_validate_v3.py"))
+    tokens = {"FaultID": "fault_id", "EventID": "event_id",
+              "ParentEventID": "parent_event_id",
+              "DynamicInstSeqNum": "dyn_inst_seq"}
+    for field, token in tokens.items():
+        if token not in prop:
+            problems.append("emitter lacks %s (%s)" % (token, field))
+        if token not in v3:
+            problems.append("parser lacks %s (%s)" % (token, field))
+    if problems:
+        return False, "; ".join(problems)
+    return True, ("%d schema fields present; emitter/parser carry %s" %
+                  (len(required), ",".join(sorted(tokens.values()))))
+
+
+def check_control_independence(repo_root, sample, control, run_dir=None):
+    """A golden oracle must be an independent NO-FAULT single-context run.
+
+    The legacy W10 `--ctx all` controls allocate the workload pages in a
+    different order than a scoped formal run; their PFN/sentinel values do not
+    transfer (measured: 0x83480/0x7d vs 0x834b6/0x63).  Such a control is
+    reported as NOT independent instead of silently compared.
+    """
+    if not (control or {}).get("present"):
+        return False, "control oracle missing"
+    path = control.get("path", "")
+    run = os.path.dirname(os.path.dirname(path)) if path else ""
+    if not os.path.isdir(run):
+        run = os.path.dirname(path)
+    cmd = _read_text(os.path.join(run, "Run_Log", "command.txt")) or \
+        _read_text(os.path.join(run, "command.txt"))
+    if run_dir and os.path.abspath(run) == os.path.abspath(run_dir):
+        return False, "control oracle is the faulted run itself"
+    low = cmd.lower()
+    if "--mmu_fault_enable true" in low or "--mmu_fault_model" in low:
+        return False, "control run command injects a fault"
+    workload = sample.get("WorkloadID", "")
+    ctx = sample.get("ContextID", "")
+    if workload == "W9":
+        return True, "canonical W9 all-ASID control"
+    readfile = ""
+    m = re.search(r"--readfile\s+(\S+)", cmd)
+    if m:
+        readfile = m.group(1)
+    scoped = os.path.join(run, "rcS.scoped")
+    rcs_text = _read_text(readfile) if readfile and \
+        os.path.isfile(readfile) else _read_text(scoped)
+    name = os.path.basename(readfile)
+    single = (("--ctx %s" % ctx) in rcs_text or
+              ("--ctx %s" % ctx) in _read_text(scoped) or
+              re.search(r"(?:^|[^A-Za-z0-9])%s(?:[^0-9]|$)" % ctx, name))
+    if "--ctx all" in rcs_text or "--all" in rcs_text:
+        single = False
+    # Measured W10 fact: an --ctx all control allocates the same pages in a
+    # different order (0x83480/0x7d vs 0x834b6/0x63), so a scoped W10/W10S
+    # sample requires a single-context control.  W11-W14 controls are
+    # independent no-fault runs even when the guest script is --all.
+    if workload in ("W10", "W10S") and not single:
+        return False, ("control is not a single-context %s run "
+                       "(readfile=%s); allocation history differs" %
+                       (ctx, name or "<unknown>"))
+    if not single:
+        return True, ("independent no-fault control %s (all-context guest "
+                      "script %s)" % (_rel(repo_root, run),
+                                      name or "<unknown>"))
+    return True, "independent no-fault %s control %s" % (
+        ctx, _rel(repo_root, run))
 
 
 def _sha256_file(path):
@@ -1563,8 +2037,12 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
     workload_info = ctx["workload_info"]
     evidence_index = load_evidence_index(repo_root)
     decoy_map = load_w12_decoy_map(repo_root)
+    w10_pfn_map = load_w10_pfn_map(repo_root)
 
     hook_ok, hook_detail = check_hook(model, hooks)
+    injection_ok, injection_detail = check_injection_location(
+        model, ctx.get("injection_cfg") or {}, hooks, repo_root)
+    trace_schema_ok, trace_schema_detail = check_trace_schema(repo_root, ctx)
     workload_ok = bool(wl.get("ready"))
     if variant:
         workload_ok = workload_ok and os.path.isfile(
@@ -1597,6 +2075,20 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
         config_ok = False
         config_detail = ("%s; %s" % (config_detail, decoy_detail)
                          if config_detail else decoy_detail)
+    w10_pfn_ok, w10_pfn_detail = check_w10_pfn_mapping(sample, w10_pfn_map)
+    pfn_hardcode_ok, pfn_hardcode_detail = check_runner_pfn_hardcode(repo_root)
+    if model == "M02" and not pfn_hardcode_ok:
+        w10_pfn_ok = False
+        w10_pfn_detail = "%s; %s" % (w10_pfn_detail, pfn_hardcode_detail)
+    # W10S keeps the authoritative WorkloadID W10; the internal variant must
+    # not rewrite it.
+    variant_ok = True
+    variant_detail = "no variant"
+    if variant:
+        variant_ok = (workload == MODEL_WORKLOAD.get(model) == "W10" and
+                      run_workload == variant["workload"])
+        variant_detail = ("WorkloadID stays %s; internal variant %s (%s)" %
+                          (workload, variant["variant"], run_workload))
     # Trace support is a fact about the file on disk, not a constant claim.
     validator_path = os.path.join(repo_root, "tools",
                                   "mmu_formal_validate.py")
@@ -1614,6 +2106,12 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
         oracle_ok = False
         oracle_detail = ("%s; %s" % (oracle_detail, control["detail"])
                          if oracle_detail else control["detail"])
+    control_indep_ok, control_indep_detail = check_control_independence(
+        repo_root, sample, control)
+    if control["present"] and not control_indep_ok:
+        oracle_ok = False
+        oracle_detail = ("%s; control not independent: %s" %
+                         (oracle_detail, control_indep_detail))
     seed = check_seed(sample)
     ev = evidence_for(evidence_index, model, context)
     ev_status = lambda key: (ev.get(key) or "NOT_RUN")
@@ -1627,9 +2125,9 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
         blockers.append(provenance["blocker"])
     if runtime_status:
         blockers.append(runtime_status)
-    if not hook_ok:
+    if not hook_ok or not injection_ok:
         blockers.append("BLOCKED_HOOK")
-    if not workload_ok:
+    if not workload_ok or not variant_ok:
         blockers.append("BLOCKED_WORKLOAD")
     if not context_ok:
         blockers.append("BLOCKED_CONTEXT")
@@ -1637,9 +2135,11 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
         blockers.append("BLOCKED_CONFIG")
     if not decoy_ok:
         blockers.append("BLOCKED_MISSING_DECOY_MAPPING")
+    if not w10_pfn_ok:
+        blockers.append("BLOCKED_MISSING_W10_PFN_MAPPING")
     if not access_ok:
         blockers.append("BLOCKED_CONFIG")
-    if not trace_ok:
+    if not trace_ok or not trace_schema_ok:
         blockers.append("BLOCKED_TRACE")
     if not oracle_ok:
         blockers.append("BLOCKED_ORACLE")
@@ -1671,6 +2171,18 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
                        if model == "M04" else "")
     row["DecoyStatus"] = "PASS" if decoy_ok else "BLOCKED"
     row["DecoyDetail"] = decoy_detail
+    row["M02OldPFN"] = (hex(w10_pfn_map.get("contexts", {})
+                            .get(context, {}).get("target_pfn", 0))
+                        if model == "M02" else "")
+    row["M02OldPFNStatus"] = "PASS" if w10_pfn_ok else "BLOCKED"
+    row["M02OldPFNDetail"] = w10_pfn_detail
+    row["M02OldPFNSource"] = w10_pfn_map.get("path", "")
+    row["VariantStatus"] = "PASS" if variant_ok else "BLOCKED"
+    row["VariantDetail"] = variant_detail
+    row["InjectionLocationStatus"] = "PASS" if injection_ok else "BLOCKED"
+    row["InjectionLocationDetail"] = injection_detail
+    row["TraceSchemaStatus"] = "PASS" if trace_schema_ok else "BLOCKED"
+    row["TraceSchemaDetail"] = trace_schema_detail
     row["Seed"] = seed["seed_raw"]
     row["SeedPresent"] = "YES" if seed["seed_valid"] else "NO"
     row["SeedPolicy"] = seed["seed_policy"]
@@ -1699,6 +2211,14 @@ def evaluate_sample(sample, ctx, repo_root, hooks, workloads,
     row["BinaryProvenanceStatus"] = provenance["binary_status"]
     row["SourceProvenanceStatus"] = provenance["source_status"]
     row["BinarySHA256Manifest"] = provenance["manifest_gem5_sha256"]
+    row["BinarySHA256Config"] = provenance["config_gem5_sha256"]
+    row["FinalBinarySHA256"] = provenance["final_gem5_sha256"]
+    row["FinalBinaryStatus"] = provenance["final_binary_status"]
+    row["ActualBinarySHA256"] = provenance["actual_binary_sha256"]
+    row["ActualBinaryStatus"] = provenance["actual_binary_status"]
+    row["SourceCommitManifest"] = provenance["manifest_source_commit"]
+    row["SourceCommitExpected"] = provenance["expected_source_commit"]
+    row["SourceCommitStatus"] = provenance["source_commit_status"]
     row["ProvenanceManifest"] = provenance["manifest"]
     row["ProvenanceDetail"] = provenance["detail"]
     row["RuntimePilotEvidenceStatus"] = ev_status("runtime_pilot")
@@ -2162,6 +2682,9 @@ def main(argv=None):
     summary = write_reports(rows, ctx, outdir, excel, csv_resolved, repo_root,
                             run_script_defaults, workloads, hooks,
                             global_issues)
+    w10_map = load_w10_pfn_map(repo_root)
+    trace_schema_ok, trace_schema_detail = check_trace_schema(repo_root, ctx)
+    first = rows[0] if rows else {}
     summary.update({
         "excel": excel,
         "csv_input": csv_resolved,
@@ -2175,6 +2698,20 @@ def main(argv=None):
         "hooks": hooks,
         "workloads": workloads,
         "triple_issues": ctx["issues"] + global_issues,
+        "final_binary_sha256": first.get("FinalBinarySHA256", "<pending>"),
+        "final_binary_status": first.get("FinalBinaryStatus", "<pending>"),
+        "actual_binary_sha256": first.get("ActualBinarySHA256", "<absent>"),
+        "w10_pfn_map": {
+            "path": w10_map.get("path"),
+            "present": w10_map.get("present"),
+            "contexts": {k: "0x%x" % v.get("target_pfn", 0)
+                         for k, v in sorted(
+                             (w10_map.get("contexts") or {}).items())},
+            "detail": w10_map.get("detail"),
+            "rejected": w10_map.get("rejected", []),
+        },
+        "trace_schema_ok": trace_schema_ok,
+        "trace_schema_detail": trace_schema_detail,
     })
     if args.summary_json:
         with open(args.summary_json, "w") as fh:
@@ -2198,6 +2735,11 @@ def main(argv=None):
         "source_provenance_counts": summary["source_provenance_counts"],
         "missing_seed_count": summary["missing_seed_count"],
         "seed_gate_fail_count": summary["seed_gate_fail_count"],
+        "final_binary_sha256": summary["final_binary_sha256"],
+        "final_binary_status": summary["final_binary_status"],
+        "actual_binary_sha256": summary["actual_binary_sha256"],
+        "w10_pfn_map": summary["w10_pfn_map"],
+        "trace_schema_ok": summary["trace_schema_ok"],
         "outs": {k: summary[k] for k in ("csv", "md", "seed_md")},
         "triple_issues": summary["triple_issues"],
     }, indent=2, sort_keys=True))

@@ -361,9 +361,42 @@ def build_chains(events, by_id, va_points, model, has_ptw_ids=False,
             if not has_parent(chain_evs, by_id, "tlbi_suppressed",
                               {"mmu_fault_arm", "tlbi_match"}):
                 edges.append("(mmu_fault_arm|tlbi_match)->tlbi_suppressed")
-        if "translation_start" in kset and "tlbi_suppressed" in kset:
-            if not has_parent(chain_evs, by_id, "translation_start",
-                              {"tlbi_suppressed", "tlbi_match"}):
+        # Only the ORIGIN translation (started before the fault was consumed
+        # and disarmed) must be parented to the suppressed TLBI.  Later
+        # re-executions/continuations of the same fault legitimately descend
+        # from a later (non-suppressed) maintenance op; requiring the
+        # suppressed parent there would report a phantom edge on a real,
+        # fully-linked continuation chain.
+        disarm_ids = [int(e["event_id"]) for e in chain_evs
+                      if kind(e) == "mmu_fault_disarm"]
+        origin_translation = any(
+            kind(e) == "translation_start" and
+            (not disarm_ids or int(e["event_id"]) < min(disarm_ids))
+            for e in chain_evs)
+        if ("translation_start" in kset and "tlbi_suppressed" in kset and
+                origin_translation):
+            edge_ok = has_parent(chain_evs, by_id, "translation_start",
+                                 {"tlbi_suppressed", "tlbi_match"})
+            if not edge_ok:
+                # The transaction is created (translation_start) BEFORE the
+                # lookup discovers the stale entry, so that event carries
+                # fault_id=0 even though it is the fault's own translation.
+                # Accept the real edge through the transaction identity: a
+                # translation_start with the same translation_id as a
+                # fault-tagged chain event, parented to the suppressed TLBI.
+                tids = {e.get("translation_id") for e in chain_evs
+                        if e.get("translation_id") not in ("", "0", None)}
+                for e in by_id.values():
+                    if kind(e) != "translation_start":
+                        continue
+                    if e.get("translation_id") not in tids:
+                        continue
+                    parent = by_id.get(e.get("parent_event_id"))
+                    if parent is not None and kind(parent) in (
+                            "tlbi_suppressed", "tlbi_match"):
+                        edge_ok = True
+                        break
+            if not edge_ok:
                 edges.append("tlbi_suppressed->translation_start")
         if "ptw_start" in kset:
             # The walk starts from the real miss that triggered it (the
@@ -614,6 +647,34 @@ def evaluate(events, by_id, args):
         f["chains"] += 1
         if c["completeness"] == "COMPLETE":
             f["complete"] += 1
+
+    # [M02] The corruption is applied when the walk reaches insertTableEntry,
+    # i.e. AFTER pte_read/pte_decode/tlb_fill.  Those precursors therefore
+    # carry fault_id=0 even though they belong to the SAME translation that
+    # produced the faulted insert.  Join them by translation identity; this
+    # is the real upstream of the fault, not an inference from time order.
+    if args.model == "M02":
+        for fid, f in faults.items():
+            tids = set()
+            for c in chains:
+                if c["fault_id"] != fid:
+                    continue
+                for e in c["events"]:
+                    if (kind(e) == "tlb_entry_insert" and
+                            e.get("fault_id") == fid and
+                            e.get("translation_id") not in ("", "0", None)):
+                        tids.add(e["translation_id"])
+            joined = False
+            for e in events:
+                if e.get("translation_id") in tids and kind(e) in (
+                        "pte_read", "pte_decode", "tlb_fill", "ptw_start",
+                        "ptw_request", "ptw_response"):
+                    f["observed_kinds"].add(kind(e))
+                    joined = True
+            if joined:
+                exp = expected_kinds(f["observed_kinds"], args.model,
+                                     has_ptw_ids, has_cache_events)
+                f["missing_kinds"] = set(exp) - f["observed_kinds"]
 
     # ---- identity-linked continuations (squash then re-execution) ----
     # A faulting attempt may be squashed; the same corrupted/retained TLB

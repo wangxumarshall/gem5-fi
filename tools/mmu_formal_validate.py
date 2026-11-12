@@ -17,6 +17,10 @@ Model-specific execution realities are honoured, never papered over:
   * M06 is an exception path: a Translation Fault is the expected terminal;
     no LSU request and no normal commit are required.  The local descriptor
     clear (bit0 1 -> 0) and the Invalid decode are the causal evidence.
+    DETECTED_CONTAINED additionally requires real delivery evidence
+    (`exception_delivery`, or summary exception_delivered=1 with
+    result_propagated=1); a consumed descriptor squashed before delivery is
+    SQUASHED/TRACE_INCOMPLETE, never DETECTED_CONTAINED.
   * M03 consumes a fabricated hit: the lookup event must be a hit bound to a
     real entry identity (candidate_entry_id / generation) whose ASID differs
     from the requester's ASID.
@@ -393,6 +397,16 @@ def _path_required(model, observed, mode, terminal):
         # data-side LSU chain.  The activation itself carries the real
         # pre/post grant decision.
         return []
+    if model == "M05" and mode == "Execute":
+        # The corrupted partial walk-cache entry is consumed by an ITLB miss:
+        # insert -> later partial hit -> wrong translation -> instruction
+        # fetch request.  There is no data-side cache_response/commit row for
+        # the fetch itself (the fetched instruction commits under its own
+        # dynamic sequence, not the synthetic fetch transaction), so requiring
+        # those kinds here would demand an event the IFU path cannot emit.
+        # The guest oracle plus the wrong fetch PA prove the propagation.
+        return ["partial_entry_insert", "tlb_lookup_hit",
+                "translation_result", "lsu_request"]
 
     req = []
     if model == "M03":
@@ -442,7 +456,13 @@ def _edge_checks(observed_events, by_id, required, model, terminal):
     # (never a dangling root and never a self-parent).
     for ev in observed_events:
         k = _kind(ev)
-        if k in ("mmu_fault_arm", "mmu_fault_activate", "refill_pfn_corrupt"):
+        if k in ("mmu_fault_arm", "mmu_fault_activate", "refill_pfn_corrupt",
+                 "translation_start"):
+            # translation_start is the ROOT of its transaction by
+            # construction (it is emitted when the transaction is created,
+            # before any lookup/activation exists to be its parent).  Its
+            # causality is carried by translation_id, and every downstream
+            # event in the chain is still parent-checked below.
             continue
         parent = ev.get("parent_event_id", "")
         if parent in ("", "0"):
@@ -1051,6 +1071,34 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
                 associated.append(ev)
         observed |= {_kind(e) for e in associated}
 
+    # M03/M04 Execute: the ITLB fetch carries no Request dyn-inst sequence,
+    # so the fault-tagged lookup row may not exist even though the fetch DID
+    # consume the substituted entry.  The injected PA is known from the
+    # activation (old_pa -> new_pa); a post-activation translation_result or
+    # lsu_request for the same VA carrying exactly that PA is the IFU
+    # consumption witness.  Identity (VA + injected PA), never time order.
+    ifu_carrier_ids = []
+    if model in ("M03", "M04") and activation is not None and \
+            (target_mode or "") == "Execute":
+        va = activation.get("va", "")
+        new_pa = _eint(activation, "new_pa", -1, hexa=True)
+        for ev in scoped:
+            if ev["event_id"] <= activation_id:
+                continue
+            if _kind(ev) not in ("translation_result", "lsu_request"):
+                continue
+            if va and ev.get("va", "") != va:
+                continue
+            raw_pa = ev.get("pa", "")
+            try:
+                ev_pa = int(raw_pa, 16) if raw_pa else -1
+            except ValueError:
+                ev_pa = -1
+            if new_pa >= 0 and ev_pa == new_pa:
+                associated.append(ev)
+                ifu_carrier_ids.append(ev["event_id"])
+        observed |= {_kind(e) for e in associated}
+
     # ---- v3/v4 chain evaluation for M01/M02 ------------------------------
     v3_result = None
     lineage_rows = []
@@ -1110,6 +1158,23 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
     if model == "M05" and "tlb_lookup_hit" in missing_kinds and \
             ({"fault_entry_consume", "fault_entry_reuse"} & observed):
         missing_kinds.remove("tlb_lookup_hit")
+    # M03/M04 Execute: an IFU fetch that returned the injected PA is the
+    # consumption witness even when the lookup row is untagged (no Request
+    # sequence on fetch).  The join is VA + injected-PA identity.
+    if model in ("M03", "M04") and ifu_carrier_ids and \
+            "tlb_lookup_hit" in missing_kinds:
+        missing_kinds.remove("tlb_lookup_hit")
+    # M07: the activation event itself records the REAL pre/post grant
+    # decision (permission_before=false -> permission_after=true).  When the
+    # deny is reached on a warm hit that has no transaction yet, the separate
+    # permission_eval observation is not emitted; the activation row is the
+    # stronger witness, so the requirement is satisfied by it.
+    m07_activation_witness = bool(
+        model == "M07" and activation is not None and
+        activation.get("permission_before") == "false" and
+        activation.get("permission_after") == "true")
+    if m07_activation_witness and "permission_eval" in missing_kinds:
+        missing_kinds.remove("permission_eval")
 
     live_evs = fault_evs + [e for e in associated if e not in fault_evs]
     missing_edges = _edge_checks(live_evs, by_id, required, model, terminal)
@@ -1191,21 +1256,38 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
     m06_result_prop = summary_evt.get("result_propagated")
     m06_exc_deliv = summary_evt.get("exception_delivered")
 
+    # M06 containment is an ARCHITECTURAL claim: the hardware must have
+    # generated the translation fault AND delivered it to an architectural
+    # consumer.  Proof is either a real `exception_delivery` event, or the
+    # C++ summary recording exception_delivered=1 together with
+    # result_propagated=1 (the summary is emitted from the delivery hook).
+    # A consumed descriptor whose fault result never reached a delivery point
+    # -- e.g. a squash of the faulting instruction with no architectural
+    # consumer -- is not containment and must not be reported as
+    # DETECTED_CONTAINED.
+    m06_exc_event = any(_kind(e) == "exception_delivery"
+                        for e in live_evs)
+    m06_delivery_proof = bool(m06_exc_event) or (
+        m06_exc_deliv == "1" and m06_result_prop == "1")
+    m06_consumed = (m06_state_consumed == "1" or
+                    "fault_state_consumed" in observed)
+
     if timed_out:
         terminal_state = "HANG/TIMEOUT"
     elif activation_status in ("NOT_ACTIVATED", "NO_ELIGIBLE_EVENT"):
         terminal_state = activation_status
-    elif model == "M06" and m06_exc_deliv == "1":
+    elif model == "M06" and m06_consumed and m06_delivery_proof:
         # The Translation Fault was architecturally delivered; the wrong
         # state never committed.
         terminal_state = "DETECTED_CONTAINED"
-    elif model == "M06" and m06_state_consumed == "1" and \
-            m06_result_prop == "1" and "commit" not in observed:
-        # Detected and recovered inside the walk/fault path (no wrong
-        # architectural commit, no OS delivery needed).
-        terminal_state = "DETECTED_CONTAINED"
-    elif model == "M06" and m06_state_consumed == "1" and \
-            m06_result_prop == "0":
+    elif model == "M06" and m06_consumed and m06_result_prop == "1":
+        # Fault generated from a consumed descriptor, but no architectural
+        # delivery was observed.  A squash without an architectural consumer
+        # is SQUASHED; otherwise the terminal is simply not in the trace.
+        terminal_state = ("SQUASHED" if (observed & SQUASH_KINDS or
+                                         terminal == "squash")
+                          else "TRACE_INCOMPLETE")
+    elif model == "M06" and m06_consumed and m06_result_prop == "0":
         # The descriptor was consumed by decode but the fault never reached
         # the exception path (walk replayed).  Not a terminal.
         terminal_state = "TRACE_INCOMPLETE"
@@ -1373,6 +1455,7 @@ def evaluate_run(events, by_id, parse_skipped, model, workload, context,
             "result_propagated": m06_result_prop,
             "exception_delivered": m06_exc_deliv,
         } if model == "M06" else None,
+        "ifu_lookup_identity_join": ifu_carrier_ids,
         "terminal_text_crash_evidence": crash_evidence,
         "timed_out": timed_out,
     }
