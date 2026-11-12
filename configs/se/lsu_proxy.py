@@ -488,7 +488,13 @@ p.add_argument("--chaos_md04", action="store_true",
 p.add_argument("--md04_event_ordinal", type=lambda x: int(x, 0), default=0,
                help="1-based eligible same-address 8B alias ordinal (0 = first)")
 p.add_argument("--md04_max_faults", type=lambda x: int(x, 0), default=1)
-p.add_argument("--md04_probability", type=float, default=1.0)
+# v3.3.3 control close path: MD04 used to gate only on its own probability
+# (default 1.0), so a mounted control at --probability 0.0 still fired. The
+# default is now None = "follow the global --probability"; an explicit value
+# still overrides (fault runs record their own 1.0). No other model's
+# probability semantics change.
+p.add_argument("--md04_probability", type=float, default=None,
+               help="MD04 probability; None = follow --probability")
 p.add_argument("--md04_first_clock", type=lambda x: int(x, 0), default=0)
 p.add_argument("--md04_rng_seed", type=lambda x: int(x, 0), default=20261108)
 p.add_argument("--md04_count_only", action="store_true")
@@ -528,6 +534,14 @@ p.add_argument("--addrpath_event_ordinal", type=lambda x: int(x,0), default=0,
 p.add_argument("--addrpath_f6_event", default="sq_forward",
                choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                help="W2: F6 event source (tlb_hit is FS-only in SE)")
+# v3.3.3 A03: in-simulator watchdog scheduled at A03 activation. 0 keeps the
+# legacy behaviour (disabled); the matrix driver passes a bounded post-
+# activation budget so a post-oracle hang is cut inside gem5 (exit callback +
+# gzip trailer) instead of by an external wall-clock kill.
+p.add_argument("--addrpath_watchdog_cycles", type=lambda x: int(x,0),
+               default=0,
+               help="A03: in-simulator watchdog clock cycles after activation "
+                    "(0 = disabled)")
 # W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
 # via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
@@ -913,9 +927,11 @@ if args.chaos_lq04:
     # v3.2.10 LQ04: O3-only. SELF-ATTACHES at startup() to cpu.chaosLQ04
     # (the executeLoad tail calls maybeSelect; the LSQEntry side channel
     # from Task 4 carries the corrupted lifetime until the boundary
-    # restore). Ordinal-driven — no probability/window parameters.
+    # restore). Ordinal-driven; v3.3.3 wires the global --probability so a
+    # mounted-at-p=0 control is a true disable (ledger L-A06).
     lq04 = CHAOSLQ04(
         cpu=cpu0,
+        probability=args.probability,
         eventOrdinal=args.lq04_event_ordinal,
         maxFaults=args.lq04_max_faults,
         countOnly=args.lq04_count_only,
@@ -1089,9 +1105,13 @@ if args.chaos_l1dfwd:
     board.chaos_l1dfwd = l1df
 
 if args.chaos_md04:
+    md04_probability = (args.probability if args.md04_probability is None
+                        else args.md04_probability)
+    print(f"[lsu_proxy] CHAOSMD04 probability={md04_probability} "
+          f"(global={args.probability}, override={args.md04_probability})")
     md04 = CHAOSMD04(
         cpu=cpu0,
-        probability=args.md04_probability,
+        probability=md04_probability,
         firstClock=args.md04_first_clock,
         maxFaults=args.md04_max_faults,
         rngSeed=args.md04_rng_seed,
@@ -1134,6 +1154,7 @@ if args.chaos_addrpath:
         lsuEventOrdinal=args.addrpath_event_ordinal,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
+        watchdogCycles=args.addrpath_watchdog_cycles,
     )
     board.chaos_addrpath = ap
 

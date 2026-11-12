@@ -74,7 +74,11 @@ CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
                               const RequestPtr &load_req)
 {
     (void)load_req;  // consumed by the v3.2.7 trace identity (Task 3)
-    if (!cpu || probability <= 0.0f || !ld_inst || !store_inst)
+    // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable
+    // (belt-and-braces even though the config couples md04_probability).
+    if (probability <= 0.0f)
+        return false;
+    if (!cpu || !ld_inst || !store_inst)
         return false;
     if (ld_inst->effAddrValid() && store_inst->effAddrValid())
         DPRINTF(CHAOSMD04, "pair load=%llu addr=%#x size=%u store=%llu "

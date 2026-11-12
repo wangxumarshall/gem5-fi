@@ -26,6 +26,10 @@ class CHAOSLQ04(SimObject):
 
     cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
 
+    probability = Param.Float(1.0,
+        "LQ04: global mount probability; <= 0 disables the ordinal "
+        "injection and the watchdog (L-A06 control gate). Default 1.0 keeps "
+        "the ordinal-only behavior when the flag is not wired.")
     eventOrdinal = Param.UInt64(0,
         "LQ04: 1-based eligible Load ordinal to select (0 = disabled). "
         "The Nth eligible load's LQ entry is the injection target.")

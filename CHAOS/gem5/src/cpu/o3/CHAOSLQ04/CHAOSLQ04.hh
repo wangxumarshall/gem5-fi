@@ -86,6 +86,7 @@ class CHAOSLQ04 : public SimObject
 
   private:
     BaseCPU *cpu;               // raw param; O3 check at startup()
+    double probability;         // L-A06: <=0 disables injection + watchdog
     uint64_t event_ordinal;     // 1-based eligible ordinal; 0 = disabled
     uint64_t max_faults;        // 0 clamps to 1 (chaos_lq04::shouldInject)
     bool count_only;

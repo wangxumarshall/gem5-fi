@@ -1663,25 +1663,24 @@ def test_a01_crash_direct_match_and_temporal_only_crash(tmp_path):
     assert temporal_record["FinalClassification"] == "UNRESOLVED"
 
 
-def test_a01_discard_context_grades_partial_not_unresolved(tmp_path):
-    """E7's discard companion: an A01 record whose corrupted EA was
-    discarded before any request (the on-chain a01_ea_discarded record,
-    applied_to_request=0) with an honestly-UNRESOLVED terminal (no
-    register-writeback evidence for a value that was never delivered)
-    grades PARTIAL — real on-chain evidence, the discard naming the missing
-    link — never UNRESOLVED and never a complete verdict.  Without the
-    discard record the same shape stays UNRESOLVED (rule 1)."""
+def test_a01_discard_context_grades_injection_not_activated(tmp_path):
+    """v3.3.3 L-A10: an A01 record whose corrupted EA was discarded before
+    any request (the on-chain a01_ea_discarded record, applied_to_request=0)
+    is graded INJECTION_NOT_ACTIVATED / LIFECYCLE_ONLY — the fault never
+    reached a Request, so there is no writeback to grade and no complete
+    verdict. This supersedes the v3.2.x PARTIAL re-grade. Without the
+    discard record the same shape stays honestly UNRESOLVED (rule 1)."""
     pilot = _write_a01_masked_pilot(
         tmp_path, name="SUPP-A01-R03C", terminal="UNRESOLVED",
         response=False, writeback=False, consumer=False,
         a01_consumed_hash=None, a01_discarded=True)
     record = build_pilot_record(pilot, "A01")
-    assert record["ObservedTerminal"] == "UNRESOLVED"
-    assert record["FaultCausality"] == "PARTIAL"
+    assert record["ObservedTerminal"] == "INJECTION_NOT_ACTIVATED"
+    assert record["FaultCausality"] == "UNPROVEN"
     discarded = [r for r in record["ModelStreamRecords"]
                  if r["event_type"] == "a01_ea_discarded"]
     assert discarded[0]["fields"]["applied_to_request"] == "0"
-    assert record["FinalClassification"] == "PARTIAL"
+    assert record["FinalClassification"] == "LIFECYCLE_ONLY"
     assert record["FinalClassification"] not in _NOT_COMPLETE
     assert record["TerminalMechanism"] == "NOT_APPLICABLE"
 
@@ -1692,25 +1691,12 @@ def test_a01_discard_context_grades_partial_not_unresolved(tmp_path):
         response=False, writeback=False, consumer=False,
         a01_consumed_hash=None)
     no_discard_record = build_pilot_record(no_discard, "A01")
+    assert no_discard_record["ObservedTerminal"] == "UNRESOLVED"
     assert no_discard_record["FinalClassification"] == "UNRESOLVED"
 
-    # the companion is model-scoped and never upgrades a zero-injection or
-    # non-UNRESOLVED record: each guard removes the PARTIAL re-grade
-    # (a NO_INJECTION terminal is the clean rule-1 cap; a MASKED terminal on
-    # this evidence shape would grade PARTIAL through the generic rule 5 as
-    # well, so it cannot distinguish the discard re-grade and is not used)
-    guards = [
-        _mutated(record, ModelID="A03"),
-        _mutated(record, InjectionVerified="no"),
-        _mutated(record, ObservedTerminal="NO_INJECTION"),
-        _mutated(record, ModelStreamRecords=[]),
-    ]
-    for guard in guards:
-        assert final_classification(guard) != "PARTIAL", guard.get("ModelID")
-    assert final_classification(guards[0]) == "UNRESOLVED"
-    assert final_classification(guards[1]) == "UNRESOLVED"
-    assert final_classification(guards[2]) == "UNRESOLVED"
-    assert final_classification(guards[3]) == "UNRESOLVED"
+    # a zero-injection terminal remains the clean rule-1 cap
+    assert final_classification(
+        _mutated(record, ObservedTerminal="NO_INJECTION")) == "UNRESOLVED"
 
 
 # ---------------------------------------------------------------------------

@@ -28,13 +28,15 @@ FIXTURE_LOG = (Path(__file__).parent / "data_lq04_platform"
 
 
 def test_platform_wiring_constants():
-    # MODELS tuple exists, carries LQ04, and keeps every earlier model.
+    # MODELS tuple exists, carries LQ04 and RP01 (v3.3.3), and keeps every
+    # earlier model. The workbook path follows the authoritative v3.2.7 file.
     assert "LQ04" in run_pilot.MODELS
     assert set(run_pilot.MODELS) == {
         "A01", "A03", "FW02", "SQ01", "DA04", "LP01", "MD04", "FW05",
-        "SQ03", "SP05", "LQ04"}
-    assert run_pilot.EXCEL.name.endswith("-v3.2.4.xlsx")
+        "SQ03", "SP05", "LQ04", "RP01"}
+    assert run_pilot.EXCEL.name.endswith("-v3.2.7.xlsx")
     assert run_pilot._workload_for("LQ04") == "lq_lifetime_ordinal"
+    assert "replay_partial_v332" in str(run_pilot._workload_for("RP01"))
 
 
 def test_lq04_events_parses_injection_line():

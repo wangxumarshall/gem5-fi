@@ -20,6 +20,7 @@ namespace gem5
     CHAOSLQ04::CHAOSLQ04(const CHAOSLQ04Params &p)
         : SimObject(p),
           cpu(p.cpu),
+          probability(p.probability),
           event_ordinal(p.eventOrdinal),
           max_faults(p.maxFaults),
           count_only(p.countOnly),
@@ -60,7 +61,8 @@ namespace gem5
         // Watchdog: if the ordinal-selected injection has not fired within
         // watchdogCycles CPU cycles, the run is stuck (or the target never
         // became eligible). 0 = disabled.
-        if (watchdog_cycles) {
+        // L-A06: a p=0 mount must never arm the watchdog (control path).
+        if (probability > 0.0f && watchdog_cycles) {
             watchdog_event = new EventFunctionWrapper(
                 [this]() { this->watchdog(); }, "LQ04 watchdog", true);
             schedule(watchdog_event,
@@ -122,6 +124,11 @@ namespace gem5
 
         // Dry-run: count (and probe) only, never inject.
         if (count_only)
+            return false;
+
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true
+        // disable (eligible counting/probing above still runs for observation).
+        if (probability <= 0.0f)
             return false;
 
         // F0 ordinal gate: only the eventOrdinal-th eligible load fires

@@ -152,7 +152,8 @@ namespace gem5
                 cpu->lsqFwd = this;
             if (max_faults == 0)
                 max_faults = 1;
-            if (p.sq03WatchdogCycles) {
+            // L-A06: never arm a watchdog when mounted at p=0 (control).
+            if (probability > 0.0f && p.sq03WatchdogCycles) {
                 sq03_watchdog_event = new EventFunctionWrapper(
                     [this]() { this->sq03Watchdog(); }, "SQ03 watchdog",
                     true);
@@ -175,7 +176,8 @@ namespace gem5
             if (max_faults == 0)
                 max_faults = 1;
             sp05_event_ordinal = p.sp05EventOrdinal;
-            if (p.sp05WatchdogCycles) {
+            // L-A06: never arm a watchdog when mounted at p=0 (control).
+            if (probability > 0.0f && p.sp05WatchdogCycles) {
                 sp05_watchdog_event = new EventFunctionWrapper(
                     [this]() { this->sp05Watchdog(); }, "SP05 watchdog",
                     true);
@@ -207,7 +209,9 @@ namespace gem5
             if (max_faults == 0)
                 max_faults = 1;
             rp01_event_ordinal = p.rp01EventOrdinal;
-            if (p.rp01WatchdogCycles) {
+            // L-A06: RP01 count-only may still attach for observation, but a
+            // p=0 mount must never arm the watchdog.
+            if (probability > 0.0f && p.rp01WatchdogCycles) {
                 rp01_watchdog_event = new EventFunctionWrapper(
                     [this]() { this->rp01Watchdog(); }, "RP01 watchdog",
                     true);
@@ -571,9 +575,12 @@ namespace gem5
     CHAOSLSQFwd::maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
                                    uint64_t sq_gen, bool request_sent)
     {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
         if (struct_mode != StructMode::Sp05Complete)
             return false;
-        if (probability <= 0.0f || sp05_fired || !sp05_selected)
+        if (sp05_fired || !sp05_selected)
             return false;
         if (request_sent)
             return false;
@@ -632,6 +639,9 @@ namespace gem5
         // (PartialAddrRangeCoverage branch of LSQUnit::read()). Inert in
         // every other mode/config (one null check on a path that already
         // calls cpu->chaosPropagation there).
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
         if (!rp01CountOnlyMode() && !rp01SkipMode())
             return false;
         // A squashed load never consumes an ordinal (its replay would be
@@ -729,9 +739,10 @@ namespace gem5
     CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
                                uint64_t sq_gen)
     {
-        if (struct_mode != StructMode::Sq03CanWB)
-            return false;
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
         if (probability <= 0.0f)
+            return false;
+        if (struct_mode != StructMode::Sq03CanWB)
             return false;
         if (sq03_fired)
             return false;
@@ -936,6 +947,9 @@ namespace gem5
                                        uint64_t dyn_seq, uint64_t store_idx,
                                        uint64_t generation)
     {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
         if (struct_mode != StructMode::Sq01Bit3 || !data || size == 0)
             return false;
         if (lsuTrigger) {
@@ -975,6 +989,9 @@ namespace gem5
             uint64_t dyn_seq, uint64_t sq_idx, uint64_t generation,
             const uint8_t *store_data)
     {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
         if (struct_mode != StructMode::Da04BeBit0)
             return false;
         if (lsuTrigger)
