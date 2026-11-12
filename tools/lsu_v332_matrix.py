@@ -41,12 +41,28 @@ GEM5 = ROOT / "build/ARM/gem5.opt"
 CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/workloads"
 DIRECTED = ROOT / "workloads/directed"
-OUT_BASE = ROOT / "audit_v3_3_2/runs"
+OUT_BASE = ROOT / "runs/lsu/formal_v333"
 # v3.3.3: the matrix writes its own RAW CSV; the curated FINAL CSV is written
 # by tools/lsu_v332_report.py. The two paths must never collide (the _J file
 # is the v3.3.2 evidence of that collision; it is history and stays untouched).
-SUMMARY_CSV = ROOT / "audit_v3_3_2/controls/LSU_Fault_Control_Pair_RAW.csv"
-LOCK_FILE = ROOT / "audit_v3_3_2/controls/.lsu_v332_matrix.lock"
+SUMMARY_CSV = OUT_BASE / "LSU_Fault_Control_Pair_RAW.csv"
+LOCK_FILE = OUT_BASE / ".lsu_v332_matrix.lock"
+FORCE = False
+
+# Authoritative formal identity: SampleRunID + Seed are read from the frozen
+# matrix and passed through to every run (never generated here).
+FROZEN_MATRIX = (ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel"
+                 / "60_SAMPLE_MATRIX.csv")
+
+
+def _load_frozen_identity():
+    with open(FROZEN_MATRIX, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    return {(r["FaultModelID"], r["SampleRunID"][-3:]):
+            (r["SampleRunID"], r["Seed"]) for r in rows}
+
+
+FROZEN_ID = _load_frozen_identity()
 
 MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
           "LP01", "MD04", "LQ04", "RP01")
@@ -396,6 +412,11 @@ def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload):
         cmd += ["--workload", str(workload)]
     if role == "control":
         cmd += ["--probability", "0.0"]
+    # Formal identity: the frozen Seed is passed explicitly and the frozen
+    # SampleRunID is preserved (run_pilot's default would replace it with a
+    # PILOT-* id). This is metadata only; it does not change the fault.
+    _sid, seed = FROZEN_ID[(model, f"R{ctx_idx:02d}")]
+    cmd += ["--seed", str(seed), "--preserve-sample-id"]
     return cmd
 
 
@@ -431,7 +452,7 @@ def planned_command(model, ctx_idx, role, outdir) -> list[str]:
     """The command this matrix row would execute (pure; no subprocess)."""
     spec = CONTEXTS[model]
     ordinal = spec["ordinals"][ctx_idx - 1]
-    seed = spec.get("seeds", [None] * 5)[ctx_idx - 1]
+    _sid, seed = FROZEN_ID[(model, f"R{ctx_idx:02d}")]
     workload = spec.get("workload")
     if model == RP01:
         return build_rp01_cmd(role, ordinal, seed, workload, outdir)
@@ -604,11 +625,15 @@ def _seed_from_command(outdir: Path):
 def run_context(model, ctx_idx, role):
     spec = CONTEXTS[model]
     ordinal = spec["ordinals"][ctx_idx - 1]
-    seed = spec.get("seeds", [None] * 5)[ctx_idx - 1]
+    _sid, seed = FROZEN_ID[(model, f"R{ctx_idx:02d}")]
     workload = spec.get("workload")
     tag = f"{model}-R{ctx_idx:02d}-{role}"
     outdir = OUT_BASE / tag
     if outdir.exists():
+        if not FORCE:
+            raise SystemExit(
+                f"refusing to overwrite existing run dir {outdir}; "
+                f"use --force or a new --out-base")
         subprocess.run(["rm", "-rf", str(outdir)])
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -735,21 +760,24 @@ def run_context(model, ctx_idx, role):
 
 
 def main(argv=None):
-    global OUT_BASE, SUMMARY_CSV
+    global OUT_BASE, SUMMARY_CSV, FORCE
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", default="all")
     ap.add_argument("--roles", default="fault,control")
     ap.add_argument("--contexts", default="1,2,3,4,5")
-    ap.add_argument("--out-base", default=str(ROOT / "audit_v3_3_3/runs"),
-                    help="run directory base (default: the v3.3.3 round)")
+    ap.add_argument("--out-base", default=str(ROOT / "runs/lsu/formal_v333"),
+                    help="run directory base (default: the formal campaign)")
     ap.add_argument("--out-csv",
-                    default=str(ROOT / "audit_v3_3_3/controls/"
+                    default=str(ROOT / "runs/lsu/formal_v333/"
                                       "LSU_Fault_Control_Pair_RAW.csv"))
+    ap.add_argument("--force", action="store_true",
+                    help="allow overwriting an existing run dir")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the exact command for every row and exit; "
                          "no run dir, summary or CSV is written")
     args = ap.parse_args(argv)
     OUT_BASE = Path(args.out_base)
+    FORCE = args.force
     SUMMARY_CSV = Path(args.out_csv)
     models = list(MODELS) if args.models == "all" else args.models.split(",")
     roles = args.roles.split(",")

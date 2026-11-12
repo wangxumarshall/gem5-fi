@@ -688,6 +688,7 @@ def build_model_extra(model: str, probability: float, seed: int,
         return ["--chaos_lq04",
                 "--lq04_event_ordinal", ordinal,
                 "--lq04_max_faults", "1",
+                "--lq04_rng_seed", str(seed),
                 "--lq04_watchdog_cycles", "500000000"]
     if model == "FW02":
         if control:

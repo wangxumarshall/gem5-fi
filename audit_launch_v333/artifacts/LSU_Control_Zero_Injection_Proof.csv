@@ -1,0 +1,61 @@
+ModelID,ContextID,SampleRunID,Seed,ControlClass,InjectorMounted,FaultEnabled,SuppressionReason,InjectionAttemptCount,InjectionAppliedCount,ControlOracle,Evidence,Status
+A01,R01,A01-F0-W1-S01-R01,2108120075,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A01-R01-control,PASS
+A01,R02,A01-F0-W1-S01-R02,1113826800,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A01-R02-control,PASS
+A01,R03,A01-F0-W1-S01-R03,1302709433,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A01-R03-control,PASS
+A01,R04,A01-F0-W1-S01-R04,2194451614,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A01-R04-control,PASS
+A01,R05,A01-F0-W1-S01-R05,3228552887,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A01-R05-control,PASS
+A03,R01,A03-F5-W1-S01-R01,663646247,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A03-R01-control,PASS
+A03,R02,A03-F5-W1-S01-R02,1626885462,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A03-R02-control,PASS
+A03,R03,A03-F5-W1-S01-R03,110775855,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A03-R03-control,PASS
+A03,R04,A03-F5-W1-S01-R04,2766846323,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A03-R04-control,PASS
+A03,R05,A03-F5-W1-S01-R05,1156093484,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/A03-R05-control,PASS
+FW02,R01,FW02-F6-W4-S01-R01,2941542370,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW02-R01-control,PASS
+FW02,R02,FW02-F6-W4-S01-R02,2129071279,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW02-R02-control,PASS
+FW02,R03,FW02-F6-W4-S01-R03,1336081385,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW02-R03-control,PASS
+FW02,R04,FW02-F6-W4-S01-R04,527667424,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW02-R04-control,PASS
+FW02,R05,FW02-F6-W4-S01-R05,3622278636,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW02-R05-control,PASS
+FW05,R01,FW05-F6-W8-S01-R01,1025137124,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW05-R01-control,PASS
+FW05,R02,FW05-F6-W8-S01-R02,1653118510,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW05-R02-control,PASS
+FW05,R03,FW05-F6-W8-S01-R03,2442802213,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW05-R03-control,PASS
+FW05,R04,FW05-F6-W8-S01-R04,899944922,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW05-R04-control,PASS
+FW05,R05,FW05-F6-W8-S01-R05,2836530945,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/FW05-R05-control,PASS
+SQ01,R01,SQ01-F0-W3-S01-R01,591611458,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ01-R01-control,PASS
+SQ01,R02,SQ01-F0-W3-S01-R02,576447973,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ01-R02-control,PASS
+SQ01,R03,SQ01-F0-W3-S01-R03,1257175390,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ01-R03-control,PASS
+SQ01,R04,SQ01-F0-W3-S01-R04,3116972755,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ01-R04-control,PASS
+SQ01,R05,SQ01-F0-W3-S01-R05,172636228,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ01-R05-control,PASS
+SQ03,R01,SQ03-F0-W3-S02-R01,2214819981,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ03-R01-control,PASS
+SQ03,R02,SQ03-F0-W3-S02-R02,1486471869,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ03-R02-control,PASS
+SQ03,R03,SQ03-F0-W3-S02-R03,3102670938,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ03-R03-control,PASS
+SQ03,R04,SQ03-F0-W3-S02-R04,3974203372,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ03-R04-control,PASS
+SQ03,R05,SQ03-F0-W3-S02-R05,729970077,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SQ03-R05-control,PASS
+SP05,R01,SP05-F6-W6-S01-R01,1489155957,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SP05-R01-control,PASS
+SP05,R02,SP05-F6-W6-S01-R02,1290498198,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SP05-R02-control,PASS
+SP05,R03,SP05-F6-W6-S01-R03,2768710389,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SP05-R03-control,PASS
+SP05,R04,SP05-F6-W6-S01-R04,2741073922,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SP05-R04-control,PASS
+SP05,R05,SP05-F6-W6-S01-R05,4098160626,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/SP05-R05-control,PASS
+DA04,R01,DA04-F0-W8-S02-R01,4185444934,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/DA04-R01-control,PASS
+DA04,R02,DA04-F0-W8-S02-R02,2627302015,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/DA04-R02-control,PASS
+DA04,R03,DA04-F0-W8-S02-R03,3592849939,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/DA04-R03-control,PASS
+DA04,R04,DA04-F0-W8-S02-R04,3815557835,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/DA04-R04-control,PASS
+DA04,R05,DA04-F0-W8-S02-R05,2016743094,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/DA04-R05-control,PASS
+LP01,R01,LP01-F0-W5-S01-R01,1349924126,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LP01-R01-control,PASS
+LP01,R02,LP01-F0-W5-S01-R02,2648660520,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LP01-R02-control,PASS
+LP01,R03,LP01-F0-W5-S01-R03,2021175746,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LP01-R03-control,PASS
+LP01,R04,LP01-F0-W5-S01-R04,3894776903,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LP01-R04-control,PASS
+LP01,R05,LP01-F0-W5-S01-R05,1604604537,MOUNTED_BUT_DISABLED,YES,NO,probability=0.0,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LP01-R05-control,PASS
+MD04,R01,MD04-F6-W7-S01-R01,2595563470,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/MD04-R01-control,PASS
+MD04,R02,MD04-F6-W7-S01-R02,811948497,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/MD04-R02-control,PASS
+MD04,R03,MD04-F6-W7-S01-R03,2545691512,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/MD04-R03-control,PASS
+MD04,R04,MD04-F6-W7-S01-R04,2149193331,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/MD04-R04-control,PASS
+MD04,R05,MD04-F6-W7-S01-R05,1008734674,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/MD04-R05-control,PASS
+LQ04,R01,LQ04-F0-W2-S01-R01,1842987246,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LQ04-R01-control,PASS
+LQ04,R02,LQ04-F0-W2-S01-R02,2188214204,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LQ04-R02-control,PASS
+LQ04,R03,LQ04-F0-W2-S01-R03,3953171871,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LQ04-R03-control,PASS
+LQ04,R04,LQ04-F0-W2-S01-R04,4153250964,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LQ04-R04-control,PASS
+LQ04,R05,LQ04-F0-W2-S01-R05,3410523942,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/LQ04-R05-control,PASS
+RP01,R01,RP01-F6-W7-S01-R01,3135797961,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/RP01-R01-control,PASS
+RP01,R02,RP01-F6-W7-S01-R02,226489823,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/RP01-R02-control,PASS
+RP01,R03,RP01-F6-W7-S01-R03,1735144973,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/RP01-R03-control,PASS
+RP01,R04,RP01-F6-W7-S01-R04,2455796178,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/RP01-R04-control,PASS
+RP01,R05,RP01-F6-W7-S01-R05,3984724524,INJECTOR_ABSENT,NO,NO,injector omitted,0,0,PASS,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/runs/RP01-R05-control,PASS
