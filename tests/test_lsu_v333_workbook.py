@@ -132,7 +132,8 @@ def test_gem5_and_workload_hashes_are_separate(scaffold):
     rows = sheet_rows(ws)
     gem5 = {r[gi] for r in rows}
     workloads = {r[wi] for r in rows}
-    assert gem5 == {"1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"}
+    # v3.3.3 trace-closure re-freeze: the workbook reads the live binary.
+    assert gem5 == {"62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"}
     assert len(workloads) > 1
     assert not (gem5 & workloads)
 

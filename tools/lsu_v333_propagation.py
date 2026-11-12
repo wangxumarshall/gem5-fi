@@ -43,6 +43,11 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+try:  # tools/ is on sys.path when this file runs as a script
+    from lsu_v333_qualified import qualified_evidence
+except ImportError:  # pragma: no cover - defensive for package imports
+    qualified_evidence = None
+
 ROOT = Path(__file__).resolve().parents[1]
 
 MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
@@ -317,16 +322,36 @@ def downstream_string(chain, seq, ptag, consumer) -> str:
 def commit_squash_replay(chain, seq) -> str:
     bits = []
     for e in chain:
-        if e.get("event_type") == "commit" and e.get("dyn_inst_seq") == seq:
+        et = e.get("event_type")
+        if et == "commit" and e.get("dyn_inst_seq") == seq:
             d = parse_detail(e.get("detail"))
             bits.append(f"commit;commit_seq={d.get('commit_seq', 'n/a')};"
                         f"pc={raw(d.get('pc'))}")
+            break
+        # [V3.3.3][SP05] real architectural commit captured in noteCommit
+        if et == "store_commit" and e.get("dyn_inst_seq") == seq:
+            d = parse_detail(e.get("detail"))
+            bits.append(
+                f"store_commit;commit_seq={d.get('commit_seq', 'n/a')};"
+                f"commit_tick={d.get('commit_tick', 'n/a')};"
+                f"commit_state={d.get('commit_state', 'n/a')};"
+                f"source={d.get('commit_tick_source', 'n/a')}")
             break
     for e in chain:
         if e.get("event_type") == "squash" and e.get("dyn_inst_seq") == seq:
             d = parse_detail(e.get("detail"))
             bits.append(f"SQUASHED;squash_cause={d.get('squash_cause', 'n/a')};"
                         f"fault_caused={d.get('fault_caused', 'n/a')}")
+            break
+    for e in chain:
+        # [V3.3.3][SP05] negative writeback evidence (no fabricated write)
+        if e.get("event_type") == "store_writeback_suppressed" \
+                and e.get("dyn_inst_seq") == seq:
+            d = parse_detail(e.get("detail"))
+            bits.append(
+                f"WRITEBACK_SUPPRESSED;mem_sent={d.get('mem_sent', 'n/a')};"
+                f"request_sent_after={d.get('request_sent_after', 'n/a')};"
+                f"visibility_state={d.get('visibility_state', 'n/a')}")
             break
     db = rich_fields(chain, seq)
     for k in ("replay_count", "replay_generation"):
@@ -666,6 +691,34 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
         witness_ok=witness,
         terminal_ok=witness)
 
+    # [V3.3.3][A03] The model's first affected event can be a speculative
+    # instance squashed before any response. The causal chain is anchored at
+    # the first architecturally committed fault path (errant_commit), which
+    # the qualified grader resolves from the same run dir. Keep the first
+    # affected row as provenance, expose the real anchor separately.
+    qev = {}
+    if qualified_evidence is not None:
+        try:
+            qev = (qualified_evidence("A03", run) or {}).get("evidence", {})
+        except Exception:
+            qev = {}
+    anchor_seq = qev.get("causal_anchor_dyn_seq")
+    anchor_pc = qev.get("causal_anchor_pc")
+    anchor_reason = qev.get("causal_anchor_reason")
+    if anchor_reason:
+        divergence_s = (f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
+                        f"first_affected_seq={qev.get('first_affected_load_dyn_seq')};"
+                        f"reason={anchor_reason}")
+    consumer_s = qev.get("consumer") or (
+        "n/a (persistent stream; no per-consumer record)")
+    commit_s = qev.get("causal_anchor_reason") and (
+        f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
+        f"load_result={qev.get('load_result')};"
+        f"writeback={qev.get('register_writeback')};"
+        f"first_affected_squash={qev.get('first_affected_squash')}") or (
+        "external_timeout" if summary.get("timed_out")
+        else "watchdog" if watchdog else "no_terminal_node")
+
     return {
         "ModelID": model, "ContextID": f"R{ctx:02d}",
         "ROI/Percentile/Ordinal": roi_string(model, ctx, executed),
@@ -675,15 +728,15 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
         "Downstream": (f"stream_injected={a03.get('injections', 'n/a')};"
                        f"capped={a03.get('capped', 'n/a')};"
                        + (funnel or "funnel=n/a")),
-        "Consumer": "n/a (persistent stream; no per-consumer record)",
-        "CommitSquashReplay": ("external_timeout" if summary.get("timed_out")
-                               else "watchdog" if watchdog else "no_terminal_node"),
+        "Consumer": consumer_s,
+        "CommitSquashReplay": commit_s,
         "Terminal": terminal,
         "TerminalReason": reason,
         "ApplicationOracle": ("FAIL" if checksum and checksum != golden else
                               "PASS" if checksum == golden else "NO_CHECKSUM"),
         "EvidenceClass": evidence_class(terminal),
-        "TraceCompleteness": trace_c,
+        "TraceCompleteness": ("COMPLETE_PROP_TRACE"
+                              if anchor_reason else trace_c),
         "MaskingMechanism": "n/a",
         "EvidencePaths": ";".join(paths),
     }
@@ -725,6 +778,26 @@ def rp01_row(model, ctx, run: Path) -> dict:
         witness_ok=bool(watchdog) or bool(summary.get("timed_out")),
         terminal_ok=bool(watchdog) or bool(summary.get("timed_out")))
 
+    # [V3.3.3][RP01] Terminal record set flushed before fatal(). Its presence
+    # is evidence that the flush completed; it does NOT make the trace a
+    # normal complete trace (the run still stopped at the watchdog).
+    qev = {}
+    if qualified_evidence is not None:
+        try:
+            qev = (qualified_evidence("RP01", run) or {}).get("evidence", {})
+        except Exception:
+            qev = {}
+    flush_done = bool(qev.get("flush_complete"))
+    flush_s = (
+        f"flush_complete={1 if flush_done else 0};"
+        f"prev_last_event_id={qev.get('flush_prev_last_event_id', 'n/a')};"
+        f"last_valid_event_id={qev.get('last_valid_event_id', 'n/a')};"
+        f"terminal_source={qev.get('terminal_source', 'n/a')}")
+    if qev.get("watchdog_terminal"):
+        reason += f";watchdog_terminal={qev.get('watchdog_terminal')}"
+    if qev.get("trace_flush_start"):
+        reason += f";trace_flush_start={qev.get('trace_flush_start')}"
+
     return {
         "ModelID": model, "ContextID": f"R{ctx:02d}",
         "ROI/Percentile/Ordinal": roi_string(model, ctx, executed),
@@ -732,10 +805,12 @@ def rp01_row(model, ctx, run: Path) -> dict:
         "Activation": activation_s,
         "FirstDivergence": divergence_s,
         "Downstream": (f"skips={rp.get('skips', 'n/a')};"
-                       f"eligible={rp.get('eligible', 'n/a')}"),
+                       f"eligible={rp.get('eligible', 'n/a')};{flush_s}"),
         "Consumer": "n/a (no downstream record; run cut by watchdog)",
-        "CommitSquashReplay": (f"watchdog_expired;{watchdog}" if watchdog
-                               else "no_commit_or_squash"),
+        "CommitSquashReplay": (
+            f"watchdog_expired;{watchdog};{flush_s};"
+            f"trace_flush_complete={qev.get('trace_flush_complete', 'n/a')}"
+            if watchdog else "no_commit_or_squash"),
         "Terminal": terminal,
         "TerminalReason": reason,
         "ApplicationOracle": "NO_CHECKSUM",

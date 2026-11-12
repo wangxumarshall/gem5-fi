@@ -162,7 +162,9 @@ def _oracle(path: Path) -> dict[str, Any]:
 # trace readers
 # ---------------------------------------------------------------------------
 
-_PROP_KINDS = ("resp", "taint_reg", "prop_edge", "consumer", "commit")
+_PROP_KINDS = ("resp", "taint_reg", "prop_edge", "consumer", "commit",
+               "errant_commit", "squash", "trace_flush_start",
+               "watchdog_terminal", "trace_flush_complete")
 
 
 def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict, bool, dict]:
@@ -185,7 +187,10 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
         return {}, False, {"trace": None, "reason": "prop_trace absent"}
 
     records: dict[str, Any] = {
-        "resp": None, "taint_reg": [], "prop_edge": [], "consumer": {}, "commit": None,
+        "resp": None, "taint_reg": [], "prop_edge": [], "consumer": {},
+        "commit": None, "errant_commit": None, "squash": [],
+        "trace_flush_start": None, "watchdog_terminal": None,
+        "trace_flush_complete": None,
     }
     complete = False
     rows = 0
@@ -220,8 +225,14 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
                         # Keep only edges produced by the target instruction.
                         if row["kv"].get("producer_inst_seq") != target_seq:
                             continue
-                    elif kind == "consumer":
-                        pass  # consumers are keyed by source_event_id below
+                    elif kind in ("consumer", "errant_commit",
+                                  "trace_flush_start", "watchdog_terminal",
+                                  "trace_flush_complete"):
+                        # consumers are keyed by source_event_id below;
+                        # errant_commit/flush records are run-level anchors
+                        # that may belong to a different seq than the model's
+                        # first affected instruction (A03 trace closure).
+                        pass
                     elif row["dyn_inst_seq"] != target_seq:
                         continue
                 if kind == "resp" and records["resp"] is None:
@@ -232,6 +243,14 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
                     records["prop_edge"].append(row)
                 elif kind == "commit" and records["commit"] is None:
                     records["commit"] = row
+                elif kind == "errant_commit" and records["errant_commit"] is None:
+                    records["errant_commit"] = row
+                elif kind == "squash":
+                    records["squash"].append(row)
+                elif kind in ("trace_flush_start", "watchdog_terminal",
+                              "trace_flush_complete"
+                              ) and records[kind] is None:
+                    records[kind] = row
                 elif kind == "consumer":
                     src = row["kv"].get("source_event_id")
                     if src is not None:
@@ -340,8 +359,27 @@ def _a03(run_dir: Path) -> tuple[dict, list[str], str]:
     seq = aff.get("dyn_inst_seq")
     trace, trace_complete, trace_meta = _scan_prop_trace(run_dir, target_seq=seq)
 
-    resp = trace.get("resp") if seq else None
-    taint = _first(lambda row: row["dyn_inst_seq"] == seq, trace.get("taint_reg", [])) if seq else None
+    # The model's "first affected" event is the first eligible load that
+    # fired the corruptor; it can be a speculative instance squashed before
+    # any response/writeback (A03-R02: seq 13718). The causal chain must
+    # then be anchored at the first architecturally committed fault path
+    # (errant_commit, seq 13772). Keep 13718 as provenance, never as the
+    # load_result/writeback/consumer anchor.
+    first_affected_squash = None
+    if seq:
+        first_affected_squash = _first(
+            lambda row: row["dyn_inst_seq"] == seq, trace.get("squash", []))
+
+    anchor_seq = seq
+    if (seq and trace.get("resp") is None
+            and trace.get("errant_commit") is not None):
+        anchor_seq = trace["errant_commit"]["dyn_inst_seq"]
+        trace, trace_complete, trace_meta = _scan_prop_trace(
+            run_dir, target_seq=anchor_seq)
+
+    resp = trace.get("resp") if anchor_seq else None
+    taint = _first(lambda row: row["dyn_inst_seq"] == anchor_seq,
+                   trace.get("taint_reg", [])) if anchor_seq else None
 
     # Link taint_reg -> propagation edge -> consumer instruction.
     consumer = None
@@ -389,6 +427,15 @@ def _a03(run_dir: Path) -> tuple[dict, list[str], str]:
         or (f"watchdog_expired={watchdog_conf}" if watchdog_conf is not None else None),
         "first_affected_event_ordinal": aff.get("event_ordinal"),
         "first_affected_reason": aff.get("reason"),
+        "first_affected_squash": (
+            first_affected_squash["detail"]
+            if first_affected_squash is not None else None),
+        "causal_anchor_dyn_seq": anchor_seq,
+        "causal_anchor_pc": (trace.get("errant_commit", {}) or {}).get("kv", {}).get(
+            "pc") if anchor_seq != seq else aff.get("pc"),
+        "causal_anchor_reason": (
+            "ERRANT_COMMIT_AFTER_UNRELATED_SQUASH"
+            if anchor_seq != seq else None),
         "load_golden_ea": aff.get("golden_ea"),
         "load_actual_ea": aff.get("actual_ea"),
         "trace_present": trace_meta.get("trace") is not None,
@@ -533,6 +580,14 @@ def _sp05(run_dir: Path) -> tuple[dict, list[str], str]:
         if match_store(rec):
             complete_rec = _trace_record_kv(rec)
             break
+    # [V3.3.3][SP05] Independent writeback-stage outcome: the cache write was
+    # suppressed before send. This is negative evidence, never a writeback
+    # event; it documents the lost-writeback mechanism honestly.
+    suppressed = None
+    for rec in recs("store_writeback_suppressed"):
+        if match_store(rec):
+            suppressed = _trace_record_kv(rec)
+            break
 
     # --- commit event: an independent commit observation, never the caller
     # supplied injection tick.  Current pre-formal evidence has neither.
@@ -633,6 +688,17 @@ def _sp05(run_dir: Path) -> tuple[dict, list[str], str]:
         if _present(inj.get("store_data_fnv")) else None,
         "commit_event": commit_event,
         "writeback_event": writeback_event,
+        "writeback_suppressed": (
+            f"writeback_state={suppressed.get('writeback_state')};"
+            f"request_sent_before={suppressed.get('request_sent_before')};"
+            f"request_sent_after={suppressed.get('request_sent_after')};"
+            f"mem_sent={suppressed.get('mem_sent')};"
+            f"write_skipped={suppressed.get('write_skipped')};"
+            f"drain_tick={suppressed.get('drain_tick')};"
+            f"visibility_state={suppressed.get('visibility_state')}")
+        if suppressed is not None else None,
+        "writeback_outcome": (
+            "SUPPRESSED_BEFORE_SEND" if suppressed is not None else None),
         "memory_visibility": visibility,
         "reload": reload,
         "consumer": consumer,
@@ -771,6 +837,28 @@ def _rp01(run_dir: Path) -> tuple[dict, list[str], str]:
     # RP01's trace is cut by the internal watchdog; a watchdog cut is a
     # partial trace by construction, so it can never be a PASS chain.
     _records, trace_complete, trace_meta = _scan_prop_trace(run_dir)
+    # [V3.3.3][RP01] Terminal record set written before fatal()/::exit(1).
+    # Its presence proves the flush completed; it does NOT make the run's
+    # trace COMPLETE (the simulation still stopped at the watchdog).
+    flush_start = _records.get("trace_flush_start")
+    terminal_rec = _records.get("watchdog_terminal")
+    flush_complete = _records.get("trace_flush_complete")
+    if flush_start is not None:
+        values["trace_flush_start"] = flush_start["detail"]
+        values["flush_prev_last_event_id"] = flush_start["kv"].get(
+            "prev_last_event_id")
+    if terminal_rec is not None:
+        values["watchdog_terminal"] = terminal_rec["detail"]
+        values["last_valid_event_id"] = terminal_rec["kv"].get(
+            "last_valid_event_id")
+        values["terminal_source"] = terminal_rec["kv"].get("terminal_source")
+    if flush_complete is not None:
+        values["trace_flush_complete"] = flush_complete["detail"]
+        values["flush_complete"] = True
+        values["flushed_event_id"] = flush_complete["kv"].get(
+            "flushed_event_id")
+    else:
+        values["flush_complete"] = False
     values["trace_complete"] = trace_complete and not watchdog_fired and timed_out is not True
     values["trace_rows_scanned"] = trace_meta.get("rows_scanned")
     if watchdog_fired and trace_complete:

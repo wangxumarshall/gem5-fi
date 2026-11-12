@@ -37,8 +37,8 @@ from pathlib import Path
 FIXTURE_ROOT = Path(__file__).resolve().parent
 
 # README_INTERFACES.md baseline SHAs (the campaign this fixture emulates).
-BINARY_SHA = ("1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea31"
-              "0960b4f338")
+BINARY_SHA = ("62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7"
+              "581467a6cd")
 CONFIG_SHA = ("8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b8"
               "1992cb225")
 BAD_BINARY_SHA = "deadbeef" * 8

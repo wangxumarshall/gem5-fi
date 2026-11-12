@@ -47,7 +47,7 @@ from lsu_v333_control_proof import classify_control_run  # noqa: E402
 from lsu_v333_qualified import QUALIFIED_MODELS, qualified_evidence  # noqa: E402
 
 DEFAULT_BINARY_SHA = (
-    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
+    "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd")
 DEFAULT_CONFIG_SHA = (
     "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
 

@@ -28,7 +28,7 @@ from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
 
 RUNS = ROOT / "audit_v3_3_3/runs"
 OUT = ROOT / "audit_v3_3_3"
-BINARY_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
+BINARY_SHA = "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"
 HEAD = "b5031bf7"
 
 MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",

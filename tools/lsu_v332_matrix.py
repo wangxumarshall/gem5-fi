@@ -178,7 +178,7 @@ TERMINAL_SOURCES = (TERMINAL_SOURCE_NORMAL, TERMINAL_SOURCE_MODEL_WATCHDOG,
 # A formal task may only start on this binary/config; a rebuild requires an
 # explicit --expected-binary-sha/--expected-config-sha override.
 EXPECTED_BINARY_SHA256 = (
-    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
+    "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd")
 EXPECTED_CONFIG_SHA256 = (
     "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
 
