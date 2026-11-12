@@ -1,0 +1,78 @@
+=== date: 2026-11-12T16:06:52Z ===
+=== HEAD: 896b64b100ce8065fdaa8879c1e4aa799ff043d5 ===
+=== git status --short (launch paths) ===
+?? audit_launch_fix_v333/reports/LSU_Independent_Acceptance_Final.md
+?? docs/superpowers/plans/2026-11-12-lsu-v333-final-launch-closure.md
+?? tests/test_lsu_v333_final_launch_acceptance.py
+
+=== pytest tests/ -q ===
+........................................................................ [ 56%]
+........................................................................ [ 70%]
+........................................................................ [ 84%]
+........................................................................ [ 98%]
+.........                                                                [100%]
+513 passed in 209.25s (0:03:29)
+
+=== bash -n ===
+OK audit_v3_3_3/trace_closure/final_config/01_launch_campaign.sh
+OK audit_v3_3_3/trace_closure/final_config/02_manifest_only.sh
+OK audit_v3_3_3/trace_closure/final_config/03_full_collector.sh
+OK audit_v3_3_3/trace_closure/final_config/04_final_reports.sh
+OK audit_v3_3_3/trace_closure/final_config/launch_commands_final.sh
+OK audit_launch_fix_v333/authorization/launch_commands.sh
+
+=== provenance ===
+LSU v3.3.3 workload provenance
+Model  Workload                 FormalExecutionPath                                                                              ELF_SHA256
+A01    agu_addrmodes            /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes 90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b [ok]
+A03    agu_addrmodes            /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes 90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b [ok]
+FW02   sq_forward_w4v2          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/sq_forward_w4v2 a08fb3a7b8bbcef76b0c3c3519a5787370ea7ead2d93de290e00fc6e44fe76e2 [ok]
+FW05   fw05_forward             /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/fw05_forward 0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf [ok]
+SQ01   sq_reload_v3212          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212 bcab9cc5e1e4ed3854c3677bda0265d7aaefdedc0e7d69beecd6a2567d178de6 [ok]
+SQ03   sq_reload_v3212          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212 bcab9cc5e1e4ed3854c3677bda0265d7aaefdedc0e7d69beecd6a2567d178de6 [ok]
+SP05   sq_reload_v3212          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212 bcab9cc5e1e4ed3854c3677bda0265d7aaefdedc0e7d69beecd6a2567d178de6 [ok]
+DA04   alignment                /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment 89ff937a73a01708c5781385e9a9f9740254a456d4f07042b2b480c4677918c0 [ok]
+LP01   load_response            /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response 3779e8ced41a07d798f78c97a1f5d10187c812a24a81b599c19ae68a0753e711 [ok]
+MD04   md04_violations_v332     /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/md04_violations_v332 dd241c3097e61495141e614ce493ba4b2901a7df751baa95e69365bdf8f95c43 [ok]
+LQ04   lq_lifetime_ordinal      /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal fa25f785a4822eb578ae8da2d26c400d7450f40d975b2d7da84de900b48d97ba [ok]
+RP01   replay_partial_v332      /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/replay_partial_v332 3f880cba7b6d16b61a453c37c68d6dbaaf63980dba5c9231218cf8dd8fa42e42 [ok]
+
+WorkloadSourcePath per model:
+  agu_addrmodes            /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/agu_addrmodes
+  sq_forward_w4v2          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/sq_forward_w4v2
+  fw05_forward             /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/fw05_forward
+  sq_reload_v3212          /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212
+  alignment                /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment
+  load_response            /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response
+  md04_violations_v332     /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/md04_violations_v332
+  lq_lifetime_ordinal      /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal
+  replay_partial_v332      /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/replay_partial_v332
+
+Manifest template: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_3/trace_closure/final_config/LSU_Final_Campaign_Manifest_Template.csv rows=120 SampleRunID=60 seeds=60 columns=['WorkloadSourcePath', 'FormalExecutionPath', 'ELF_SHA256', 'Evidence']
+Binary: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt 62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd [ok]
+Config: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py 8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225 [ok]
+
+PASS: all 12 models resolve to frozen ELF bytes; manifest template consistent
+
+=== frozen artifact hashes ===
+62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd  build/ARM/gem5.opt
+8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225  configs/se/lsu_proxy.py
+
+=== C++ source diff since e3293856 ===
+0
+
+=== control tri-state demo ===
+  YES(POSITIVE): A01-R02 InjectionCount='1' attempt='1' applied='1'
+  UNKNOWN(EMPTY): A01-R03 InjectionCount='' attempt='2' applied='2'
+  UNKNOWN(UNPARSEABLE): A01-R04 InjectionCount='abc' attempt='3' applied='3'
+  INVALID(NEGATIVE): A01-R05 InjectionCount='-3' attempt='4' applied='4'
+rows=5 out=/tmp/v333_ctl_out.csv
+ControlInjected {'INVALID': 1, 'NO': 1, 'UNKNOWN': 2, 'YES': 1}
+zero_injection_proven=1 not_proven=4
+emitter_exit=1
+ModelID,ContextID,InjectionAttemptCount,InjectionAppliedCount,InjectionCount,ControlInjected,ControlInjectedReason,ControlZeroProof
+A01,R01,0,0,0,NO,ZERO,INJECTOR_ABSENT
+A01,R02,1,1,1,YES,POSITIVE,MOUNTED_BUT_DISABLED
+A01,R03,2,2,,UNKNOWN,EMPTY,CONTROL_PROOF_INCOMPLETE
+A01,R04,3,3,abc,UNKNOWN,UNPARSEABLE,CONTROL_PROOF_INCOMPLETE
+A01,R05,4,4,-3,INVALID,NEGATIVE,CONTROL_PROOF_INCOMPLETE
