@@ -24,21 +24,21 @@ Prior verdict: `MMU_FORMAL_READINESS = PARTIAL`, 18/40 READY (see
 
 ## Tasks (one commit per unit; no bundling)
 
-- [ ] T1 Agent A: M01–M04 evidence closure (M01 R02 commit/squash truth, M02 R02
+- [x] T1 Agent A: M01–M04 evidence closure (M01 R02 commit/squash truth, M02 R02
       PFN per-context, M03/M04 final-binary regression, M04 committed wrong-PA witness).
-- [ ] T2 Agent B: M05 R05 Execute-path trace transaction (observability C++ only)
+- [x] T2 Agent B: M05 R05 Execute-path trace transaction (observability C++ only)
       and M06 R03–R05 terminal re-audit (DETECTED_CONTAINED only with real
       `exception_delivery`; otherwise record the true terminal and propose an
       Excel terminal amendment).
-- [ ] T3 Agent C: M07 W14 R03 PROT_EXEC + EL0 load and R05 valid XN + indirect
+- [x] T3 Agent C: M07 W14 R03 PROT_EXEC + EL0 load and R05 valid XN + indirect
       branch; verify real AP/XN PTE bits from `pte_decode`; independent controls.
-- [ ] T4 Agent D: M08 R02–R05 propagation evidence, R03 raw trace, R05 store
+- [x] T4 Agent D: M08 R02–R05 propagation evidence, R03 raw trace, R05 store
       redirect, W10S runtime TargetVA (WorkloadID stays W10, internal Variant).
-- [ ] T5 Agent E: authority Excel/JSON/YAML, runner M02 old_pfn resolution,
+- [x] T5 Agent E: authority Excel/JSON/YAML, runner M02 old_pfn resolution,
       preflight, package (tools only).
-- [ ] T6 Main: integrate all C++ patches, one audit, one build, freeze new binary SHA.
-- [ ] T7 Main: rerun all 40 contexts + controls on the frozen binary (concurrency 4).
-- [ ] T8 Main: validate, readiness matrix, preflight 40/40, final package.
+- [x] T6 Main: integrate all C++ patches, one audit, one build, freeze new binary SHA.
+- [x] T7 Main: rerun all 40 contexts + controls on the frozen binary (concurrency 4).
+- [x] T8 Main: validate, readiness matrix, preflight 40/40, final package.
 
 ## Verification per task
 
@@ -54,3 +54,11 @@ Prior verdict: `MMU_FORMAL_READINESS = PARTIAL`, 18/40 READY (see
 Never delete historical runs; never `git reset`/`git clean`; never overwrite a
 run directory; never edit the original workspace; never lower validator
 standards to manufacture PASS; never fabricate evidence.
+
+## Final result (2026-11-12)
+
+`MMU_FORMAL_READINESS = READY` — 40/40 samples READY, 8/8 models READY.
+Final binary `b3eb1559...`, checkpoint `4aa1ba38...` (FEAT_EPAN), source
+closure `60f1a876...` (HEAD `3e31fd3d...`; base `f24b6b77...`).
+Package `phase3/final/MMU_Final_Formal_Readiness_Package.zip`
+SHA256 `b0948d87...`. No formal SampleRunID was launched.
