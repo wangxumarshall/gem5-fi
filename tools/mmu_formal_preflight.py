@@ -315,6 +315,25 @@ def _parse_int(value):
         return None
 
 
+def _embedded_hex_values(text):
+    """Unique integer values written as 0x... inside a symbolic cell.
+
+    Some authoritative TargetVA cells are symbolic text that still carries the
+    exact address, e.g. ``XN code VA 0x400d400100``.  A cell with zero or more
+    than one DISTINCT value is ambiguous and must fall back to the verified
+    workload macro rather than guessing.
+    """
+    values = []
+    for token in re.findall(r"0[xX][0-9a-fA-F]+", _s(text)):
+        try:
+            value = int(token, 0)
+        except ValueError:
+            continue
+        if value not in values:
+            values.append(value)
+    return values
+
+
 def _row_dicts(rows):
     if not rows:
         return []
@@ -512,6 +531,16 @@ def load_samples(excel_path, csv_path=None):
                     "authoritative)" % (s["SampleRunID"], r.get("Seed", ""),
                                         s.get("Seed", "")))
             for field in ("SeedPolicy", "SeedSource", "SampleFreezeStatus"):
+                if field in r and field in s and \
+                        _s(r.get(field)) != _s(s.get(field)):
+                    issues.append(
+                        "CSV/Excel %s mismatch on %s: %r vs %r" %
+                        (field, s["SampleRunID"], r.get(field),
+                         s.get(field)))
+            # v3.0.2 adds machine-readable parity fields.  When both sides
+            # carry the column they must agree; v3.0.1 has no such columns.
+            for field in ("TargetVAExact", "M05DecoyVA",
+                          "M05DecoyTableBase"):
                 if field in r and field in s and \
                         _s(r.get(field)) != _s(s.get(field)):
                     issues.append(
@@ -829,11 +858,27 @@ def discover_workload(repo_root, workload, run_script_defaults):
 
 
 def resolve_target_va(sample, wl):
-    """Resolve the sample's target VA from authoritative data + workload fact."""
+    """Resolve the sample's target VA from authoritative data + workload fact.
+
+    Precedence:
+      1. explicit machine-readable ``TargetVAExact`` (v3.0.2 authority);
+      2. a numeric ``TargetVA`` cell;
+      3. a unique ``0x...`` token embedded in a symbolic ``TargetVA`` cell
+         (M07 R04/R05 are exact instruction VAs, not page bases);
+      4. the verified workload macro fallback.
+    A symbolic cell with two different addresses is ambiguous and never
+    guessed; it falls through to the workload fact.
+    """
+    exact = _parse_int(sample.get("TargetVAExact"))
+    if exact is not None:
+        return exact, "excel:TargetVAExact"
     raw = _s(sample.get("TargetVA"))
     numeric = _parse_int(raw)
     if numeric is not None:
         return numeric, "excel"
+    embedded = _embedded_hex_values(raw)
+    if len(embedded) == 1:
+        return embedded[0], "excel:embedded exact VA"
     wid = sample.get("WorkloadID")
     cid = sample.get("ContextID")
     vas = wl.get("workload_vas", {})
