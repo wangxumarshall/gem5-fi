@@ -183,6 +183,20 @@ def _same_value(left, right) -> bool:
     return str(left).strip() == str(right).strip()
 
 
+# The frozen design matrix spells "no input hash" with several sentinels
+# (``N/A``, ``n/a``, the Chinese ``无（内建输入）``).  None of them is a hash;
+# comparing an ELF SHA against the literal text would always disagree.
+_NOT_AVAILABLE_TOKENS = frozenset({"n/a", "na", "无（内建输入）", "无"})
+
+
+def _input_hash_available(value) -> bool:
+    """True only when the design matrix carries an actual input hash."""
+    if value is None:
+        return False
+    text = str(value).strip()
+    return bool(text) and text.lower() not in _NOT_AVAILABLE_TOKENS
+
+
 def _sha_matches(observed, expected) -> bool:
     return bool(observed) and bool(expected) and \
         str(observed).strip().lower() == str(expected).strip().lower()
@@ -514,10 +528,20 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
             sha_problems.append("identity.config_sha")
         elf_map = campaign_identity.get("elf_sha")
         workload = record.get("Workload")
+        if isinstance(elf_map, dict) and workload not in elf_map:
+            # The design matrix may still carry an abstract, stale workload
+            # name (e.g. ``sq_forward`` for the real ``sq_forward_w4v2``).
+            # Recover the authorized basename from the campaign identity by
+            # matching the run's own ELF hash; never relax the check itself.
+            for name, expected in elf_map.items():
+                if _sha_matches(elf, expected):
+                    workload = name
+                    record["Workload"] = name
+                    break
         if isinstance(elf_map, dict) and workload in elf_map:
             if not _sha_matches(elf, elf_map[workload]):
                 sha_problems.append(f"identity.elf_sha[{workload}]")
-        elif matrix_row.get("InputHash") not in (None, "", NOT_AVAILABLE):
+        elif _input_hash_available(matrix_row.get("InputHash")):
             if not _sha_matches(elf, matrix_row.get("InputHash")):
                 sha_problems.append("design.InputHash")
     # De-duplicate while keeping order.
@@ -546,6 +570,13 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
     if summary_mismatch:
         return _finish(record, "HASH_MISMATCH",
                        "SUMMARY_CAMPAIGN_DISAGREEMENT", summary_mismatch)
+
+    # The run's own summary is authoritative for workload provenance; the
+    # design matrix may still point at a stale tree or abstract basename.
+    evidence_workload = summary.get("workload")
+    if isinstance(evidence_workload, str) and evidence_workload.strip():
+        record["Workload"] = Path(evidence_workload).name
+        record["ELF"] = evidence_workload
 
     terminal = str(summary.get("terminal") or NOT_AVAILABLE)
     record["TerminalState"] = terminal
