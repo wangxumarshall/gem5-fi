@@ -1,0 +1,1218 @@
+{
+  "campaign_id": "LSU-V333-FINAL-20261112",
+  "counts": {
+    "COMPLETED": 77,
+    "FAILED": 0,
+    "HASH_MISMATCH": 0,
+    "ORACLE_FAIL": 43,
+    "OUTPUT_INCOMPLETE": 0,
+    "PENDING": 0,
+    "RUNNING": 0,
+    "TIMEOUT": 0
+  },
+  "out_base": "runs/lsu/formal_v333_final_20261112",
+  "task_count": 120,
+  "tasks": [
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "A01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "A01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "A01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "A01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "A01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "A01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "A01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "A01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "A01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "A01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A01-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "A03",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "A03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "A03",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "A03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "A03",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "A03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "A03",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "A03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "A03",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "A03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/A03-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "FW02",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "FW02",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "FW02",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "FW02",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "FW02",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R03-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "FW02",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "FW02",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "FW02",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "FW02",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "FW02",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW02-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "FW05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "FW05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "FW05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "FW05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "FW05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "FW05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "FW05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "FW05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "FW05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "FW05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/FW05-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SQ01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SQ01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SQ01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SQ01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SQ01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SQ01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SQ01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SQ01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SQ01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SQ01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ01-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SQ03",
+      "reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R01-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SQ03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SQ03",
+      "reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R02-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SQ03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SQ03",
+      "reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R03-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SQ03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SQ03",
+      "reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R04-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SQ03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SQ03",
+      "reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R05-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SQ03",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SQ03-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SP05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "SP05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SP05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "SP05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SP05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "SP05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SP05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "SP05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SP05",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "SP05",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/SP05-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "DA04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "DA04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "DA04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "DA04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "DA04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "DA04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "DA04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "DA04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "DA04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "DA04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/DA04-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "LP01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R01-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "LP01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "LP01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "LP01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "LP01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "LP01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "LP01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "LP01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "LP01",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "LP01",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LP01-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "MD04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R01-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "MD04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "MD04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R02-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "MD04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "MD04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R03-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "MD04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "MD04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R04-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "MD04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "MD04",
+      "reason": "ORACLE_FAIL",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R05-fault",
+      "state": "ORACLE_FAIL"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "MD04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/MD04-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "LQ04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R01-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "LQ04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "LQ04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R02-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "LQ04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "LQ04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R03-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "LQ04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "LQ04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R04-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "LQ04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "LQ04",
+      "reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R05-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "LQ04",
+      "reason": "NO_INJECTION_EVENT",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/LQ04-R05-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "RP01",
+      "reason": "INTERNAL_WATCHDOG_DEADLINE",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R01-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R01",
+      "model": "RP01",
+      "reason": "ORACLE_PASS",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R01-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "RP01",
+      "reason": "INTERNAL_WATCHDOG_DEADLINE",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R02-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R02",
+      "model": "RP01",
+      "reason": "ORACLE_PASS",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R02-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "RP01",
+      "reason": "INTERNAL_WATCHDOG_DEADLINE",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R03-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R03",
+      "model": "RP01",
+      "reason": "ORACLE_PASS",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R03-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "RP01",
+      "reason": "INTERNAL_WATCHDOG_DEADLINE",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R04-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R04",
+      "model": "RP01",
+      "reason": "ORACLE_PASS",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R04-control",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "RP01",
+      "reason": "INTERNAL_WATCHDOG_DEADLINE",
+      "role": "fault",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R05-fault",
+      "state": "COMPLETED"
+    },
+    {
+      "attempt_id": "attempt_001",
+      "canonical_attempt_id": "attempt_001",
+      "context": "R05",
+      "model": "RP01",
+      "reason": "ORACLE_PASS",
+      "role": "control",
+      "run_dir": "runs/lsu/formal_v333_final_20261112/RP01-R05-control",
+      "state": "COMPLETED"
+    }
+  ],
+  "updated_at": "2026-11-12T17:04:58+00:00"
+}

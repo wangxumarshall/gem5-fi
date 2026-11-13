@@ -1,0 +1,6 @@
+ModelID,ContextID,RawInjectionCount,FaultStateActivationCount,A03StreamEventCount,AffectedAccessCount,Interpretation,Evidence
+A03,R01,51310,1,51310,51211,"persistent stuck-at state; raw InjectionCount is the stream-event count, not independent faults",runs/lsu/formal_v333_final_20261112/A03-R01-fault/attempts/attempt_001
+A03,R02,51303,1,51303,51222,"persistent stuck-at state; raw InjectionCount is the stream-event count, not independent faults",runs/lsu/formal_v333_final_20261112/A03-R02-fault/attempts/attempt_001
+A03,R03,51304,1,51304,51243,"persistent stuck-at state; raw InjectionCount is the stream-event count, not independent faults",runs/lsu/formal_v333_final_20261112/A03-R03-fault/attempts/attempt_001
+A03,R04,51283,1,51283,51250,"persistent stuck-at state; raw InjectionCount is the stream-event count, not independent faults",runs/lsu/formal_v333_final_20261112/A03-R04-fault/attempts/attempt_001
+A03,R05,51253,1,51253,51238,"persistent stuck-at state; raw InjectionCount is the stream-event count, not independent faults",runs/lsu/formal_v333_final_20261112/A03-R05-fault/attempts/attempt_001
