@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -327,6 +328,25 @@ def build_model_design(wb):
     return out
 
 
+def _campaign_manifest(runs):
+    """Collector-full rows keyed by (model, context, role); {} if absent."""
+    if runs is None:
+        return {}
+    path = (Path(runs) / "collector_full"
+            / "LSU_120Run_Campaign_Manifest.csv")
+    if not path.is_file():
+        return {}
+    with path.open(encoding="utf-8", newline="") as fh:
+        return {(r["ModelID"], r["ContextID"], r["Role"]): r
+                for r in csv.DictReader(fh)}
+
+
+def _measured(manifest_row, key, fallback="n/a"):
+    value = (manifest_row or {}).get(key)
+    return (value if value not in (None, "", "n/a", "PENDING")
+            else fallback)
+
+
 def build_fault_manifest(matrix, runs, causal_idx, causal_available,
                          gem5_sha_value, gem5_prov, mapping_available=False):
     cols = (
@@ -346,11 +366,13 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
         "ConfigFrozen", "DecisionStatus", "Provenance",
     )
     out = [list(cols)]
+    manifest = _campaign_manifest(runs)
     for r in matrix:
         model = r["FaultModelID"]
         ctx = r["SampleRunID"][-3:]
         cand = CANDIDATE_BY_MODEL.get(model)
         row = causal_idx.get((model, ctx))
+        measured_row = manifest.get((model, ctx, "fault"), {})
 
         executed = "PENDING"
         if row is not None:
@@ -392,13 +414,18 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
              f"definition: measured main-loop eligible window {rel}-{re_} "
              f"(N={n}); measurement PENDING"),
             rel, n, PERCENTILES[int(ctx[1:]) - 1],
-            executed, measured.get("DynInstSeq", "PENDING"),
-            measured.get("PC", "PENDING"), measured.get("VA", "PENDING"),
-            measured.get("PA", "PENDING"),
-            measured.get("InstructionType", "PENDING"),
-            measured.get("LQEntry", "PENDING"),
-            measured.get("SQEntry", "PENDING"),
-            measured.get("DynamicState", "PENDING"),
+            executed,
+            _measured(measured_row, "DynInstSeq",
+                      _measured(measured, "DynInstSeq")),
+            _measured(measured_row, "PC", _measured(measured, "PC")),
+            _measured(measured_row, "VA", _measured(measured, "VA")),
+            _measured(measured_row, "PA", _measured(measured, "PA")),
+            _measured(measured, "InstructionType"),
+            _measured(measured_row, "LQEntry",
+                      _measured(measured, "LQEntry")),
+            _measured(measured_row, "SQEntry",
+                      _measured(measured, "SQEntry")),
+            _measured(measured, "DynamicState"),
             eligibility, execution, terminal, reason, trace, evidence,
             CONFIG_FROZEN, r.get("DecisionStatus"),
             f"identity=frozen matrix; measured={causal_available}; "
@@ -407,18 +434,38 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
     return out
 
 
-def build_control_manifest(matrix, controls):
+def _control_exit_code(runs, model, ctx):
+    if runs is None:
+        return "n/a"
+    run = Path(runs) / f"{model}-{ctx}-control"
+    try:
+        canonical = json.loads((run / "canonical.json").read_text())
+    except Exception:
+        canonical = {}
+    attempt = canonical.get("attempt_id") or "attempt_001"
+    try:
+        record = json.loads(
+            (run / "attempts" / attempt / "attempt.json").read_text())
+    except Exception:
+        return "n/a"
+    return str(record.get("exit_code", "n/a"))
+
+
+def build_control_manifest(matrix, controls, runs=None):
     cols = ("SampleRunID", "ModelID", "ContextID", "Seed", "Ordinal",
             "WorkloadIdentityStatus", "ControlInjected", "ControlZeroProof",
             "ControlOracle", "ControlExitCode", "FaultInjected",
             "FaultTerminal", "FaultOracle", "EvidenceBinarySHA256",
             "FaultEvidencePath", "ControlEvidencePath", "Provenance")
     idx = index_rows(controls)
+    manifest = _campaign_manifest(runs)
     out = [list(cols)]
     for r in matrix:
         model = r["FaultModelID"]
         ctx = r["SampleRunID"][-3:]
         c = idx.get((model, ctx))
+        cm = manifest.get((model, ctx, "control"), {})
+        fm = manifest.get((model, ctx, "fault"), {})
         cand = CANDIDATE_BY_MODEL.get(model)
         if c is None:
             ordinal = "PENDING"
@@ -427,18 +474,20 @@ def build_control_manifest(matrix, controls):
             binary = fpath = cpath = "PENDING"
             prov = "no control artifact supplied (scaffold; no PASS)"
         else:
-            ordinal = c.get("Ordinal", "PENDING")
+            ordinal = _measured(cm, "EligibleEventOrdinal",
+                                c.get("Ordinal", "PENDING"))
             injected = c.get("ControlInjected", "PENDING")
             proof = c.get("ControlZeroProof", "PENDING")
-            oracle = c.get("ControlOracle", "PENDING")
-            exit_code = c.get("ControlExitCode", "PENDING")
-            fault_inj = c.get("FaultInjected", "PENDING")
-            fault_term = c.get("FaultTerminal", "PENDING")
-            fault_oracle = c.get("FaultOracle", "PENDING")
-            binary = c.get("BinarySHA256", "PENDING")
-            fpath = c.get("FaultEvidencePath", "PENDING")
-            cpath = c.get("ControlEvidencePath", "PENDING")
-            prov = "measured control artifact"
+            oracle = _measured(cm, "OracleResult",
+                               c.get("ControlOracle", "PENDING"))
+            exit_code = _control_exit_code(runs, model, ctx)
+            fault_inj = _measured(fm, "InjectionCount", "PENDING")
+            fault_term = _measured(fm, "TerminalState", "PENDING")
+            fault_oracle = _measured(fm, "OracleResult", "PENDING")
+            binary = _measured(cm, "Binary_SHA256", "PENDING")
+            fpath = _measured(fm, "Evidence", "PENDING")
+            cpath = _measured(cm, "Evidence", "PENDING")
+            prov = "measured control artifact + paired fault run"
         out.append([
             r["SampleRunID"], model, ctx, r["Seed"], ordinal,
             CANDIDATE_STATUS if cand else "FORMAL",
@@ -741,7 +790,7 @@ def build(runs: Path | None, mapping: Path | None, controls: Path | None,
                                       causal_available, sha, sha_prov,
                                       mapping_rows is not None))
     _write_sheet(wb, "Control_Manifest",
-                 build_control_manifest(matrix, control_rows))
+                 build_control_manifest(matrix, control_rows, runs=runs))
     _write_sheet(wb, "ROI_Context_Mapping",
                  build_roi_mapping(matrix, mapping_rows))
     _write_sheet(wb, "Causal_Propagation",
