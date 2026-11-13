@@ -343,7 +343,7 @@ def _campaign_manifest(runs):
 
 def _measured(manifest_row, key, fallback="n/a"):
     value = (manifest_row or {}).get(key)
-    return (value if value not in (None, "", "n/a", "PENDING")
+    return (value if value not in (None, "", "n/a", "PENDING", "None")
             else fallback)
 
 
@@ -427,7 +427,12 @@ def build_fault_manifest(matrix, runs, causal_idx, causal_available,
                       _measured(measured, "SQEntry")),
             _measured(measured, "DynamicState"),
             eligibility, execution, terminal, reason, trace, evidence,
-            CONFIG_FROZEN, r.get("DecisionStatus"),
+            CONFIG_FROZEN,
+            # The design matrix still says NEEDS_USER_DECISION for the six
+            # candidate workloads, but the researcher approved the override on
+            # 2026-11-12 (packet decision #1).  Report the applied decision.
+            (f"OVERRIDE_APPROVED ({APPROVAL_REF})"
+             if cand else r.get("DecisionStatus")),
             f"identity=frozen matrix; measured={causal_available}; "
             f"gem5={gem5_prov}; source_run={run_provenance(runs, model, ctx)}",
         ])
