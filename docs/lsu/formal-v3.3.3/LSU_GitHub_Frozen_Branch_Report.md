@@ -42,7 +42,16 @@ ce6972cfde6a628685dcb7989f3bd0cd416c2a53	refs/heads/lsu-formal-v3.3.3-frozen
 
 ## Tag
 
-`lsu-v3.3.3-formal-accepted` is created **after** the remote reproduction evidence is added, so its message can state exactly what was verified. The tag commit may be one docs-only commit ahead of the reproduced commit; that commit adds only `LSU_Reproducibility_Verification.md`, `LSU_Archive_SHA256SUMS`, and the updated preservation report.
+| Field | Value |
+|---|---|
+| Tag | `lsu-v3.3.3-formal-accepted` (annotated) |
+| Tag object | `fcb87d9a8911a16ad29240500805902141e141e3` |
+| Tag target commit | `510da9f329875eb40cabee2d8ff07bb8c8a8b006` |
+| Target contents | archive docs + result index + cleanup candidates + remote reproduction evidence + independent acceptance |
+| Verified parent | `45eb57c1` (branch head at reproduction time; docs-only commits after the reproduced base) |
+| Push | `* [new tag]` → `refs/tags/lsu-v3.3.3-formal-accepted` |
+
+The tag target is the reproduction-evidence commit. The archive branch HEAD after this report's tag-note commit is one docs-only commit ahead of the tag; the diff is documentation only, and `CHAOS/gem5/src` remains identical to `7067805d` (zero C++ drift). The tag is never moved.
 
 ## Three identities (never conflated)
 

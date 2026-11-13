@@ -71,7 +71,7 @@ Two independent recoverable copies exist on host: the worktree ZIP + archive ZIP
 | Remote freeze branch pushed | **YES** — `origin/lsu-formal-v3.3.3-frozen`; verified at `45eb57c1…` before this verification commit |
 | Remote reproduction | **PASS 9/10** — independent audit ACCEPT; check 5 test gate PARTIAL (state- and path-dependent failures documented) |
 | Independent audit | `LSU_Independent_Acceptance_v333_Preservation.md` — ACCEPT, no blocking findings |
-| Archive tag | `lsu-v3.3.3-formal-accepted` created on the commit containing this report; tag message records the verified parent and the three identities |
+| Archive tag | `lsu-v3.3.3-formal-accepted`; tag object `fcb87d9a…`, target commit `510da9f3…`; tag message records the verified parent and the three identities |
 
 ## 7. Preservation warnings
 
