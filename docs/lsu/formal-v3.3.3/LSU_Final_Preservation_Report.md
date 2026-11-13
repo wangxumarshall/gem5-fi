@@ -34,7 +34,8 @@ Location: `/home/sdc/lsu-v333-archive/` (outside every git worktree).
 | `config/lsu_proxy.py` | 68,993 B | SHA `8309da72…` |
 | `manifests/` | 230,023 B | `SOURCE_MANIFEST.sha256` 7/7 OK + `final_config/` |
 | `packages/` | 276,250,941 B | 9 ZIPs + README, 10/10 hashes OK |
-| **Total archive** | **8,493,327,053 B live at report time** | grows by the approval packet |
+| `analysis/` reports + approval packet | small text/CSV | hashes recorded in the packet |
+| **Total archive** | **8,493,366,604 B live at final report time** | grows by the approval packet |
 
 Two independent recoverable copies exist on host: the worktree ZIP + archive ZIP/extracted tree; the formal binary exists in the worktree and as an archive byte copy. **No off-host copy was made** — the GitHub repo is public and publishing raw data needs explicit approval.
 
@@ -62,13 +63,15 @@ Two independent recoverable copies exist on host: the worktree ZIP + archive ZIP
 |---|---|
 | Current server LSU historical data | `/home/sdc/gem5-fi-ding` = 106,654,468,899 B (99.36 GiB), including 71,859,291,930 B (66.90 GiB) of 37 worktrees and 26,584,078,529 B (24.77 GiB) of `runs/lsu` |
 | Formal-required size | formal worktree 33,138,839,347 B (30.86 GiB) + archive 8.49 GB; minimum preserved copy = archive 8.49 GB |
-| Archived and verified | 8,493,327,053 B (7.91 GiB) at report time |
+| Archived and verified | 8,493,366,604 B (7.91 GiB) at final report time |
 | Cleanup candidate size | 52,247,674,557 B (48.66 GiB) standalone (40 rows; duplicates excluded to avoid double counting) |
 | Old LSU branches deletable | 35 local + 38 remote = 73, plus 36 stale tracking refs (metadata); pending approval |
 | Branches that must be kept | 36 active-worktree + 8 unique-unarchived + 4 baseline + 2 formal-base + 1 tagged = 51; 46 non-LSU out-of-scope |
 | Archive copies | 2 independent on-host (worktree ZIP + archive ZIP/extracted); binary 2 (worktree + archive) |
-| Remote freeze branch pushed | **PENDING — filled after Task 7** |
-| Remote reproduction | **PENDING — filled after Task 7** |
+| Remote freeze branch pushed | **YES** — `origin/lsu-formal-v3.3.3-frozen`; verified at `45eb57c1…` before this verification commit |
+| Remote reproduction | **PASS 9/10** — independent audit ACCEPT; check 5 test gate PARTIAL (state- and path-dependent failures documented) |
+| Independent audit | `LSU_Independent_Acceptance_v333_Preservation.md` — ACCEPT, no blocking findings |
+| Archive tag | `lsu-v3.3.3-formal-accepted` created on the commit containing this report; tag message records the verified parent and the three identities |
 
 ## 7. Preservation warnings
 
@@ -76,6 +79,16 @@ Two independent recoverable copies exist on host: the worktree ZIP + archive ZIP
 - `audit_v3_3_2/binary/gem5.opt.v332-070d68a6` is a hardlink to the formal binary despite its name; the real v3.3.2 `070d68a6` binary is not preserved under its own name.
 - Main-repo `build/ARM/gem5.opt` (`6db026e7…`) is a different build; never substitute.
 
-## 8. Deletion status
+## 8. Reproduction result
+
+- Fresh shallow clone from `origin/lsu-formal-v3.3.3-frozen`; HEAD matched the remote; `CHAOS/gem5/src` subtree `fdcf53f6…` identical to the freeze base; zero C++ drift.
+- Source manifest 7/7, config `8309da72…`, binary `62e1b1be…` (supplied from the archive; the 1.1 GB binary is intentionally not in git).
+- 120-task dry run: 120 tasks, 60 unique SampleRunIDs, 60 unique seeds, 9/9 ELF hashes, pairing OK, `READY_TO_LAUNCH_FORMAL_CAMPAIGN=YES`.
+- Raw archive: `SHA256SUMS.raw_runs` 2193/2193 OK; `SHA256SUMS.deliverables` 22/22 OK.
+- Regenerated reports: 7 CSVs byte-identical; 3 path-bearing collector CSVs normalized-identical; both XLSX files cell-identical after path normalization; readiness 38/12/5/5; 60/60 control zero-injection.
+- Test gate: **PARTIAL**. Clone 294 passed / 38 failed / 1 skipped; original worktree control 316 / 4 / 13. The 4 launch-acceptance failures are identical in both and caused by the now-existing campaign root (pre-launch tests); clone extras are path-hardcoded manifest tests and missing historical run fixtures. Path-insensitive subset: 145 passed, 1 skipped. No evidence of archive corruption.
+- No experiment was rerun; no byte-identical binary rebuild is claimed.
+
+## 9. Deletion status
 
 No deletion was executed. The approval-gated plan is `LSU_Proposed_Deletion_Plan.md`; the machine-readable candidates are the two cleanup CSVs. D4 (25 worktrees, 24.52 GB) and D5 (pilot run data, 26.58 GB) are irreversible because that data is not archived.
