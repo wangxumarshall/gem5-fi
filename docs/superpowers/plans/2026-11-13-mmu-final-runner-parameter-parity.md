@@ -38,9 +38,9 @@ Files (new, under `phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/`):
 Values: M05 `M05DecoyVA=0x4010200000`, `M05DecoyTableBase=0` for all five;
 M07 R04 `TargetVAExact=0x400d400100`, R05 `0x400d600180`.
 
-- [ ] Build files, reload, compare every original cell to v3.0.1.
-- [ ] Prove v3.0.1 files unchanged (SHA256 before/after).
-- [ ] Commit unit 1.
+- [x] Build files, reload, compare every original cell to v3.0.1.
+- [x] Prove v3.0.1 files unchanged (SHA256 before/after).
+- [x] Commit unit 1.
 
 ## Unit 2 — M07 exact VA resolution
 
@@ -51,9 +51,9 @@ Files:
   columns when present.
 - `tools/tests/test_mmu_parameter_parity.py`: focused tests.
 
-- [ ] Exact resolution for M07 R04/R05; R01-R03 and M03 R05 unchanged.
-- [ ] Existing authority test passes.
-- [ ] Commit unit 2.
+- [x] Exact resolution for M07 R04/R05; R01-R03 and M03 R05 unchanged.
+- [x] Existing authority test passes.
+- [x] Commit unit 2.
 
 ## Unit 3 — M05 decoy VA in the formal command
 
@@ -66,9 +66,9 @@ Files:
 - Document `table_walker.cc:2979-3001` precedence: nonzero `decoy_va` selects
   the FORMAL path and forbids live-scan fallback.
 
-- [ ] Describe M05 R01-R05 contains both flags and approved value.
-- [ ] No `live_partial_scan` path possible from the emitted command.
-- [ ] Commit unit 3.
+- [x] Describe M05 R01-R05 contains both flags and approved value.
+- [x] No `live_partial_scan` path possible from the emitted command.
+- [x] Commit unit 3.
 
 ## Unit 4 — parity gate and READY semantics
 
@@ -84,8 +84,8 @@ Gate checks:
 Status: READY only when every check passes; otherwise `PARITY_FAIL`
 (exit 5) or `BLOCKED_PARITY_EVIDENCE_MISSING`.
 
-- [ ] Describe exposes `parameter_parity` and `status=READY` only on pass.
-- [ ] Commit unit 4.
+- [x] Describe exposes `parameter_parity` and `status=READY` only on pass.
+- [x] Commit unit 4.
 
 ## Unit 5 — audit harness
 
@@ -95,14 +95,14 @@ M05/M07 parity reports, preflight report, provenance, git status/HEAD,
 gem5 process check (before/after), output-directory integrity (before/after),
 execution log, SHA256 manifest, CSV/JSON summaries and the v2 ZIP.
 
-- [ ] Harness produces all 14 required artifacts.
-- [ ] Commit unit 5.
+- [x] Harness produces all 14 required artifacts.
+- [x] Commit unit 5.
 
 ## Unit 6 — final verification (no gem5)
 
-- [ ] 40/40 READY, 0 BLOCKED, 0 PARITY_FAIL, 40/40 `would_run=false`.
-- [ ] `pgrep -x gem5.opt` = 0 before and after.
-- [ ] New formal output dirs = 0.
-- [ ] Binary SHA unchanged.
-- [ ] Build package and `.sha256`; list contents.
-- [ ] Commit package artifacts and push to the non-main branch.
+- [x] 40/40 READY, 0 BLOCKED, 0 PARITY_FAIL, 40/40 `would_run=false`.
+- [x] `pgrep -x gem5.opt` = 0 before and after.
+- [x] New formal output dirs = 0.
+- [x] Binary SHA unchanged.
+- [x] Build package and `.sha256`; list contents.
+- [x] Commit package artifacts and push to the non-main branch.

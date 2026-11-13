@@ -1,0 +1,28 @@
+# MMU Final provenance
+
+gem5 binary:
+  b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185  /home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt
+
+Source files:
+  bba49e65398f80aaf58b3ce5a954f4ffbd68278dd0b5c888124d249e28dd1c1b  CHAOS/gem5/src/arch/arm/mmu.cc
+  54dbeeff2e40891eb018c4bf891a5446ab2b8c4fe88f69c40647c26923595985  CHAOS/gem5/src/arch/arm/table_walker.cc
+  89110e2081da62743e4c2325aa656976e945f086959bcd29f18882412e44b611  CHAOS/gem5/src/arch/arm/table_walker.hh
+  b81b7b4cc9eee2c7ba0b592775587dcc7610c8d18c237ba412d2c69ba80d52f4  CHAOS/gem5/src/arch/arm/tlb.cc
+  38c0942ab5d2c4c73b7ee3763c1d7503b708ba9ba4f73c2fd051db6836052dc4  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+  90ea1b55a9a7e51db04fad4a23ceee3107ebc2d375c3d5c5902b9ffb6b2d3336  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+
+Workload binaries:
+  733b8a80150b9728b640fbaad0889f139b09b92a98462778753975a4917a63ae  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W10/mmu_w10
+  fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W10S/mmu_w10s
+  1393b2737e33db75a8dfa38dbd0fa888d7640e7fb791cb7da1df815bd21451c4  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W11/mmu_w11
+  8fa269fd88eaf9126f67cf80d5d77f13600e211948db5cd7f4b89f42c147fdbc  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W12/mmu_w12
+  6e7d926e863c15433b3887e3ac069169e510751190d4b0de5dae0e7aa886ec70  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W13/mmu_w13
+  f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W14/mmu_w14
+  ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b  /home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W9/mmu_w9
+
+Authority and tools:
+  730e8d3bdd424e94464d42f1bd76fd26a4f2a1701790af03d530bb985491a0ea  runner  /home/sdc/gem5-fi-mmu-impl-v2/tools/mmu_formal_runner.py
+  b198088e6b8298d2358847ffee4a706ddeefd7b05cbac3c4c6b21384ebbadbb6  preflight  /home/sdc/gem5-fi-mmu-impl-v2/tools/mmu_formal_preflight.py
+  82dc67e34869260b77cf781042550ec6fd9d6257b0231ad11a3000d526dd9cc3  excel  phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx
+  34dc41f5e2f67dedf1b0890469539e4f5bf6c3ba2baa97a6021d68543c3a2906  csv  phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/MMU_40_Sample_Matrix.csv
+  d015e054d39acf554dafa529db306f73b8c2295047654b73803cb95f2197c177  parameter_authority  phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/MMU_Parameter_Authority_v3.0.2.json

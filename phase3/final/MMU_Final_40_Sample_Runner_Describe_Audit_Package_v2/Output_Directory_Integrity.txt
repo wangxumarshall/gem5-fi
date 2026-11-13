@@ -1,0 +1,48 @@
+# Output directory integrity
+
+Formal SampleRunID directories before: 0
+Formal SampleRunID directories after: 0
+New formal directories: 0
+
+
+Per-plan outdirs (none may exist):
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M01-F0-W9-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M01-F0-W9-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M01-F0-W9-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M01-F0-W9-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M01-F0-W9-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M02-F0-W10-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M02-F0-W10-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M02-F0-W10-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M02-F0-W10-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M02-F0-W10-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M03-F0-W11-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M03-F0-W11-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M03-F0-W11-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M03-F0-W11-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M03-F0-W11-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M04-F0-W12-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M04-F0-W12-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M04-F0-W12-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M04-F0-W12-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M04-F0-W12-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M05-F0-W13-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M05-F0-W13-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M05-F0-W13-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M05-F0-W13-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M05-F0-W13-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M06-F0-W10-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M06-F0-W10-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M06-F0-W10-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M06-F0-W10-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M06-F0-W10-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M07-F0-W14-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M07-F0-W14-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M07-F0-W14-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M07-F0-W14-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M07-F0-W14-S01-R05
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R01
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R02
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R03
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R04
+  OK  exists=False  /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05

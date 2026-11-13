@@ -1,0 +1,261 @@
+{
+  "parity": {
+    "applicable": true,
+    "checks": [
+      {
+        "detail": "'M08-F0-W10-S01-R05' vs 'M08-F0-W10-S01-R05'",
+        "id": "global.sample_run_id",
+        "ok": true
+      },
+      {
+        "detail": "'M08' vs 'M08'",
+        "id": "global.model",
+        "ok": true
+      },
+      {
+        "detail": "'W10' vs 'W10'",
+        "id": "global.workload",
+        "ok": true
+      },
+      {
+        "detail": "'R05' vs 'R05'",
+        "id": "global.context",
+        "ok": true
+      },
+      {
+        "detail": "seed='N/A_DETERMINISTIC' policy='DETERMINISTIC' valid=True",
+        "id": "global.seed_deterministic",
+        "ok": true
+      },
+      {
+        "detail": "seed flags=[]",
+        "id": "global.no_seed_flag",
+        "ok": true
+      },
+      {
+        "detail": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+        "id": "global.gem5_sha256",
+        "ok": true
+      },
+      {
+        "detail": {},
+        "id": "global.source_sha256",
+        "ok": true
+      },
+      {
+        "detail": "W10S='fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3' expected='fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3'",
+        "id": "global.workload_sha256",
+        "ok": true
+      },
+      {
+        "detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-WARM/Run_Log/board.terminal sha256=7bc0c53844bfde1c",
+        "id": "global.control_oracle",
+        "ok": true
+      }
+    ],
+    "failures": [],
+    "ok": true
+  },
+  "parity_failures": [],
+  "parity_ok": true,
+  "plan": {
+    "authoritative_workload": "W10",
+    "authoritative_workload_match": true,
+    "authority_csv": "phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/MMU_40_Sample_Matrix.csv",
+    "authority_csv_source": "EXPLICIT_OVERRIDE",
+    "authority_excel": "phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx",
+    "authority_excel_source": "EXPLICIT_OVERRIDE",
+    "checkpoint": "/home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609",
+    "command": [
+      "/home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt",
+      "--outdir",
+      "/home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05/run",
+      "/home/sdc/gem5-fi-mmu-impl-v2/configs/fs/lsu_b0_fs.py",
+      "--kernel",
+      "/home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/vmlinux",
+      "--disk",
+      "/home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05/disk.img",
+      "--bootloader",
+      "/home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/boot.arm64",
+      "--cpu",
+      "O3",
+      "--restore-checkpoint",
+      "/home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609",
+      "--readfile",
+      "/home/sdc/gem5-fi-mmu-impl-v2/configs/fs/generated/mmu_w10s_run_M08_R05.rcS",
+      "--chaos_propagation",
+      "--prop_mmu_va_lo",
+      "0x4001400000",
+      "--prop_mmu_va_hi",
+      "0x4001700000",
+      "--prop_run_id",
+      "M08-F0-W10-S01-R05",
+      "--prop_sample_run_id",
+      "M08-F0-W10-S01-R05",
+      "--prop_mmu_trace",
+      "--prop_write_log",
+      "on",
+      "--mmu_fault_model",
+      "M08",
+      "--mmu_fault_enable",
+      "true",
+      "--mmu_target_va",
+      "0x4001400000",
+      "--mmu_target_n",
+      "12",
+      "--mmu_eligible_event_index",
+      "1",
+      "--mmu_m02_dram_lo",
+      "0x80000000",
+      "--mmu_m02_dram_hi",
+      "0x100000000",
+      "--mmu_target_mode",
+      "Write",
+      "--mmu_m08_pa_xor_mask",
+      "0x1000"
+    ],
+    "command_shell": "/home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05/run /home/sdc/gem5-fi-mmu-impl-v2/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05/disk.img --bootloader /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609 --readfile /home/sdc/gem5-fi-mmu-impl-v2/configs/fs/generated/mmu_w10s_run_M08_R05.rcS --chaos_propagation --prop_mmu_va_lo 0x4001400000 --prop_mmu_va_hi 0x4001700000 --prop_run_id M08-F0-W10-S01-R05 --prop_sample_run_id M08-F0-W10-S01-R05 --prop_mmu_trace --prop_write_log on --mmu_fault_model M08 --mmu_fault_enable true --mmu_target_va 0x4001400000 --mmu_target_n 12 --mmu_eligible_event_index 1 --mmu_m02_dram_lo 0x80000000 --mmu_m02_dram_hi 0x100000000 --mmu_target_mode Write --mmu_m08_pa_xor_mask 0x1000",
+    "context": "R05",
+    "context_isolation": "W10S-WARM-STORE (pre-scoped rcS)",
+    "control_oracle": {
+      "detail": "runs/TEST-F1-CTRL-W10S-WARM/Run_Log/board.terminal sha256=7bc0c53844bfde1c",
+      "line": "W10S_RESULT mode=warm target_va=0x4001400000 neighbor_va=0x4001600000 neighbor_alias_va=0x4001600000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x8352c neighbor_pfn=0x8352d pair_xor1=1 stored=0xab target_before=0x7d target_after=0xab neighbor_before=0x51 neighbor_after=0x51 target_observed=0xab neighbor_alias_observed=0x51 store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=warm_hit warm_iters=128 m08_redirect_signature=0 m06_write_fault_signature=0 selftest_store_fault=0 result=PASS",
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-WARM/Run_Log/board.terminal",
+      "present": true,
+      "sha256": "7bc0c53844bfde1cab224e0b12f268b019d9243585a865aded3b014962a9dad3",
+      "source": "PREFLIGHT_RESOLVED"
+    },
+    "control_oracle_sha256": "7bc0c53844bfde1cab224e0b12f268b019d9243585a865aded3b014962a9dad3",
+    "control_oracle_source": "PREFLIGHT_RESOLVED",
+    "control_run": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-WARM/Run_Log/board.terminal",
+    "created_at_utc": "2026-11-13T04:27:58Z",
+    "decoy_pfn": "0",
+    "decoy_source": "operator",
+    "disk_image": "/home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05/disk.img",
+    "dynamic_context": "Store redirected to neighbor PA",
+    "eligible_event_index": 1,
+    "excel": "phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx",
+    "formal": true,
+    "gem5": "/home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt",
+    "gem5_sha256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+    "git_head": "a9aa70055c3b402d879b7e2b911d132cbf9d58e2",
+    "m02_old_pfn": "0",
+    "m02_old_pfn_source": "",
+    "m05_decoy_source": "operator",
+    "m05_decoy_table_base": "0",
+    "m05_decoy_va": "0",
+    "model": "M08",
+    "outdir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/M08-F0-W10-S01-R05",
+    "parameter_authority": {
+      "detail": "loaded",
+      "path": "phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.2/MMU_Parameter_Authority_v3.0.2.json",
+      "present": true,
+      "sha256": "d015e054d39acf554dafa529db306f73b8c2295047654b73803cb95f2197c177"
+    },
+    "parameter_parity": {
+      "applicable": true,
+      "checks": [
+        {
+          "detail": "'M08-F0-W10-S01-R05' vs 'M08-F0-W10-S01-R05'",
+          "id": "global.sample_run_id",
+          "ok": true
+        },
+        {
+          "detail": "'M08' vs 'M08'",
+          "id": "global.model",
+          "ok": true
+        },
+        {
+          "detail": "'W10' vs 'W10'",
+          "id": "global.workload",
+          "ok": true
+        },
+        {
+          "detail": "'R05' vs 'R05'",
+          "id": "global.context",
+          "ok": true
+        },
+        {
+          "detail": "seed='N/A_DETERMINISTIC' policy='DETERMINISTIC' valid=True",
+          "id": "global.seed_deterministic",
+          "ok": true
+        },
+        {
+          "detail": "seed flags=[]",
+          "id": "global.no_seed_flag",
+          "ok": true
+        },
+        {
+          "detail": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+          "id": "global.gem5_sha256",
+          "ok": true
+        },
+        {
+          "detail": {},
+          "id": "global.source_sha256",
+          "ok": true
+        },
+        {
+          "detail": "W10S='fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3' expected='fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3'",
+          "id": "global.workload_sha256",
+          "ok": true
+        },
+        {
+          "detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-WARM/Run_Log/board.terminal sha256=7bc0c53844bfde1c",
+          "id": "global.control_oracle",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "ok": true
+    },
+    "rcs": "/home/sdc/gem5-fi-mmu-impl-v2/configs/fs/generated/mmu_w10s_run_M08_R05.rcS",
+    "rcs_pre_scoped": true,
+    "rcs_scoped": "",
+    "rcs_scoped_preview": "--target-va \"$W10S_TARGET_VA\" --buffer-va \"$W10S_BUFFER_VA\" \\",
+    "rcs_source": "/home/sdc/gem5-fi-mmu-impl-v2/configs/fs/generated/mmu_w10s_run_M08_R05.rcS",
+    "repo_root": "/home/sdc/gem5-fi-mmu-impl-v2",
+    "roi": [
+      274898878464,
+      274902024192
+    ],
+    "run_id": "M08-F0-W10-S01-R05",
+    "run_kind": "FORMAL",
+    "run_workload": "W10S",
+    "sample_id_status": "FROZEN",
+    "sample_run_id": "M08-F0-W10-S01-R05",
+    "seed": "N/A_DETERMINISTIC",
+    "seed_delivery": "not_passed_to_gem5",
+    "seed_literal_deterministic": true,
+    "seed_policy": "DETERMINISTIC",
+    "seed_present": true,
+    "seed_source": "RESEARCHER_APPROVED",
+    "seed_status": "VALID_DETERMINISTIC",
+    "seed_used_by_gem5": false,
+    "seed_valid": true,
+    "source_sha256": {
+      "CHAOS/gem5/src/arch/arm/mmu.cc": "bba49e65398f80aaf58b3ce5a954f4ffbd68278dd0b5c888124d249e28dd1c1b",
+      "CHAOS/gem5/src/arch/arm/table_walker.cc": "54dbeeff2e40891eb018c4bf891a5446ab2b8c4fe88f69c40647c26923595985",
+      "CHAOS/gem5/src/arch/arm/table_walker.hh": "89110e2081da62743e4c2325aa656976e945f086959bcd29f18882412e44b611",
+      "CHAOS/gem5/src/arch/arm/tlb.cc": "b81b7b4cc9eee2c7ba0b592775587dcc7610c8d18c237ba412d2c69ba80d52f4",
+      "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc": "38c0942ab5d2c4c73b7ee3763c1d7503b708ba9ba4f73c2fd051db6836052dc4",
+      "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh": "90ea1b55a9a7e51db04fad4a23ceee3107ebc2d375c3d5c5902b9ffb6b2d3336"
+    },
+    "sub_task_id": "M08-F0-W10-S01",
+    "target_asid": null,
+    "target_event": "completed translation before req->setPaddr",
+    "target_instruction": "Target LDR or STR after completed translation.",
+    "target_mode": "Write",
+    "target_n": 12,
+    "target_va": 274898878464,
+    "target_va_source": "W10S-WARM-STORE target VA",
+    "timeout_sec": 3600,
+    "trace_wait_sec": 120.0,
+    "workload": "W10",
+    "workload_binary": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W10S/mmu_w10s",
+    "workload_sha256": "fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3",
+    "workload_variant": "W10S-WARM-STORE"
+  },
+  "status": "READY",
+  "would_run": false
+}
