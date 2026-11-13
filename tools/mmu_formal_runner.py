@@ -319,6 +319,214 @@ def _model_fault_args(model, target_va, target_asid, mode, eligible_index,
     return args
 
 
+# Frozen build provenance the describe gate must reproduce.  A formal plan
+# that reports anything else is not the audited experiment.
+FROZEN_GEM5_SHA256 = \
+    "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185"
+FROZEN_SOURCE_SHA256 = {
+    "CHAOS/gem5/src/arch/arm/mmu.cc":
+        "bba49e65398f80aaf58b3ce5a954f4ffbd68278dd0b5c888124d249e28dd1c1b",
+    "CHAOS/gem5/src/arch/arm/table_walker.cc":
+        "54dbeeff2e40891eb018c4bf891a5446ab2b8c4fe88f69c40647c26923595985",
+    "CHAOS/gem5/src/arch/arm/table_walker.hh":
+        "89110e2081da62743e4c2325aa656976e945f086959bcd29f18882412e44b611",
+    "CHAOS/gem5/src/arch/arm/tlb.cc":
+        "b81b7b4cc9eee2c7ba0b592775587dcc7610c8d18c237ba412d2c69ba80d52f4",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc":
+        "38c0942ab5d2c4c73b7ee3763c1d7503b708ba9ba4f73c2fd051db6836052dc4",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh":
+        "90ea1b55a9a7e51db04fad4a23ceee3107ebc2d375c3d5c5902b9ffb6b2d3336",
+}
+FROZEN_WORKLOAD_SHA256 = {
+    "W9": "ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b",
+    "W10": "733b8a80150b9728b640fbaad0889f139b09b92a98462778753975a4917a63ae",
+    "W10S": "fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3",
+    "W11": "1393b2737e33db75a8dfa38dbd0fa888d7640e7fb791cb7da1df815bd21451c4",
+    "W12": "8fa269fd88eaf9126f67cf80d5d77f13600e211948db5cd7f4b89f42c147fdbc",
+    "W13": "6e7d926e863c15433b3887e3ac069169e510751190d4b0de5dae0e7aa886ec70",
+    "W14": "f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36",
+}
+# W14 mapping bases: the exact R04/R05 instruction VA must stay inside the
+# 4 KiB page of the workload-owned mapping, and the M07 match key (masked by
+# --mmu_target_n 12) must be unchanged.
+M07_PAGE_BASE = {
+    "R01": 0x400D000000, "R02": 0x400D000000, "R03": 0x400D200000,
+    "R04": 0x400D400000, "R05": 0x400D600000,
+}
+
+
+def _parity_check(checks, name, ok, detail):
+    checks.append({"id": name, "ok": bool(ok), "detail": detail})
+    return bool(ok)
+
+
+def evaluate_parameter_parity(plan, rec, param_authority):
+    """Formal-run parameter parity: global provenance + M05 + M07.
+
+    READY is allowed only when every applicable check passes.  The result is
+    data, never a silent pass: every check records its observed detail.
+    """
+    checks = []
+    if not rec:
+        return {"applicable": False, "ok": True, "checks": checks,
+                "failures": []}
+    sid = rec.get("SampleRunID", "")
+    model = rec.get("ModelID", "")
+    context = rec.get("ContextID", "")
+    auth_data = param_authority.get("data") or {}
+    auth_rec = ((auth_data.get("samples") or {}).get(sid) or {})
+
+    # --- global identity, seed and provenance -----------------------------
+    _parity_check(checks, "global.sample_run_id",
+                  plan.get("sample_run_id") == sid,
+                  "%r vs %r" % (plan.get("sample_run_id"), sid))
+    _parity_check(checks, "global.model",
+                  plan.get("model") == model,
+                  "%r vs %r" % (plan.get("model"), model))
+    _parity_check(checks, "global.workload",
+                  plan.get("workload") == rec.get("WorkloadID"),
+                  "%r vs %r" % (plan.get("workload"), rec.get("WorkloadID")))
+    _parity_check(checks, "global.context",
+                  plan.get("context") == context,
+                  "%r vs %r" % (plan.get("context"), context))
+    _parity_check(checks, "global.seed_deterministic",
+                  plan.get("seed") == pf.SEED_LITERAL_DETERMINISTIC and
+                  plan.get("seed_policy") == pf.SEED_POLICY_DETERMINISTIC and
+                  plan.get("seed_valid") is True and
+                  plan.get("seed_used_by_gem5") is False,
+                  "seed=%r policy=%r valid=%r" %
+                  (plan.get("seed"), plan.get("seed_policy"),
+                   plan.get("seed_valid")))
+    seed_flags = [a for a in plan.get("command", [])
+                  if str(a).startswith("--") and "seed" in str(a).lower()]
+    _parity_check(checks, "global.no_seed_flag", not seed_flags,
+                  "seed flags=%s" % seed_flags)
+    _parity_check(checks, "global.gem5_sha256",
+                  plan.get("gem5_sha256") == FROZEN_GEM5_SHA256,
+                  plan.get("gem5_sha256", ""))
+    got_src = plan.get("source_sha256") or {}
+    src_bad = {rel: got_src.get(rel) for rel, want in
+               FROZEN_SOURCE_SHA256.items() if got_src.get(rel) != want}
+    _parity_check(checks, "global.source_sha256", not src_bad, src_bad)
+    run_wl = plan.get("run_workload", "")
+    _parity_check(checks, "global.workload_sha256",
+                  plan.get("workload_sha256") ==
+                  FROZEN_WORKLOAD_SHA256.get(run_wl),
+                  "%s=%r expected=%r" %
+                  (run_wl, plan.get("workload_sha256"),
+                   FROZEN_WORKLOAD_SHA256.get(run_wl)))
+    ctrl = plan.get("control_oracle") or {}
+    _parity_check(checks, "global.control_oracle",
+                  ctrl.get("present") is True and bool(ctrl.get("sha256")),
+                  "%s sha256=%s" % (ctrl.get("path", ""),
+                                    (ctrl.get("sha256") or "")[:16]))
+
+    # --- M05: workload-owned decoy VA ------------------------------------
+    if model == "M05":
+        plan_va = _as_int(plan.get("m05_decoy_va"))
+        excel_va = _as_int(rec.get("M05DecoyVA"))
+        auth_va = _as_int(auth_rec.get("M05DecoyVA"))
+        pilot_va = _as_int(auth_rec.get("pilot_decoy_va"))
+        w13_va = _as_int(((auth_data.get("provenance") or {})
+                          .get("W13_DECOY_VA") or {}).get("value"))
+        cmd = plan.get("command") or []
+        flag_va = (_as_int(cmd[cmd.index("--mmu_m05_decoy_va") + 1])
+                   if "--mmu_m05_decoy_va" in cmd else None)
+        flag_tb = (cmd[cmd.index("--mmu_m05_decoy_table_base") + 1]
+                   if "--mmu_m05_decoy_table_base" in cmd else None)
+        excel_tb = _as_int(rec.get("M05DecoyTableBase"))
+        auth_tb = _as_int(auth_rec.get("M05DecoyTableBase"))
+        pilot_tb = _as_int(auth_rec.get("pilot_decoy_table_base"))
+        _parity_check(checks, "m05.decoy_va_present",
+                      plan_va not in (None, 0) and flag_va not in (None, 0),
+                      "plan=%r flag=%r" % (plan.get("m05_decoy_va"), flag_va))
+        _parity_check(checks, "m05.decoy_va_approved",
+                      plan_va == M05_APPROVED_DECOY_VA,
+                      "0x%x" % (plan_va or 0))
+        _parity_check(checks, "m05.command_explicit_decoy_va",
+                      flag_va == M05_APPROVED_DECOY_VA,
+                      "flag=%r" % (flag_va,))
+        _parity_check(checks, "m05.decoy_table_base_explicit",
+                      flag_tb is not None and _as_int(flag_tb) is not None,
+                      "flag=%r" % (flag_tb,))
+        _parity_check(checks, "m05.no_live_scan_fallback",
+                      flag_va not in (None, 0),
+                      "nonzero decoy VA forbids live_partial_scan")
+        _parity_check(checks, "m05.excel_equals_authority",
+                      excel_va == auth_va == pilot_va == w13_va == plan_va,
+                      "excel=%r auth=%r pilot=%r w13=%r plan=%r" %
+                      (excel_va, auth_va, pilot_va, w13_va, plan_va))
+        _parity_check(checks, "m05.table_base_equals_pilot",
+                      excel_tb == auth_tb == pilot_tb == _as_int(flag_tb),
+                      "excel=%r auth=%r pilot=%r flag=%r" %
+                      (excel_tb, auth_tb, pilot_tb, flag_tb))
+        _parity_check(checks, "m05.target_mode",
+                      plan.get("target_mode") == rec.get("AccessMode"),
+                      "%r vs %r" % (plan.get("target_mode"),
+                                    rec.get("AccessMode")))
+        _parity_check(checks, "m05.target_n",
+                      plan.get("target_n") == 21,
+                      plan.get("target_n"))
+
+    # --- M07: exact instruction VA parity --------------------------------
+    if model == "M07":
+        plan_va = plan.get("target_va")
+        exact = _as_int(rec.get("TargetVAExact"))
+        auth_exact = _as_int(auth_rec.get("TargetVAExact"))
+        pilot_va = _as_int(auth_rec.get("pilot_target_va"))
+        embedded = pf._embedded_hex_values(rec.get("TargetVA"))
+        page_base = M07_PAGE_BASE.get(context)
+        cmd = plan.get("command") or []
+        flag_n = (cmd[cmd.index("--mmu_target_n") + 1]
+                  if "--mmu_target_n" in cmd else None)
+        _parity_check(checks, "m07.authority_exact_present",
+                      exact is not None,
+                      "TargetVAExact=%r" % (rec.get("TargetVAExact"),))
+        _parity_check(checks, "m07.target_va_equals_authority",
+                      plan_va == exact == auth_exact,
+                      "plan=%r excel=%r authority=%r" %
+                      (plan_va, exact, auth_exact))
+        _parity_check(checks, "m07.target_va_equals_pilot",
+                      plan_va == pilot_va,
+                      "plan=%r pilot=%r" % (plan_va, pilot_va))
+        _parity_check(checks, "m07.target_va_equals_symbolic_cell",
+                      (not embedded) or plan_va in embedded,
+                      "plan=%r embedded=%s" %
+                      (plan_va, [hex(v) for v in embedded]))
+        _parity_check(checks, "m07.page_membership",
+                      page_base is not None and plan_va is not None and
+                      0 <= plan_va - page_base < 0x1000,
+                      "plan=%r base=%s" %
+                      (plan_va, hex(page_base) if page_base else None))
+        _parity_check(checks, "m07.page_masked_match_unchanged",
+                      page_base is not None and plan_va is not None and
+                      (plan_va & ~0xFFF) == page_base,
+                      "key=0x%x base=0x%x" %
+                      ((plan_va or 0) & ~0xFFF, page_base or 0))
+        _parity_check(checks, "m07.target_mode",
+                      plan.get("target_mode") == rec.get("AccessMode") ==
+                      auth_rec.get("pilot_target_mode"),
+                      "%r excel=%r pilot=%r" %
+                      (plan.get("target_mode"), rec.get("AccessMode"),
+                       auth_rec.get("pilot_target_mode")))
+        _parity_check(checks, "m07.target_instruction",
+                      bool(rec.get("TargetInstruction")) and
+                      plan.get("target_instruction") ==
+                      rec.get("TargetInstruction"),
+                      (plan.get("target_instruction") or "")[:60])
+        _parity_check(checks, "m07.target_n_12",
+                      plan.get("target_n") == 12 and flag_n == "12",
+                      "plan=%r flag=%r" % (plan.get("target_n"), flag_n))
+
+    failures = [c for c in checks if not c["ok"]]
+    return {
+        "applicable": True,
+        "ok": not failures,
+        "checks": checks,
+        "failures": [c["id"] for c in failures],
+    }
+
+
 def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                workload=None, context=None, target=None, target_mode=None,
                eligible_index=None, timeout=3600, extra=None,
@@ -681,7 +889,7 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         "status": "PILOT_NO_SEED", "seed_literal_deterministic": False,
     }
     seed_raw = seed_info["seed_raw"]
-    return {
+    plan = {
         "run_kind": run_kind,
         "formal": run_kind == "FORMAL",
         "run_id": run_id,
@@ -766,6 +974,9 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         "repo_root": repo_root,
         "excel": excel,
     }
+    plan["parameter_parity"] = evaluate_parameter_parity(
+        plan, rec, param_authority)
+    return plan
 
 
 def _copy_if_exists(src, dst):
@@ -1265,13 +1476,39 @@ def main(argv=None):
         return 3
 
     if args.describe:
+        parity = plan.get("parameter_parity") or {
+            "applicable": False, "ok": True, "checks": [], "failures": []}
+        seed_ok = bool(plan["seed_valid"]) or not plan["formal"]
+        if seed_ok and parity["ok"]:
+            status = "READY"
+        elif not seed_ok:
+            status = "BLOCKED_SEED_POLICY"
+        else:
+            status = "PARITY_FAIL"
         print(json.dumps({
-            "status": ("READY" if plan["seed_valid"] or not plan["formal"]
-                       else "BLOCKED_SEED_POLICY"),
+            "status": status,
             "would_run": False,
+            "parity_ok": bool(parity["ok"]),
+            "parity_failures": parity.get("failures", []),
+            "parity": parity,
             "plan": plan,
         }, indent=2, sort_keys=True, default=str))
-        return 0
+        return 0 if status == "READY" else 5
+
+    # A formal run may not start when any parameter-parity check failed.
+    parity = plan.get("parameter_parity") or {"ok": True, "failures": []}
+    if plan["formal"] and not parity["ok"]:
+        print(json.dumps({
+            "run_kind": "FORMAL",
+            "run_id": plan["run_id"],
+            "status": "PARITY_FAIL",
+            "would_run": False,
+            "exit_code": 5,
+            "parity_failures": parity.get("failures", []),
+            "message": ("formal launch blocked: parameter parity failed; "
+                        "see plan.parameter_parity.checks"),
+        }, indent=2, sort_keys=True))
+        return 5
 
     try:
         rc, plan_out, vrc = execute_plan(plan, validator)

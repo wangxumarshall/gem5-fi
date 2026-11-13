@@ -146,10 +146,81 @@ def test_m05_command():
           rec.get("pilot_decoy_table_base") == "0", rec)
 
 
+def _base_plan(model, context, target_va, mode, instruction):
+    return {
+        "sample_run_id": "%s-F0-W1x-S01-%s" % (model, context),
+        "model": model, "workload": "W13" if model == "M05" else "W14",
+        "run_workload": "W13" if model == "M05" else "W14",
+        "context": context, "seed": "N/A_DETERMINISTIC",
+        "seed_policy": "DETERMINISTIC", "seed_valid": True,
+        "seed_used_by_gem5": False,
+        "gem5_sha256": runner.FROZEN_GEM5_SHA256,
+        "source_sha256": dict(runner.FROZEN_SOURCE_SHA256),
+        "workload_sha256": runner.FROZEN_WORKLOAD_SHA256[
+            "W13" if model == "M05" else "W14"],
+        "control_oracle": {"present": True, "sha256": "deadbeef"},
+        "target_va": target_va, "target_mode": mode,
+        "target_instruction": instruction,
+        "target_n": 21 if model == "M05" else 12,
+        "m05_decoy_va": "0x4010200000", "m05_decoy_table_base": "0",
+        "command": ["--mmu_target_n", "21" if model == "M05" else "12",
+                    "--mmu_m05_decoy_table_base", "0",
+                    "--mmu_m05_decoy_va", "0x4010200000"],
+    }
+
+
+def test_parity_gate():
+    m05_rec = {"SampleRunID": "M05-F0-W1x-S01-R01", "ModelID": "M05",
+               "WorkloadID": "W13", "ContextID": "R01",
+               "AccessMode": "Read", "TargetInstruction": "LDR",
+               "M05DecoyVA": "0x4010200000", "M05DecoyTableBase": "0"}
+    m05_auth = {
+        "samples": {"M05-F0-W1x-S01-R01": {
+            "M05DecoyVA": "0x4010200000", "M05DecoyTableBase": "0",
+            "pilot_decoy_va": "0x4010200000",
+            "pilot_decoy_table_base": "0"}},
+        "provenance": {"W13_DECOY_VA": {"value": "0x4010200000"}}}
+    plan = _base_plan("M05", "R01", 0x4010000000, "Read", "LDR")
+    m05_auth = {"present": True, "data": m05_auth}
+    good = runner.evaluate_parameter_parity(plan, m05_rec, m05_auth)
+    check("parity.m05.good", good["ok"], good["failures"])
+    bad_plan = dict(plan)
+    bad_plan["m05_decoy_va"] = "0"
+    bad_plan["command"] = ["--mmu_target_n", "21",
+                           "--mmu_m05_decoy_table_base", "0"]
+    bad = runner.evaluate_parameter_parity(bad_plan, m05_rec, m05_auth)
+    check("parity.m05.zero_blocks", not bad["ok"] and
+          "m05.decoy_va_present" in bad["failures"] and
+          "m05.command_explicit_decoy_va" in bad["failures"],
+          bad["failures"])
+
+    m07_rec = {"SampleRunID": "M07-F0-W1x-S01-R04", "ModelID": "M07",
+               "WorkloadID": "W14", "ContextID": "R04",
+               "AccessMode": "Execute", "TargetInstruction": "EL0 execute",
+               "TargetVA": "XN code VA 0x400d400100",
+               "TargetVAExact": "0x400d400100"}
+    m07_auth = {"samples": {"M07-F0-W1x-S01-R04": {
+        "TargetVAExact": "0x400d400100",
+        "pilot_target_va": "0x400d400100",
+        "pilot_target_mode": "Execute"}}, "provenance": {}}
+    plan = _base_plan("M07", "R04", 0x400D400100, "Execute", "EL0 execute")
+    plan["command"] = ["--mmu_target_n", "12"]
+    m07_auth = {"present": True, "data": m07_auth}
+    good = runner.evaluate_parameter_parity(plan, m07_rec, m07_auth)
+    check("parity.m07.good", good["ok"], good["failures"])
+    bad_plan = dict(plan)
+    bad_plan["target_va"] = 0x400D400000
+    bad = runner.evaluate_parameter_parity(bad_plan, m07_rec, m07_auth)
+    check("parity.m07.page_base_blocks", not bad["ok"] and
+          "m07.target_va_equals_authority" in bad["failures"],
+          bad["failures"])
+
+
 def main():
     test_precedence()
     test_authority_rows()
     test_m05_command()
+    test_parity_gate()
     if FAILS:
         print("FAILED: %d" % len(FAILS))
         return 1
