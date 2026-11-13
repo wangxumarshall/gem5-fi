@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import json
 import re
 import sys
@@ -127,6 +128,11 @@ MANIFEST_COLS = (
     "SQEntry", "InjectionEnabled", "InjectorMounted", "FaultEnabled",
     "SuppressionReason", "InjectionAttemptCount", "InjectionAppliedCount",
     "FormalManifest",
+    # Raw-log provenance backfill (A03 selected load, RP01 load, SP05 store).
+    "DynInstSeqSource", "PC_Source",
+    # A03 persistent stuck-at state: the raw InjectionCount is a stream-event
+    # count, not an independent-fault count.  Keep it and expose sub-metrics.
+    "FaultStateActivationCount", "AffectedAccessCount", "A03StreamEventCount",
 )
 
 
@@ -399,6 +405,111 @@ def _base_record(matrix_row: dict, mapping_row: dict | None,
     return record
 
 
+def _read_trace_rows(run_dir: Path) -> list[dict]:
+    """Read the raw propagation trace; [] when the driver did not emit it."""
+    path = run_dir / "prop_trace.csv.gz"
+    if not path.is_file():
+        return []
+    cols = ("node_id", "tick", "ptag", "kind", "dyn_inst_seq", "request_id",
+            "addr", "phys_reg", "arch_reg", "detail")
+    rows: list[dict] = []
+    with gzip.open(path, "rt", errors="replace") as fh:
+        for line in fh:
+            if not line.strip() or line.startswith("#"):
+                continue
+            values = next(csv.reader([line]))
+            if len(values) < len(cols):
+                continue
+            rows.append(dict(zip(cols, values)))
+    return rows
+
+
+def _detail_value(row: dict, key: str) -> str | None:
+    for part in (row.get("detail") or "").split(";"):
+        if part.startswith(key + "="):
+            return part.split("=", 1)[1]
+    return None
+
+
+def _backfill_model_identity(record: dict, model: str, summary: dict,
+                             run_dir: Path) -> None:
+    """Fill DynInstSeq/PC from the model's own raw log, never from a guess.
+
+    A03   selected A03_STREAM (the targeted ordinal, even if affected=0)
+    RP01  summary.rp01.first_skip (load_seq / load_pc / lq_idx)
+    SP05  lsq_fwd_injections.log target_seq + prop_trace store_pc
+    """
+    record.setdefault("DynInstSeqSource", NOT_AVAILABLE)
+    record.setdefault("PC_Source", NOT_AVAILABLE)
+    record.setdefault("FaultStateActivationCount", NOT_AVAILABLE)
+    record.setdefault("AffectedAccessCount", NOT_AVAILABLE)
+    record.setdefault("A03StreamEventCount", NOT_AVAILABLE)
+
+    if model == "A03":
+        ordinal = summary.get("ordinal")
+        selected = None
+        log = run_dir / "addrpath_injections.log"
+        if log.is_file():
+            for line in log.read_text(errors="replace").splitlines():
+                if not line.startswith("A03_STREAM:"):
+                    continue
+                body = line.split(":", 1)[1].strip()
+                fields = dict(
+                    part.split("=", 1) for part in body.split(";") if "=" in part)
+                if ordinal is not None and \
+                        fields.get("event_ordinal") == str(ordinal):
+                    selected = fields
+                    break
+        if selected:
+            record["DynInstSeq"] = selected.get("dyn_inst_seq", NOT_AVAILABLE)
+            record["PC"] = selected.get("pc", NOT_AVAILABLE)
+            source = "addrpath_injections.log:A03_STREAM(selected ordinal)"
+            record["DynInstSeqSource"] = source
+            record["PC_Source"] = source
+        rows = _read_trace_rows(run_dir)
+        if rows:
+            record["FaultStateActivationCount"] = str(
+                sum(1 for r in rows if r.get("kind") == "a03_activation"))
+            record["A03StreamEventCount"] = str(
+                sum(1 for r in rows if r.get("kind") == "a03_stream"))
+            record["AffectedAccessCount"] = str(
+                sum(1 for r in rows if r.get("kind") == "a03_stream"
+                    and _detail_value(r, "affected") == "1"))
+    elif model == "RP01":
+        first_skip = str((summary.get("rp01") or {}).get("first_skip") or "")
+        match = re.search(r"load_seq=(\d+) load_pc=(\d+)", first_skip)
+        if match:
+            record["DynInstSeq"] = match.group(1)
+            record["PC"] = f"{int(match.group(2)):x}"
+            record["DynInstSeqSource"] = \
+                "summary.json:rp01.first_skip(load_seq)"
+            record["PC_Source"] = "summary.json:rp01.first_skip(load_pc)"
+        match = re.search(r"lq_idx=(\d+)", first_skip)
+        if match:
+            record["LQEntry"] = match.group(1)
+    elif model == "SP05":
+        log = run_dir / "lsq_fwd_injections.log"
+        store_seq = None
+        if log.is_file():
+            seqs = re.findall(r"target_seq=(\d+)",
+                              log.read_text(errors="replace"))
+            if seqs:
+                store_seq = seqs[-1]
+        if store_seq:
+            record["DynInstSeq"] = store_seq
+            record["DynInstSeqSource"] = "lsq_fwd_injections.log:target_seq"
+            for row in _read_trace_rows(run_dir):
+                if row.get("dyn_inst_seq") != store_seq or \
+                        row.get("kind") not in ("sp05_stage", "store_commit"):
+                    continue
+                pc = _detail_value(row, "store_pc")
+                if pc:
+                    record["PC"] = pc[2:] if pc.lower().startswith("0x") else pc
+                    record["PC_Source"] = (
+                        f"prop_trace.csv.gz:{row.get('kind')}(store_pc)")
+                    break
+
+
 def _finish(record: dict, status: str, reason: str,
             missing: list[str] | None = None) -> dict:
     record["Status"] = status
@@ -591,6 +702,9 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
     if isinstance(evidence_workload, str) and evidence_workload.strip():
         record["Workload"] = Path(evidence_workload).name
         record["ELF"] = evidence_workload
+
+    # Raw-log provenance backfill (A03 selected load / RP01 load / SP05 store).
+    _backfill_model_identity(record, model, summary, evidence_dir)
 
     terminal = str(summary.get("terminal") or NOT_AVAILABLE)
     record["TerminalState"] = terminal
