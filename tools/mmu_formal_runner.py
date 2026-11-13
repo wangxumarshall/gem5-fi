@@ -199,9 +199,56 @@ def _find_sample(samples, sample_id):
         "SampleRunID %r not in authoritative 07_Sample_Matrix" % sample_id, 2)
 
 
+def _as_int(text):
+    """Parse an integer cell (0x... or decimal), else return None."""
+    try:
+        return int(str(text).strip(), 0)
+    except (TypeError, ValueError):
+        return None
+
+
+# The M05 decoy is workload-owned: W13 maps a second 4 KiB page exactly
+# 2 MiB above the target and defines W13_DECOY_VA = 0x4010200000.  The formal
+# runner may not guess or scan for a live partial entry; the decoy VA is read
+# from the v3.0.2 authority and passed explicitly.
+M05_APPROVED_DECOY_VA = 0x4010200000
+PARAM_AUTHORITY_NAME = "MMU_Parameter_Authority_v3.0.2.json"
+
+
+def load_param_authority(path):
+    """Load the v3.0.2 parameter authority, recording absence honestly."""
+    rec = {"path": path or "", "present": False, "sha256": "",
+           "data": {}, "detail": "no parameter authority supplied"}
+    if not path:
+        return rec
+    if not os.path.isfile(path):
+        rec["detail"] = "parameter authority not found: %s" % path
+        return rec
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            rec["data"] = json.load(fh)
+    except (OSError, ValueError) as exc:
+        rec["detail"] = "parameter authority unreadable: %s" % exc
+        return rec
+    rec["present"] = True
+    rec["sha256"] = _sha256(path)
+    rec["detail"] = "loaded"
+    return rec
+
+
+def default_param_authority(excel_path):
+    """Locate MMU_Parameter_Authority_v3.0.2.json next to the Excel."""
+    if not excel_path:
+        return ""
+    cand = os.path.join(os.path.dirname(os.path.abspath(excel_path)),
+                        PARAM_AUTHORITY_NAME)
+    return cand if os.path.isfile(cand) else ""
+
+
 def _model_fault_args(model, target_va, target_asid, mode, eligible_index,
                       context, extra, m04_decoy_pfn="0",
-                      m05_decoy_table_base="0", m02_old_pfn="0"):
+                      m05_decoy_table_base="0", m02_old_pfn="0",
+                      m05_decoy_va="0"):
     """Model-specific CLI arguments (Phase-3 verified model parameters)."""
     if model == "M01":
         if target_asid is None:
@@ -256,7 +303,12 @@ def _model_fault_args(model, target_va, target_asid, mode, eligible_index,
         "M05": ["--mmu_target_instance", "l2_shared",
                 "--mmu_target_walk_level", "2",
                 "--mmu_fault_persistence", "entry_lifetime",
-                "--mmu_m05_decoy_table_base", str(m05_decoy_table_base)],
+                "--mmu_m05_decoy_table_base", str(m05_decoy_table_base)] + (
+                    # FORMAL path (table_walker.cc:2979-2990): a nonzero decoy
+                    # VA selects the live partial entry owned by that workload
+                    # VA and forbids the pilot-only live_partial_scan fallback.
+                    ["--mmu_m05_decoy_va", str(m05_decoy_va)]
+                    if _as_int(m05_decoy_va) else []),
         "M06": ["--mmu_target_walk_level", "3"],
         "M07": ["--mmu_fault_persistence", "one_shot"],
         "M08": ["--mmu_m08_pa_xor_mask", "0x1000"],
@@ -272,10 +324,14 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                eligible_index=None, timeout=3600, extra=None,
                excel_path=None, csv_path=None, m04_decoy_pfn="0",
                m05_decoy_table_base="0", control_run=None,
-               trace_wait_sec=120, w10_control_golden=None):
+               trace_wait_sec=120, w10_control_golden=None,
+               param_authority_path=None, m05_decoy_va=None):
     """Build a fully-resolved run plan (no side effects, no gem5)."""
     excel, samples, ctx, hooks, workloads, run_script_defaults, \
         config_text = pf.build_environment(repo_root, excel_path, csv_path)
+    authority_path = (param_authority_path or
+                      default_param_authority(excel))
+    param_authority = load_param_authority(authority_path)
 
     run_kind = "FORMAL" if sample else "PILOT"
     variant = None
@@ -399,6 +455,76 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         m04_decoy_pfn = "0x%x" % rec_d["decoy_pfn"]
         decoy_source = ("W12 control %s sha256=%s" %
                         (decoy_map["path"], decoy_map.get("sha256", "")))
+
+    # M05: the decoy is workload-owned.  A formal run reads the decoy VA from
+    # the v3.0.2 authority row, requires it to equal the final F1 pilot value
+    # and the W13_DECOY_VA symbol, and passes it explicitly.  A missing/zero
+    # value is a blocked run, never a live-scan guess.
+    m05_decoy_va = "0"
+    m05_decoy_source = "operator"
+    if model == "M05":
+        if sample:
+            auth_data = param_authority.get("data") or {}
+            auth_rec = ((auth_data.get("samples") or {}).get(run_id) or {})
+            w13 = ((auth_data.get("provenance") or {}).get("W13_DECOY_VA")
+                   or {})
+            rec_va = str(rec.get("M05DecoyVA") or "").strip()
+            rec_tb = str(rec.get("M05DecoyTableBase") or "").strip()
+            auth_va = str(auth_rec.get("M05DecoyVA") or "").strip()
+            auth_tb = str(auth_rec.get("M05DecoyTableBase") or "").strip()
+            pilot_va = str(auth_rec.get("pilot_decoy_va") or "").strip()
+            pilot_tb = str(auth_rec.get("pilot_decoy_table_base") or "").strip()
+            w13_va = str(w13.get("value") or "").strip()
+            if not (param_authority.get("present") and rec_va and auth_va
+                    and pilot_va and w13_va and auth_tb and pilot_tb):
+                raise RunRefused(
+                    "BLOCKED_PARITY_EVIDENCE_MISSING",
+                    "M05 %s needs the v3.0.2 authority, the Excel DecoyVA "
+                    "column and pilot evidence (authority=%s present=%s "
+                    "excel=%r authority=%r pilot=%r w13=%r)" %
+                    (run_id, param_authority.get("path"),
+                     param_authority.get("present"), rec_va, auth_va,
+                     pilot_va, w13_va), 5)
+            va_vals = [_as_int(rec_va), _as_int(auth_va), _as_int(pilot_va),
+                       _as_int(w13_va)]
+            if None in va_vals:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_VA",
+                    "M05 decoy VA is not an integer: %r" % (va_vals,), 5)
+            if len(set(va_vals)) != 1:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_VA",
+                    "M05 decoy VA disagreement excel=%s authority=%s "
+                    "pilot=%s w13=%s" % (rec_va, auth_va, pilot_va, w13_va),
+                    5)
+            if va_vals[0] == 0:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_VA",
+                    "M05 decoy VA must not be 0", 5)
+            if va_vals[0] != M05_APPROVED_DECOY_VA:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_VA",
+                    "M05 decoy VA 0x%x is not the W13 workload-owned "
+                    "0x%x" % (va_vals[0], M05_APPROVED_DECOY_VA), 5)
+            tb_vals = [_as_int(rec_tb), _as_int(auth_tb), _as_int(pilot_tb)]
+            if None in tb_vals or len(set(tb_vals)) != 1:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_TABLE_BASE",
+                    "M05 decoy table base disagreement excel=%r authority=%r "
+                    "pilot=%r" % (rec_tb, auth_tb, pilot_tb), 5)
+            m05_decoy_va = "0x%x" % va_vals[0]
+            m05_decoy_table_base = str(tb_vals[0])
+            m05_decoy_source = (
+                "authority v3.0.2 + Excel + final F1 pilot + W13_DECOY_VA")
+        elif m05_decoy_va:
+            # Pilot: an explicit operator value is recorded, never guessed.
+            parsed = _as_int(m05_decoy_va)
+            if not parsed:
+                raise RunRefused(
+                    "BLOCKED_PARITY_M05_DECOY_VA",
+                    "pilot --m05-decoy-va is not a nonzero integer", 2)
+            m05_decoy_va = "0x%x" % parsed
+            m05_decoy_source = "pilot explicit"
 
     # M02: the old_pfn is the per-context W10 target PFN.  Resolve it from an
     # INDEPENDENT no-fault scoped W10 control (directory, JSON map, or a
@@ -535,7 +661,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                                  target_mode, eligible_index, context, extra,
                                  m04_decoy_pfn=m04_decoy_pfn,
                                  m05_decoy_table_base=m05_decoy_table_base,
-                                 m02_old_pfn=m02_old_pfn)
+                                 m02_old_pfn=m02_old_pfn,
+                                 m05_decoy_va=m05_decoy_va)
 
     # Hard guarantee: no seed is ever forwarded to gem5.  There is no --seed
     # in configs/fs/lsu_b0_fs.py nor in configs/se/arm_chaos_fs.py, and any
@@ -569,6 +696,9 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                              if rec else ""),
         "decoy_pfn": m04_decoy_pfn,
         "decoy_source": decoy_source,
+        "m05_decoy_va": m05_decoy_va,
+        "m05_decoy_table_base": m05_decoy_table_base,
+        "m05_decoy_source": m05_decoy_source,
         "m02_old_pfn": m02_old_pfn,
         "m02_old_pfn_source": m02_source,
         "control_oracle": control,
@@ -580,6 +710,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         "eligible_event_index": eligible_index,
         "target_va": target_va,
         "target_va_source": target_basis if sample else "pilot explicit",
+        "target_instruction": rec.get("TargetInstruction", "") if rec else "",
+        "target_n": 21 if model == "M05" else 12,
         "authoritative_workload": pf.MODEL_WORKLOAD.get(model, ""),
         "authoritative_workload_match":
             (rec.get("WorkloadID", "") == pf.MODEL_WORKLOAD.get(model, ""))
@@ -605,6 +737,12 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         "authority_excel_source": ctx.get("excel_source", "<unknown>"),
         "authority_csv": ctx.get("csv"),
         "authority_csv_source": ctx.get("csv_source", "<unknown>"),
+        "parameter_authority": {
+            "path": param_authority.get("path", ""),
+            "present": bool(param_authority.get("present")),
+            "sha256": param_authority.get("sha256", ""),
+            "detail": param_authority.get("detail", ""),
+        },
         "outdir": outdir,
         "disk_image": disk,
         "checkpoint": wl["ckpt"],
@@ -988,8 +1126,15 @@ def main(argv=None):
                     help="M04 decoy PFN from the W12 control run "
                          "(0 = auto-pick the first legal same-N entry)")
     ap.add_argument("--m05-decoy-table-base", default="0",
-                    help="M05 decoy L3 table base PA (0 = auto-pick a live "
-                         "compatible partial entry)")
+                    help="M05 decoy L3 table base PA (0 = derive from the "
+                         "workload-owned decoy VA)")
+    ap.add_argument("--m05-decoy-va", default=None,
+                    help="pilot-only explicit M05 decoy VA; formal samples "
+                         "read it from the v3.0.2 parameter authority")
+    ap.add_argument("--param-authority", default=None,
+                    help="v3.0.2 parameter authority JSON (default: "
+                         "MMU_Parameter_Authority_v3.0.2.json next to the "
+                         "authoritative Excel)")
     ap.add_argument("--control-run", default=None,
                     help="explicit independent control-run directory/file; "
                          "its SHA256 is recorded in the manifest (default: "
@@ -1079,7 +1224,9 @@ def main(argv=None):
             m05_decoy_table_base=args.m05_decoy_table_base,
             control_run=args.control_run,
             trace_wait_sec=args.trace_wait_sec,
-            w10_control_golden=args.w10_control_golden)
+            w10_control_golden=args.w10_control_golden,
+            param_authority_path=args.param_authority,
+            m05_decoy_va=args.m05_decoy_va)
     except RunRefused as exc:
         print(json.dumps({
             "run_kind": "FORMAL" if args.sample else "PILOT",

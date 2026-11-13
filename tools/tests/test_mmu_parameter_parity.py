@@ -19,6 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import mmu_formal_preflight as pf  # noqa: E402
+import mmu_formal_runner as runner  # noqa: E402
 
 V302 = os.path.join(ROOT, "phase3", "final",
                     "MMU_Final_Formal_Readiness_Package_v3.0.2")
@@ -115,9 +116,40 @@ def test_authority_rows():
           (hex(value or 0), basis))
 
 
+def test_m05_command():
+    args = runner._model_fault_args(
+        "M05", 0x4010000000, None, "Read", 1, "R01", [],
+        m05_decoy_table_base="0", m05_decoy_va="0x4010200000")
+    check("m05.command.table_base",
+          "--mmu_m05_decoy_table_base" in args and
+          args[args.index("--mmu_m05_decoy_table_base") + 1] == "0", args)
+    check("m05.command.decoy_va",
+          "--mmu_m05_decoy_va" in args and
+          args[args.index("--mmu_m05_decoy_va") + 1] == "0x4010200000",
+          args)
+    check("m05.command.target_n21",
+          args[args.index("--mmu_target_n") + 1] == "21", args)
+    # A zero decoy VA is never emitted; the caller fails closed instead.
+    args0 = runner._model_fault_args(
+        "M05", 0x4010000000, None, "Read", 1, "R01", [],
+        m05_decoy_table_base="0", m05_decoy_va="0")
+    check("m05.command.no_zero_flag", "--mmu_m05_decoy_va" not in args0,
+          args0)
+    auth = runner.load_param_authority(os.path.join(
+        V302, "MMU_Parameter_Authority_v3.0.2.json"))
+    check("m05.authority.loaded", auth["present"] and auth["sha256"],
+          auth["detail"])
+    rec = (auth["data"].get("samples") or {}).get("M05-F0-W13-S01-R05", {})
+    check("m05.authority.value",
+          rec.get("M05DecoyVA") == "0x4010200000" and
+          rec.get("pilot_decoy_va") == "0x4010200000" and
+          rec.get("pilot_decoy_table_base") == "0", rec)
+
+
 def main():
     test_precedence()
     test_authority_rows()
+    test_m05_command()
     if FAILS:
         print("FAILED: %d" % len(FAILS))
         return 1
