@@ -492,7 +492,19 @@ def build_causal(matrix, causal_rows, causal_available):
                "Activation", "FirstDivergence", "Downstream", "Consumer",
                "CommitSquashReplay", "Terminal", "TerminalReason",
                "ApplicationOracle", "EvidenceClass", "TraceCompleteness",
-               "MaskingMechanism", "EvidencePaths")
+               "MaskingMechanism", "EvidencePaths",
+               "SelectedOrdinal", "SelectedDynInstSeq", "SelectedPC",
+               "FirstAffectedInstruction", "FirstAffectedSquash",
+               "FirstCommittedAffectedInstruction", "FirstConsumerInstruction",
+               "ResponseEventID", "TaintEventID", "SourceEventID",
+               "ConsumerEventID", "ProducerDynInstSeq", "ConsumerDynInstSeq",
+               "WritebackValueFNV", "ConsumerInputFNV",
+               "ConsumerInputMatchesSource", "DynInstSeqSource")
+    def pending(model, ctx, roi="PENDING"):
+        row = {c: "PENDING" for c in columns}
+        row.update({"ModelID": model, "ContextID": ctx,
+                    "ROI/Percentile/Ordinal": roi})
+        return [row[c] for c in columns]
     if causal_available and causal_rows is not None:
         out = [list(columns)]
         idx = index_rows(causal_rows)
@@ -501,7 +513,7 @@ def build_causal(matrix, causal_rows, causal_available):
             ctx = r["SampleRunID"][-3:]
             row = idx.get((model, ctx))
             if row is None:
-                out.append([model, ctx, "PENDING"] + ["PENDING"] * 13)
+                out.append(pending(model, ctx))
             else:
                 out.append([row.get(c, "PENDING") for c in columns])
         return out
@@ -512,7 +524,7 @@ def build_causal(matrix, causal_rows, causal_available):
         rs, re_, n = DESIGN_ROI[model]
         roi = (f"ROI={rs}-{re_};N={n};p={PERCENTILES[int(ctx[1:])-1]:.2f};"
                "ordinal=PENDING")
-        out.append([model, ctx, roi] + ["PENDING"] * 13)
+        out.append(pending(model, ctx, roi))
     return out
 
 
