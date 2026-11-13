@@ -87,6 +87,16 @@ COLUMNS = (
     "Activation", "FirstDivergence", "Downstream", "Consumer",
     "CommitSquashReplay", "Terminal", "TerminalReason", "ApplicationOracle",
     "EvidenceClass", "TraceCompleteness", "MaskingMechanism", "EvidencePaths",
+    # A03 direct-driver chain (raw prop_trace.csv.gz; no trace_v31.jsonl).
+    # The four instruction events are recorded separately on purpose; they are
+    # never merged back into FirstDivergence.
+    "SelectedOrdinal", "SelectedDynInstSeq", "SelectedPC",
+    "FirstAffectedInstruction", "FirstAffectedSquash",
+    "FirstCommittedAffectedInstruction", "FirstConsumerInstruction",
+    "ResponseEventID", "TaintEventID", "SourceEventID", "ConsumerEventID",
+    "ProducerDynInstSeq", "ConsumerDynInstSeq",
+    "WritebackValueFNV", "ConsumerInputFNV", "ConsumerInputMatchesSource",
+    "DynInstSeqSource",
 )
 
 # event types that confirm the faulting instruction reached the model record
@@ -633,6 +643,52 @@ def any_text(run: Path, names, needle: str) -> str | None:
     return None
 
 
+PROP_TRACE_COLS = (
+    "node_id", "tick", "ptag", "kind", "dyn_inst_seq", "request_id",
+    "addr", "phys_reg", "arch_reg", "detail")
+
+
+def read_prop_events(run: Path) -> list[dict]:
+    """Read the raw propagation CSV (gzip); return node-bearing events.
+
+    A03 is a direct-driver run and has no ``trace_v31.jsonl``; this raw file
+    is its primary propagation evidence.
+    """
+    path = run / "prop_trace.csv.gz"
+    if not path.exists():
+        return []
+    events: list[dict] = []
+    with gzip.open(path, "rt", errors="replace") as fh:
+        for line in fh:
+            if not line.strip() or line.startswith("#"):
+                continue
+            values = next(csv.reader([line]))
+            if len(values) < len(PROP_TRACE_COLS):
+                continue
+            event = dict(zip(PROP_TRACE_COLS, values))
+            try:
+                event["node"] = int(event["node_id"])
+            except ValueError:
+                continue
+            events.append(event)
+    return events
+
+
+def prop_field(event: dict, key: str) -> str | None:
+    for part in (event.get("detail") or "").split(";"):
+        if part.startswith(key + "="):
+            return part.split("=", 1)[1]
+    return None
+
+
+def _a03_instr(event: dict | None) -> str:
+    if event is None:
+        return "n/a"
+    return (f"ordinal={prop_field(event, 'event_ordinal')};"
+            f"seq={event.get('dyn_inst_seq')};"
+            f"pc={prop_field(event, 'pc')}")
+
+
 def a03_row(model, ctx, run: Path, golden: str) -> dict:
     summary = load_json(run / "summary.json")
     paths = [str(run)]
@@ -643,16 +699,14 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
         if p.exists():
             paths.append(str(p))
 
+    events = read_prop_events(run)
+    streams = [e for e in events if e["kind"] == "a03_stream"]
     activation = None
-    affected = None
     funnel = None
     if log.exists():
         for line in log.read_text(errors="replace").splitlines():
             if activation is None and line.startswith("A03_ACTIVATION:"):
                 activation = line
-            if affected is None and line.startswith("A03_STREAM:") \
-                    and "affected=1" in line:
-                affected = line
             if line.startswith("FUNNEL:"):
                 funnel = line
 
@@ -662,11 +716,60 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
     ordinal = summary.get("ordinal")
     executed = ordinal if ordinal is not None else ROI[model][3][ctx - 1]
 
+    # The selected event is exactly the ordinal the runner targeted.  R03's
+    # selected event has affected=0 (ALREADY_STUCK) and must stay selectable.
+    selected = next((e for e in streams
+                     if prop_field(e, "event_ordinal") == str(executed)), None)
+    if selected is None and streams:
+        selected = streams[0]
+    affected = [e for e in streams if prop_field(e, "affected") == "1"]
+    first_aff = affected[0] if affected else None
+
+    squashes: dict[str, dict] = {}
+    for e in events:
+        if e["kind"] == "squash":
+            seq = e.get("dyn_inst_seq") or prop_field(e, "dyn_inst_seq")
+            squashes.setdefault(str(seq), e)
+    first_aff_seq = str(first_aff.get("dyn_inst_seq")) if first_aff else None
+    first_aff_squash = squashes.get(first_aff_seq) if first_aff_seq else None
+
+    # First affected instruction that actually reached response/taint/commit.
+    committed = None
+    for e in affected:
+        seq = str(e.get("dyn_inst_seq"))
+        if seq in squashes:
+            continue
+        if any(x["kind"] in ("commit", "errant_commit")
+               and x.get("dyn_inst_seq") == seq for x in events):
+            committed = e
+            break
+    if committed is None:
+        for e in affected:
+            seq = str(e.get("dyn_inst_seq"))
+            if seq in squashes:
+                continue
+            if (any(x["kind"] == "resp" and x.get("dyn_inst_seq") == seq
+                    for x in events)
+                    and any(x["kind"] == "taint_reg"
+                            and x.get("dyn_inst_seq") == seq for x in events)):
+                committed = e
+                break
+    commit_seq = str(committed.get("dyn_inst_seq")) if committed else None
+    resp = next((x for x in events if x["kind"] == "resp"
+                 and x.get("dyn_inst_seq") == commit_seq), None)
+    taint = next((x for x in events if x["kind"] == "taint_reg"
+                  and x.get("dyn_inst_seq") == commit_seq), None)
+    consumer = None
+    if taint is not None:
+        for x in events:
+            if (x["kind"] == "consumer" and x["node"] > taint["node"]
+                    and prop_field(x, "source_event_id") == str(taint["node"])):
+                consumer = x
+                break
+
     activation_s = (f"record=A03_ACTIVATION;ordinal={executed};"
                     f"{activation.split(':', 1)[1].strip() if activation else 'n/a'}")
-    injection_s = ("A03_STREAM;" + affected.split(":", 1)[1].strip()
-                   if affected else "n/a")
-    divergence_s = injection_s
+    injection_s = ("A03_STREAM;" + selected["detail"]) if selected else "n/a"
 
     if checksum is not None:
         if checksum == golden:
@@ -683,62 +786,82 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
     else:
         terminal, reason = "UNRESOLVED", "NO_CHECKSUM_NO_TERMINAL_WITNESS"
 
-    witness = checksum is not None or watchdog is not None or bool(summary.get("timed_out"))
-    trace_c = completeness(
-        injection_ok=affected is not None,
-        activation_ok=activation is not None,
-        divergence_ok=affected is not None,
-        witness_ok=witness,
-        terminal_ok=witness)
-
-    # [V3.3.3][A03] The model's first affected event can be a speculative
-    # instance squashed before any response. The causal chain is anchored at
-    # the first architecturally committed fault path (errant_commit), which
-    # the qualified grader resolves from the same run dir. Keep the first
-    # affected row as provenance, expose the real anchor separately.
-    qev = {}
-    if qualified_evidence is not None:
-        try:
-            qev = (qualified_evidence("A03", run) or {}).get("evidence", {})
-        except Exception:
-            qev = {}
-    anchor_seq = qev.get("causal_anchor_dyn_seq")
-    anchor_pc = qev.get("causal_anchor_pc")
-    anchor_reason = qev.get("causal_anchor_reason")
-    if anchor_reason:
-        divergence_s = (f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
-                        f"first_affected_seq={qev.get('first_affected_load_dyn_seq')};"
-                        f"reason={anchor_reason}")
-    consumer_s = qev.get("consumer") or (
-        "n/a (persistent stream; no per-consumer record)")
-    commit_s = qev.get("causal_anchor_reason") and (
-        f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
-        f"load_result={qev.get('load_result')};"
-        f"writeback={qev.get('register_writeback')};"
-        f"first_affected_squash={qev.get('first_affected_squash')}") or (
-        "external_timeout" if summary.get("timed_out")
-        else "watchdog" if watchdog else "no_terminal_node")
+    first_aff_s = _a03_instr(first_aff)
+    squash_s = ("none" if first_aff_squash is None else
+                f"squash;node={first_aff_squash['node']};"
+                f"seq={first_aff_squash.get('dyn_inst_seq')};"
+                f"cause={prop_field(first_aff_squash, 'squash_cause')};"
+                f"fault_caused={prop_field(first_aff_squash, 'fault_caused')};"
+                f"reason={prop_field(first_aff_squash, 'reason')}")
+    committed_s = _a03_instr(committed)
+    consumer_s = ("n/a" if consumer is None else
+                  f"seq={consumer.get('dyn_inst_seq')};node={consumer['node']};"
+                  f"source_event_id={prop_field(consumer, 'source_event_id')};"
+                  f"consumer_input_fnv="
+                  f"{prop_field(consumer, 'consumer_input_fnv')};"
+                  f"consumer_input_matches_source="
+                  f"{prop_field(consumer, 'consumer_input_matches_source')}")
+    chain_ok = all(x is not None for x in
+                   (selected, first_aff, committed, resp, taint, consumer))
+    witness = (checksum is not None or watchdog is not None
+               or bool(summary.get("timed_out")))
+    trace_c = ("COMPLETE_PROP_TRACE" if chain_ok else
+               completeness(injection_ok=selected is not None,
+                            activation_ok=activation is not None,
+                            divergence_ok=first_aff is not None,
+                            witness_ok=witness, terminal_ok=witness))
 
     return {
         "ModelID": model, "ContextID": f"R{ctx:02d}",
         "ROI/Percentile/Ordinal": roi_string(model, ctx, executed),
         "Injection": injection_s,
         "Activation": activation_s,
-        "FirstDivergence": divergence_s,
+        # FirstDivergence is the first affected instruction only; the squash
+        # and the architecturally committed instruction are separate columns.
+        "FirstDivergence": first_aff_s,
         "Downstream": (f"stream_injected={a03.get('injections', 'n/a')};"
                        f"capped={a03.get('capped', 'n/a')};"
-                       + (funnel or "funnel=n/a")),
+                       + (funnel or "funnel=n/a")
+                       + f";resp_event_id={resp['node'] if resp else 'n/a'}"
+                       + f";taint_event_id={taint['node'] if taint else 'n/a'}"),
         "Consumer": consumer_s,
-        "CommitSquashReplay": commit_s,
+        "CommitSquashReplay": (
+            f"errant_commit;{committed_s};first_affected_squash={squash_s}"
+            if committed else
+            "external_timeout" if summary.get("timed_out")
+            else "watchdog" if watchdog else "no_terminal_node"),
         "Terminal": terminal,
         "TerminalReason": reason,
         "ApplicationOracle": ("FAIL" if checksum and checksum != golden else
                               "PASS" if checksum == golden else "NO_CHECKSUM"),
         "EvidenceClass": evidence_class(terminal),
-        "TraceCompleteness": ("COMPLETE_PROP_TRACE"
-                              if anchor_reason else trace_c),
+        "TraceCompleteness": trace_c,
         "MaskingMechanism": "n/a",
         "EvidencePaths": ";".join(paths),
+        "SelectedOrdinal": str(executed),
+        "SelectedDynInstSeq": (selected.get("dyn_inst_seq")
+                               if selected else "n/a"),
+        "SelectedPC": (prop_field(selected, "pc") if selected else "n/a"),
+        "FirstAffectedInstruction": first_aff_s,
+        "FirstAffectedSquash": squash_s,
+        "FirstCommittedAffectedInstruction": committed_s,
+        "FirstConsumerInstruction": consumer_s,
+        "ResponseEventID": str(resp["node"]) if resp else "n/a",
+        "TaintEventID": str(taint["node"]) if taint else "n/a",
+        "SourceEventID": (prop_field(taint, "source_event_id")
+                          if taint else "n/a"),
+        "ConsumerEventID": str(consumer["node"]) if consumer else "n/a",
+        "ProducerDynInstSeq": commit_seq or "n/a",
+        "ConsumerDynInstSeq": (consumer.get("dyn_inst_seq")
+                               if consumer else "n/a"),
+        "WritebackValueFNV": (prop_field(taint, "writeback_value_fnv")
+                              if taint else "n/a"),
+        "ConsumerInputFNV": (prop_field(consumer, "consumer_input_fnv")
+                             if consumer else "n/a"),
+        "ConsumerInputMatchesSource": (
+            prop_field(consumer, "consumer_input_matches_source")
+            if consumer else "n/a"),
+        "DynInstSeqSource": "prop_trace.csv.gz:a03_stream(selected ordinal)",
     }
 
 
@@ -872,6 +995,11 @@ def build_rows(runs: Path, matrix: Path) -> list[dict]:
                 rows.append(rp01_row(model, ctx, run))
             else:
                 rows.append(trace_row(model, ctx, run))
+    # Only A03 populates the direct-driver chain columns; every other row
+    # reports n/a rather than inheriting a guessed value.
+    for row in rows:
+        for column in COLUMNS:
+            row.setdefault(column, "n/a")
     return rows
 
 
