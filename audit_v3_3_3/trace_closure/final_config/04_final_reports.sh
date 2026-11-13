@@ -29,6 +29,8 @@ READY="$RUNS/LSU_60Context_Final_Readiness.csv"
 VALID="$RUNS/LSU_11Context_Repair_Validation.csv"
 CTL="$RUNS/LSU_Control_Audit_Formal.csv"
 BOOK="$RUNS/LSU_Final_Experiment_Config.xlsx"
+AUDIT="$RUNS/LSU_Evidence_Completeness_Audit.csv"
+A03CNT="$RUNS/LSU_A03_Injection_Count_Semantics.csv"
 
 FORCE=${FORCE:-0}
 for arg in "$@"; do
@@ -100,6 +102,8 @@ refuse_overwrite "$READY"
 refuse_overwrite "$VALID"
 refuse_overwrite "$CTL"
 refuse_overwrite "$BOOK"
+refuse_overwrite "$AUDIT"
+refuse_overwrite "$A03CNT"
 
 # 4a. 60-context causal propagation table
 python3 tools/lsu_v333_propagation.py \
@@ -148,11 +152,21 @@ python3 tools/lsu_v333_workbook.py \
   --causal "$PROP" \
   --out "$BOOK"
 
+# 4e. evidence completeness (five distinct statuses) and A03 count semantics
+python3 tools/lsu_v333_evidence_audit.py \
+  --runs "$RUNS" \
+  --propagation "$PROP" \
+  --readiness "$READY" \
+  --out "$AUDIT" \
+  --a03-out "$A03CNT"
+
 echo "wrote:"
 echo "  $PROP"
 echo "  $READY"
 echo "  $VALID"
 echo "  $CTL"
 echo "  $BOOK"
+echo "  $AUDIT"
+echo "  $A03CNT"
 echo "verified STEP 3 input:"
 echo "  $COLL/LSU_Formal_Experiment_Config_Final.xlsx"
