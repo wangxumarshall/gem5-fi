@@ -309,6 +309,19 @@ def _injection_witness(run_dir: Path, summary: dict | None) -> str | None:
     return None
 
 
+# Mirrors tools/lsu_v332_matrix.py:driver_for/required_outputs: RP01 always
+# runs the direct gem5 driver and A03's fault run is direct.  Direct runs do
+# not emit the converted ``trace_v31.jsonl``; requiring it here would grade
+# legitimate evidence as incomplete (e.g. the five zero-injection RP01
+# controls, whose raw ``prop_trace.csv.gz`` is present).
+DIRECT_FAULT_MODELS = frozenset({"A03"})
+
+
+def _expects_converted_trace(model: str, role: str) -> bool:
+    return not (model == "RP01"
+                or (model in DIRECT_FAULT_MODELS and role == "fault"))
+
+
 def _missing_outputs(run_dir: Path, model: str, role: str,
                      summary: dict | None, partial_marker: str | None
                      ) -> list[str]:
@@ -317,7 +330,8 @@ def _missing_outputs(run_dir: Path, model: str, role: str,
         missing.append("summary.json")
     if not (run_dir / "oracle.log").is_file():
         missing.append("oracle.log")
-    if partial_marker is None and not (run_dir / "trace_v31.jsonl").is_file():
+    if (partial_marker is None and _expects_converted_trace(model, role)
+            and not (run_dir / "trace_v31.jsonl").is_file()):
         missing.append("trace_v31.jsonl")
     if role == "fault" and partial_marker is None:
         log_name = MODEL_LOG_NAME.get(model)
