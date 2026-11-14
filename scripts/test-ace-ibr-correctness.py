@@ -5,10 +5,35 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from sdcfuzz.paths import default_cc  # noqa: E402
 GEM5 = ROOT / "CHAOS/gem5"
+
+
+def default_objdump():
+    """Find an AArch64 objdump on openEuler or Debian-style hosts."""
+    override = os.environ.get("ARM_OBJDUMP")
+    if override:
+        return override
+    for name in ("aarch64-openEuler-linux-objdump",
+                 "aarch64-linux-gnu-objdump"):
+        found = shutil.which(name)
+        if found:
+            return found
+    for relative in ("gem5-deps/usr/bin/aarch64-linux-gnu-objdump",
+                     "gem5-deps/py/usr/bin/aarch64-linux-gnu-objdump"):
+        bundled = Path.home() / relative
+        if bundled.is_file():
+            return str(bundled)
+    return "aarch64-linux-gnu-objdump"
+
+
+DEFAULT_OBJDUMP = default_objdump()
 
 
 def stat_dumps(path):
@@ -45,7 +70,7 @@ def main():
     env = os.environ.copy()
     conda = Path(env.get("CONDA_PREFIX", Path.home() / "miniconda3/envs/py312"))
     env["LD_LIBRARY_PATH"] = str(conda / "lib") + ":" + env.get("LD_LIBRARY_PATH", "")
-    cc = env.get("ARM_CC", "aarch64-linux-gnu-gcc")
+    cc = env.get("ARM_CC") or default_cc()
 
     def compile_guest(source, name, *flags):
         binary = args.outdir / name
@@ -118,7 +143,7 @@ def main():
     boundary = run("issue-boundary", guest, "boundary", debug=True)
     trace = (args.outdir / "issue-boundary/issue.trace").read_text().splitlines()
     disassembly = subprocess.check_output(
-        [env.get("ARM_OBJDUMP", "aarch64-linux-gnu-objdump"), "-d", str(guest)],
+        [env.get("ARM_OBJDUMP", DEFAULT_OBJDUMP), "-d", str(guest)],
         text=True)
     words = {int(m[1], 16): int(m[2], 16) for m in re.finditer(
         r"^\s*([0-9a-f]+):\s+([0-9a-f]{8})\s", disassembly, re.MULTILINE)}

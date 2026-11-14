@@ -8,7 +8,9 @@ SiliFuzz 的完整流水线。目标架构为 ARM64（仓库 `AGENTS.md` 约束�
 论文条款到代码的逐条映射见 [`docs/paper-mapping.md`](docs/paper-mapping.md)，
 真实测量见 [`docs/measurements.md`](docs/measurements.md)，与原文的差距见
 [`docs/limitations.md`](docs/limitations.md)，与当前 sdcfuzz 项目的核心差异见
-[`docs/vs-sdcfuzz.md`](docs/vs-sdcfuzz.md)。
+[`docs/vs-sdcfuzz.md`](docs/vs-sdcfuzz.md)。2026-11-14 的独立复核（重构建、
+55 项测试、12,211,456 次 sweep、4 核窗口）见
+[`docs/reproduction-2026-11-14.md`](docs/reproduction-2026-11-14.md)。
 
 ## 组件
 

@@ -8,7 +8,6 @@ a generated guest and classifies the outcome with ``tools/classify.py``.
 """
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +22,7 @@ from sdcfuzz.evaluate import (  # noqa: E402
     CONFIG, COUNTERS, DEFAULT_GEM5, build_guest, evaluate_template,
     gem5_environment, metric, run_guest)
 from sdcfuzz.generator import render_guest  # noqa: E402
+from sdcfuzz.paths import default_cc  # noqa: E402
 from sdcfuzz.templates import TEMPLATES, TEMPLATE_BY_ID  # noqa: E402
 
 
@@ -48,8 +48,7 @@ def main():
     parser.add_argument("--gem5", default=str(DEFAULT_GEM5))
     parser.add_argument("--outdir", default=str(ROOT / "m5out/sdcfuzz-baseline"))
     parser.add_argument("--iterations", type=int, default=40)
-    parser.add_argument("--cc", default=os.environ.get("ARM_CC",
-                                                      "aarch64-linux-gnu-gcc"))
+    parser.add_argument("--cc", default=default_cc())
     args = parser.parse_args()
     gem5 = Path(args.gem5).resolve()
     if not gem5.is_file():

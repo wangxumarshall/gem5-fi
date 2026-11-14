@@ -1,0 +1,88 @@
+### build
+make: Nothing to be done for 'all'.
+BUILD_EXIT=0
+### test
+./bin/test_snapshot
+PASS fnv1a64 abc
+PASS content hash shape
+PASS content hash stable
+sample_sha256=1ed43634bdc88275b6ee5a65f1a26c0b33c5eb18db0b7bac1dd0c4eb22915abb
+PASS encode
+PASS decode
+PASS decoded fields
+PASS decoded end state identical
+PASS decoded registers
+PASS save
+PASS load
+PASS load fields
+PASS reject short
+PASS reject bad magic
+PASS reject truncated
+PASS reject trailing bytes
+PASS end state bit sensitivity
+PASS checksum bit sensitivity
+ALL PASS failures=0
+./bin/test_player
+PASS alu run
+PASS alu ends with SIGTRAP
+PASS alu x0 == 10
+PASS alu pc
+PASS alu deterministic
+PASS fp run
+PASS fp 1.0+1.0 == 2.0
+PASS mem run
+PASS mem load/store x3 == 14
+PASS mem data page checksum observed
+PASS fault run
+PASS fault SIGSEGV
+PASS fault address
+PASS illegal run
+PASS illegal SIGILL
+PASS timeout player start
+PASS loop timeout
+PASS recovery after timeout
+PASS core option recorded
+ALL PASS failures=0
+python3 tests/test_crosslang.py
+PASS test_snapshot produced sample hash
+PASS python content hash == C++ content hash
+PASS python re-encode is byte identical
+PASS python snapshot round-trip
+PASS C++ player runs Python snapshot
+PASS captured end state
+PASS captured SIGTRAP
+PASS captured x0 == 14
+PASS captured pc
+PASS captured id == content id
+PASS replay matches captured end state
+PASS three matching replays
+PASS python rejects truncated snapshot
+ALL PASS failures=0
+./tests/test_e2e.sh
+generated: 300
+sf_fix: 300 candidate files, 4 ref cores, 4 jobs
+progress: candidates=4 accepted=1 dup=0
+{"source":"e2e","candidates":300,"accepted":290,"duplicates":0,"executions":1742,"elapsed_s":3.407,"reasons":{"syscall":8,"timeout":2}}
+accepted: 290
+{"corpus":"work/test-e2e/corpus","loaded":200,"failures":0,"timeouts":0}
+PASS player replay: {'corpus': 'work/test-e2e/corpus', 'loaded': 200, 'failures': 0, 'timeouts': 0}
+{"mode":"sampled","corpus_files":290,"cores":4,"seconds":2,"elapsed_s":2.050,"executions":85932,"exec_per_s":41913.4,"mismatches":0,"timeouts":0,"errors":0,"batches":186,"snapshot_loads":9300,"bytes_read":20561603,"io_bytes_per_exec":239.3,"batch_size":50,"execs_per_batch":1000,"seed":1}
+PASS checker: {'mode': 'sampled', 'corpus_files': 290, 'cores': 4, 'seconds': 2, 'elapsed_s': 2.05, 'executions': 85932, 'exec_per_s': 41913.4, 'mismatches': 0, 'timeouts': 0, 'errors': 0, 'batches': 186, 'snapshot_loads': 9300, 'bytes_read': 20561603, 'io_bytes_per_exec': 239.3, 'batch_size': 50, 'execs_per_batch': 1000, 'seed': 1}
+{"mode":"sampled","corpus_files":290,"cores":4,"seconds":2,"elapsed_s":2.050,"executions":85254,"exec_per_s":41582.3,"mismatches":85254,"timeouts":0,"errors":0,"batches":186,"snapshot_loads":9300,"bytes_read":20561603,"io_bytes_per_exec":241.2,"batch_size":50,"execs_per_batch":1000,"seed":1}
+PASS synthetic defect detected: 85254 mismatches
+ALL PASS test-e2e
+./tests/test_fleet.sh
+window 1/2 cores=[0, 1] seconds=2
+  executions=44367 rate=21640.4/s mismatches=0
+window 2/2 cores=[2, 3] seconds=2
+  executions=43228 rate=21084.4/s mismatches=0
+{"windows": 2, "executions": 87595, "mismatches": 0, "db": "work/test-fleet/db.sqlite"}
+window 1/1 cores=[4, 5] seconds=2
+  executions=42906 rate=20928.6/s mismatches=42906
+{"windows": 1, "executions": 42906, "mismatches": 42906, "db": "work/test-fleet/db.sqlite"}
+{"groups": 580, "confirmed": 580, "out": "work/test-fleet/quarantine.json"}
+PASS fleet: {'windows': 2, 'executions': 87595, 'mismatches': 0, 'db': 'work/test-fleet/db.sqlite'}
+PASS synthetic window: 42906 mismatches
+PASS quarantine: 580 confirmed groups
+ALL PASS test-fleet
+TEST_EXIT=0

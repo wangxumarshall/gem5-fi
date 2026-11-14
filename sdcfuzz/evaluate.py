@@ -14,13 +14,13 @@ import subprocess
 from pathlib import Path
 
 from .generator import (DEFAULT_ITERATIONS, REPS_PER_ITERATION, render_guest)
+from .paths import GEM5_SRC, default_gem5
 from .templates import TEMPLATES, TEMPLATE_BY_ID
 
-ROOT = Path(__file__).resolve().parents[1]
-GEM5_SRC = ROOT / "CHAOS/gem5"
+ROOT = GEM5_SRC.parents[1]
 M5OP = GEM5_SRC / "util/m5/src/abi/arm64/m5op.S"
 CONFIG = ROOT / "configs/se/arm_chaos.py"
-DEFAULT_GEM5 = GEM5_SRC / "build/ARM_ACE_IBR_AUDIT/gem5.opt"
+DEFAULT_GEM5 = default_gem5()
 
 MEASURABLE_TARGETS = ("alu", "mult", "div", "l1d", "l1i", "fpadd", "fpmul")
 

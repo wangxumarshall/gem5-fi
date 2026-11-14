@@ -35,3 +35,27 @@ def test_integer_templates_do_not_depend_on_fp_metrics():
         if template.target in ("alu", "mult", "div", "l1d", "l1i"):
             required = coverage.template_metrics(template)
             assert "fpadd" not in required and "fpmul" not in required, template.id
+
+
+def test_every_template_has_a_known_target_metric():
+    for template in TEMPLATES:
+        metric = coverage.template_target_metric(template)
+        assert metric is not None, template.id
+        assert metric in coverage.METRIC_COUNTERS, (template.id, metric)
+        assert coverage.template_counters(template), template.id
+
+
+def test_l1i_template_contract_requires_l1i_not_just_alu():
+    template = TEMPLATE_BY_ID["l1i-big-body"]
+    assert coverage.template_target_metric(template) == "l1i"
+    assert "l1i" not in coverage.template_metrics(template)
+
+    counters = {name: 1.0 for name in COUNTERS}
+    counters["l1i_reads"] = 1.0
+    failures = coverage.coverage_failures(template, counters)
+    assert not any(metric == "l1i" for metric, _, _ in failures), failures
+
+    counters["l1i_reads"] = 0.0
+    failures = coverage.coverage_failures(template, counters)
+    assert any(metric == "l1i" and kinds == ["target"]
+               for metric, kinds, _ in failures), failures

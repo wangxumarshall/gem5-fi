@@ -1,5 +1,9 @@
 # silifuzz 与当前项目（sdcfuzz / gem5-CHAOS）的核心差异
 
+> 2026-11-14 更新：本轮的实测数字与能力矩阵见
+> [`../../docs/reports/silifuzz-vs-sdcfuzz-2026-11-14.md`](../../docs/reports/silifuzz-vs-sdcfuzz-2026-11-14.md)。
+> 本文保留更细的逐点解释；两份文档不冲突时以更新版为准。
+
 本文说明 `silifuzz/` 与本仓库主线（`sdcfuzz/` + `CHAOS/gem5/` 研究工程，
 下称 sdcfuzz）在目标、生成方式、判定口径和工程依赖上的核心差异，避免把两者
 的数字、结论或代码混为一谈。

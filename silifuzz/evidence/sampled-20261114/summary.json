@@ -1,0 +1,1 @@
+{"mode":"sampled","corpus_files":95402,"cores":128,"seconds":6,"elapsed_s":6.042,"executions":603201,"exec_per_s":99834.7,"mismatches":0,"timeouts":0,"errors":0,"batches":604,"snapshot_loads":30200,"bytes_read":67318044,"io_bytes_per_exec":111.6,"batch_size":50,"execs_per_batch":1000,"seed":1}

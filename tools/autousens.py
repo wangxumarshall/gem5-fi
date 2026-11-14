@@ -36,10 +36,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nsga2 import knee_point, run_nsga2  # noqa: E402
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT))
+from nsga2 import knee_point, run_nsga2  # noqa: E402
+from sdcfuzz.coverage_report import sad_from_stats  # noqa: E402
+from sdcfuzz.paths import default_cc, default_gem5  # noqa: E402
+
 GEM5_SRC = ROOT / "CHAOS/gem5"
 PROBE_SOURCE = ROOT / "workloads/directed/structural_probe_workload.c"
 M5OP = GEM5_SRC / "util/m5/src/abi/arm64/m5op.S"
@@ -50,6 +53,23 @@ GROUPS_PER_ITER = 16
 
 STRUCTURES = ("rf", "vec", "l1i", "l1d", "alu", "mult", "div",
               "fpadd", "fpmul")
+
+# A structure is per-instruction targetable only when the best probe reaches
+# this activation per dynamic instruction (in the structure's own units).
+# L1I demand reads are cache-line events: the 16 small probes stay below the
+# floor because their bodies fit in one line, so ``target l1i`` must fail
+# loudly instead of ranking boundary noise as a signal.
+TARGET_MIN_PER_INSTRUCTION = {
+    "rf": 0.25,
+    "vec": 0.25,
+    "l1i": 0.10,
+    "l1d": 0.50,
+    "alu": 32.0,
+    "mult": 32.0,
+    "div": 32.0,
+    "fpadd": 32.0,
+    "fpmul": 32.0,
+}
 
 # Instruction snippets used by the probe streams and by generated candidates.
 MODE_ASM = {
@@ -183,6 +203,69 @@ def per_instruction(values, dynamic_ops):
     return {name: value / dynamic_ops for name, value in values.items()}
 
 
+def per_instruction_value(entry, structure, document):
+    """Activation of one structure per dynamic instruction.
+
+    New maps carry ``activation_per_instruction``; older maps are normalised
+    on the fly from ``dynamic_ops`` so they still work.  A map without either
+    is rejected instead of silently comparing raw counts across iterations.
+    """
+
+    values = entry.get("activation_per_instruction") or {}
+    if structure in values:
+        return values[structure]
+    dynamic_ops = float(document.get("dynamic_ops") or 0.0)
+    if dynamic_ops <= 0.0:
+        die("structure map has no dynamic_ops; rebuild it with "
+            "'tools/autousens.py map'")
+    return entry["activation"][structure] / dynamic_ops
+
+
+def targetability(document):
+    """Return per-structure signal strength and whether it is targetable."""
+
+    instructions = document.get("instructions") or {}
+    if not instructions:
+        die("structure map has no instructions")
+    result = {}
+    for structure in STRUCTURES:
+        best_mode = None
+        best_value = -1.0
+        for mode in sorted(instructions):
+            value = per_instruction_value(instructions[mode], structure,
+                                          document)
+            if value > best_value:
+                best_mode, best_value = mode, value
+        floor = TARGET_MIN_PER_INSTRUCTION[structure]
+        targetable = best_value >= floor
+        result[structure] = {
+            "best_instruction": best_mode,
+            "max_per_instruction": round(best_value, 9),
+            "floor_per_instruction": floor,
+            "targetable": targetable,
+            "reason": ("signal above floor" if targetable else
+                       "no probe reaches the per-instruction floor"),
+        }
+    return result
+
+
+def require_targetable(document, structure):
+    """Fail with an actionable message when a structure is noise-only."""
+
+    info = targetability(document).get(structure)
+    if info is None:
+        die(f"unsupported structure {structure!r}; choose from "
+            + ", ".join(STRUCTURES))
+    if not info["targetable"]:
+        die(f"structure {structure!r} is measured but not per-instruction "
+            f"targetable: best probe {info['best_instruction']} reaches "
+            f"{info['max_per_instruction']:.6g} per instruction, below the "
+            f"floor {info['floor_per_instruction']:.6g}. This structure is "
+            "line- or aggregate-granular; use the coverage matrix instead of "
+            "reverse targeting.")
+    return info
+
+
 def compile_guest(source, output, cc, extra_flags=()):
     output.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -204,7 +287,7 @@ def gem5_environment():
     return env
 
 
-def run_guest(gem5, outdir, guest, workload_args, expected):
+def run_guest(gem5, outdir, guest, workload_args, expected, sad=False):
     """Run one guest under the three structural metrics and return its dumps."""
     outdir.mkdir(parents=True, exist_ok=True)
     command = [
@@ -213,6 +296,8 @@ def run_guest(gem5, outdir, guest, workload_args, expected):
         "--cmd=" + str(guest), "--workload_args=" + workload_args,
         "--rf_ace", "--rf_ace_granularity=bit", "--l1_ace", "--fu_ibr",
     ]
+    if sad:
+        command.append("--sad")
     with (outdir / "gem5.log").open("w") as log:
         subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
                        env=gem5_environment(), check=True)
@@ -237,7 +322,7 @@ def build_map(args):
     runs, coverage = {}, {}
     for mode in args.modes:
         dumps = run_guest(args.gem5.resolve(), outdir / mode, guest,
-                          f"{mode} {args.iterations}", "PASS")
+                          f"{mode} {args.iterations}", "PASS", sad=args.sad)
         runs[mode] = counters_from_dump(dumps[-1])
         coverage[mode] = coverage_from_dump(dumps[-1])
     baseline = runs["baseline"]
@@ -256,6 +341,8 @@ def build_map(args):
                                                           dynamic_ops),
             "coverage": coverage[mode],
             "clamped": clamped,
+            "sad": (sad_from_stats(outdir / mode / "stats.txt")
+                    if args.sad else None),
         }
     document = {
         "schema": "autousens.structure_map.v1",
@@ -283,6 +370,9 @@ def build_map(args):
             " arithmetic; 128-bit SIMD high lanes are outside this metric",
             "2-source shift instructions (e.g. LSLV) are outside the FU IBR"
             " arithmetic subset and therefore not probed",
+            "L1I demand reads are cache-line events; the 16 short probes stay"
+            " below the per-instruction targeting floor, so l1i is measured by"
+            " the coverage matrix but not reverse-targetable",
         ],
         "baseline": {
             "raw": baseline,
@@ -290,6 +380,7 @@ def build_map(args):
         },
         "instructions": instructions,
     }
+    document["targetability"] = targetability(document)
     path = outdir / "structure_map.json"
     path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
     for mode, entry in instructions.items():
@@ -302,15 +393,14 @@ def build_map(args):
 
 
 def rank_for_structure(document, structure):
-    if structure not in STRUCTURES:
-        die(f"unsupported structure {structure!r}; choose from "
-            + ", ".join(STRUCTURES))
+    require_targetable(document, structure)
     entries = document.get("instructions")
     if not entries:
         die("structure map has no instructions")
     ranked = sorted(
         entries.items(),
-        key=lambda item: (-item[1]["activation"][structure], item[0]),
+        key=lambda item: (-per_instruction_value(item[1], structure, document),
+                          item[0]),
     )
     return ranked
 
@@ -439,6 +529,10 @@ def pareto(args):
         die("--structure must not repeat a structure")
     if args.length <= 0:
         die("--length must be positive")
+    if args.iterations <= 0:
+        die("--iterations must be positive")
+    if args.max_candidates <= 0:
+        die("--max-candidates must be positive")
     if args.population < 2:
         die("--population must be at least 2")
     if args.generations < 0:
@@ -450,13 +544,15 @@ def pareto(args):
     modes = sorted(instructions)
     maxima = {}
     for structure in structures:
+        require_targetable(document, structure)
         maxima[structure] = max(
-            entry["activation"][structure]
+            per_instruction_value(entry, structure, document)
             for entry in instructions.values())
         if maxima[structure] <= 0:
             die(f"structure {structure!r} has no activation above baseline")
     normalised = {
-        mode: {structure: instructions[mode]["activation"][structure]
+        mode: {structure: per_instruction_value(instructions[mode], structure,
+                                                document)
                / maxima[structure] for structure in structures}
         for mode in modes
     }
@@ -508,12 +604,13 @@ def pareto(args):
         knee_source = Path(knee_entry["source"])
         guest = compile_guest(knee_source, outdir / "bin" / "knee", args.cc)
         dumps = run_guest(args.gem5.resolve(), outdir / "run", guest,
-                          str(args.iterations), "DONE")
+                          str(args.iterations), "DONE", sad=args.sad)
         baseline_guest = compile_guest(
             PROBE_SOURCE, outdir / "bin" / "structural_probe", args.cc)
         baseline_dumps = run_guest(args.gem5.resolve(), outdir / "baseline",
                                    baseline_guest,
-                                   f"baseline {args.iterations}", "PASS")
+                                   f"baseline {args.iterations}", "PASS",
+                                   sad=args.sad)
         stats = dumps[-1]
         raw = counters_from_dump(stats)
         baseline_raw = counters_from_dump(baseline_dumps[-1])
@@ -534,6 +631,8 @@ def pareto(args):
             "clamped": clamped,
             "coverage": coverage,
             "baseline_coverage": baseline_coverage,
+            "sad": (sad_from_stats(outdir / "run" / "stats.txt")
+                    if args.sad else None),
         }
 
     report = {
@@ -580,6 +679,9 @@ def evaluate_directory(outdir, baseline_dir=None):
         "raw": raw,
         "coverage": coverage_from_dump(stats),
     }
+    sad = sad_from_stats(outdir / "stats.txt")
+    if sad is not None:
+        report["sad"] = sad
     if baseline_dir is not None:
         baseline = counters_from_dump(
             stat_dumps(Path(baseline_dir) / "stats.txt")[-1])
@@ -596,6 +698,8 @@ def target(args):
     map_path = args.map.resolve()
     if not map_path.is_file():
         die(f"structure map not found: {map_path}")
+    if args.iterations <= 0:
+        die("--iterations must be positive")
     document = json.loads(map_path.read_text())
     structures = [name.strip() for name in args.structure.split(",")
                   if name.strip()]
@@ -624,7 +728,7 @@ def target(args):
     for index in order:
         structure = structures[index]
         ranked = rank_for_structure(document, structure)
-        normaliser = max((entry["activation"][structure]
+        normaliser = max((per_instruction_value(entry, structure, document)
                           for entry in document["instructions"].values()),
                          default=0.0)
         if normaliser <= 0:
@@ -639,13 +743,14 @@ def target(args):
                                        args.iterations))
     guest = compile_guest(source, outdir / "bin" / "candidate", args.cc)
     dumps = run_guest(args.gem5.resolve(), outdir / "run", guest,
-                      str(args.iterations), "DONE")
+                      str(args.iterations), "DONE", sad=args.sad)
     # A fresh baseline in the same build keeps the net activation honest.
     baseline_guest = compile_guest(
         PROBE_SOURCE, outdir / "bin" / "structural_probe", args.cc)
     baseline_dumps = run_guest(args.gem5.resolve(), outdir / "baseline",
                                baseline_guest,
-                               f"baseline {args.iterations}", "PASS")
+                               f"baseline {args.iterations}", "PASS",
+                               sad=args.sad)
     stats = dumps[-1]
     raw = counters_from_dump(stats)
     baseline_raw = counters_from_dump(baseline_dumps[-1])
@@ -666,6 +771,8 @@ def target(args):
         "coverage": coverage_from_dump(stats),
         "baseline_coverage": coverage_from_dump(baseline_dumps[-1]),
         "supported_structures": list(STRUCTURES),
+        "sad": (sad_from_stats(outdir / "run" / "stats.txt")
+                if args.sad else None),
     }
     path = outdir / "candidate_report.json"
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -692,14 +799,14 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p):
-        p.add_argument("--gem5", type=Path,
-                       default=ROOT / "CHAOS/gem5/build/ARM_ACE_IBR_AUDIT/gem5.opt",
+        p.add_argument("--gem5", type=Path, default=default_gem5(),
                        help="gem5.opt with RF ACE / L1 ACE / FU IBR support")
-        p.add_argument("--cc", default=os.environ.get("ARM_CC",
-                                                      "aarch64-linux-gnu-gcc"),
+        p.add_argument("--cc", default=default_cc(),
                        help="AArch64 cross compiler")
         p.add_argument("--iterations", type=int, default=DEFAULT_ITERATIONS,
                        help="probe loop iterations (default 100)")
+        p.add_argument("--sad", action="store_true",
+                       help="also collect SAD occupancy counters")
 
     map_parser = sub.add_parser("map", help="build the instruction->structure map")
     common(map_parser)

@@ -1,5 +1,5 @@
 schema: sdcfuzz.roadmap.v1
-updated: 2026-11-10
+updated: 2026-11-14
 title: sdcfuzz / gem5-CHAOS 长期任务路线与进度
 subtitle: 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
@@ -50,22 +50,22 @@ tracks:
             short: RF/L1 ACE
             title: RF ACE 与 L1 cache ACE 量化
             status: done-local
-            evidence: CHAOS/gem5/src/cpu/o3/rf_ace.*（整数 + 向量/FP 低 64 位）、mem/cache/l1_ace.*；test-rf/l1-ace.sh；19 模板覆盖矩阵
+            evidence: CHAOS/gem5/src/cpu/o3/rf_ace.*（整数 + 向量/FP 低 64 位）、mem/cache/l1_ace.*；test-rf/l1-ace.sh 在原生 aarch64 + gem5-deps 环境通过；19 模板覆盖矩阵
           - id: p1-ibr
             short: FU IBR
             title: FU IBR 输入位覆盖率
             status: done-local
-            evidence: CHAOS/gem5/src/cpu/o3/fu_ibr.*（intAlu/intMult/intDiv + fpAdd/fpMult/fpDiv）；test-fu-ibr.sh；19 模板覆盖矩阵
+            evidence: CHAOS/gem5/src/cpu/o3/fu_ibr.*（intAlu/intMult/intDiv + fpAdd/fpMult/fpDiv）；test-fu-ibr.sh 在原生 aarch64 通过；19 模板覆盖矩阵
           - id: p1-autousens
             short: 结构映射原型
             title: AutoµSens 指令→结构映射与逆向靶向原型
             status: done-local
-            evidence: tools/autousens.py；scripts/test-autousens.py
+            evidence: tools/autousens.py；16 条指令探针/9 结构；targetability 噪声底拒绝 l1i；scripts/test-autousens.py 对 8 个可靶向结构逐一真实验证
           - id: p1-coverage
             short: 覆盖度评估
             title: 结构覆盖度评估工具
             status: done-local
-            evidence: tools/autousens.py evaluate + sdcfuzz/coverage.py；scripts/test-template-coverage.py；coverage_matrix.json
+            evidence: sdcfuzz/coverage.py（含 target 指标契约）+ sdcfuzz/coverage_report.py（JSON/CSV/Markdown + SAD 占用）+ scripts/test-template-coverage.py；19 模板 9/9 结构真实激活
           - id: p1-local-corpus
             short: 本地语料(支撑)
             title: 本地 19 条结构语料（支撑件，非上游 19 模板）
@@ -80,17 +80,22 @@ tracks:
             short: 跨结构加权聚合
             title: 跨结构加权聚合靶向（归一化 + 贪心组合）
             status: done-local
-            evidence: tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py
+            evidence: tools/autousens.py target --structure l1d,alu；按每指令归一化；scripts/test-autousens.py 真实验证 l1d+alu 双结构净激活
           - id: p1-nsga
             short: NSGA-II 多目标
             title: NSGA-II 多目标序列集生成
             status: done-local
-            evidence: tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证
+            evidence: tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证（size=8–14）
           - id: p1-sad
             short: SAD 指标
             title: SAD 结构激活深度指标
             status: done-local
-            evidence: CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh
+            evidence: CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh；autousens --sad 与 coverage_report --sad-run 已接入
+          - id: p1-gate
+            short: Phase 1 闸门
+            title: Phase 1 一键验收（9 步）
+            status: done-local
+            evidence: scripts/test-phase1.sh；m5out/phase1-gate/phase1_gate.json；纯 Python 单测 + AutoµSens + 模板矩阵 + SAD + ACE/IBR + 覆盖汇总全通过
       - id: phase2
         title: Phase 2 · RL Mutator + 功耗应力
         window: M4–M6

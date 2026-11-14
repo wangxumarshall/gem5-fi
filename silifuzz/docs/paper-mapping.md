@@ -1,5 +1,8 @@
 # 论文规格映射（SiliFuzz, arXiv 2110.11519）
 
+> 2026-11-14 的独立复核见 [`reproduction-2026-11-14.md`](reproduction-2026-11-14.md)；
+> 本文保留条文到代码的逐条映射。
+
 本文逐条对照 `docs/papers/ref/silifuzz.pdf` 第 2 节与 `silifuzz/` 的实现。
 论文目标 ISA 是 x86-64；本仓库 `AGENTS.md` 要求目标架构为 ARM，因此 ISA 专属
 部件映射为 ARM64 等价物，架构无关的规格（snapshot、player、checker、反馈闭环）

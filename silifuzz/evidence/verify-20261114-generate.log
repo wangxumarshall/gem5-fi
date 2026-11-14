@@ -1,0 +1,12 @@
+### ifuzzgen
+ifuzzgen: requested=2000 written=1996 unique=1996 out=work/cand/verify-20261114
+GEN_EXIT=0
+### sf_fix
+sf_fix: 1996 candidate files, 4 ref cores, 8 jobs
+progress: candidates=8 accepted=1 dup=0
+progress: candidates=1051 accepted=1001 dup=0
+{"source":"ifuzz","candidates":1996,"accepted":1896,"duplicates":0,"executions":11405,"elapsed_s":12.217,"reasons":{"syscall":72,"timeout":28}}
+FIX_EXIT=0
+### player
+{"corpus":"work/corpus-verify-20261114","loaded":1000,"failures":0,"timeouts":0}
+PLAY_EXIT=0

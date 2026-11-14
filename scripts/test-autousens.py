@@ -12,7 +12,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 TOOL = ROOT / "tools/autousens.py"
+
+from sdcfuzz.paths import default_gem5  # noqa: E402
 
 
 def call(command, expect=0):
@@ -30,13 +33,22 @@ def activation(instruction):
     return instruction["activation"]
 
 
+# ldr and ldxr are both L1D load probes.  Their measured activation differs by
+# a few events between runs, so the tool may legitimately rank either first;
+# the assertion must be about the load class, not about one mnemonic.
+LOAD_MODES = {"ldr", "ldxr"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--gem5", default=str(
-        ROOT / "CHAOS/gem5/build/ARM_ACE_IBR_AUDIT/gem5.opt"))
+    parser.add_argument("--gem5", default=str(default_gem5()))
     parser.add_argument("--outdir", default=str(ROOT / "m5out/autousens-test"))
     parser.add_argument("--iterations", type=int, default=60)
+    parser.add_argument("--cc", default=None,
+                        help="AArch64 cross compiler (default: auto-detect)")
     args = parser.parse_args()
+    if args.cc:
+        os.environ["ARM_CC"] = args.cc
 
     outdir = Path(args.outdir).resolve()
     outdir.mkdir(parents=True, exist_ok=True)
@@ -137,9 +149,9 @@ def main():
           "--structure", "l1d", "--top", "2",
           "--outdir", str(targetdir), "--iterations", str(args.iterations)])
     report = json.loads((targetdir / "candidate_report.json").read_text())
-    assert "ldr" in report["chosen"], report["chosen"]
+    assert LOAD_MODES & set(report["chosen"]), report["chosen"]
     source = (targetdir / "candidate.c").read_text()
-    assert "ldr x8, [%[buf]]" in source
+    assert any(f"{mode} x8, [%[buf]]" in source for mode in LOAD_MODES)
     assert report["net"]["l1d_reads"] > 0, report["net"]
     assert report["activation"]["l1d"] > 0, report["activation"]
     print(f"target l1d: chosen={report['chosen']} "
@@ -153,7 +165,7 @@ def main():
           "--structure", "l1d,alu", "--weights", "1,1", "--top", "1",
           "--outdir", str(bothdir), "--iterations", str(args.iterations)])
     both = json.loads((bothdir / "candidate_report.json").read_text())
-    assert "ldr" in both["chosen"], both["chosen"]
+    assert LOAD_MODES & set(both["chosen"]), both["chosen"]
     assert any(mode in both["chosen"]
                for mode in ("add", "movz", "add_imm", "add_lsl")), both["chosen"]
     assert both["structures"] == ["l1d", "alu"], both["structures"]
@@ -174,6 +186,32 @@ def main():
             > mult_report["baseline_coverage"]["mult"]), mult_report
     print(f"target mult: chosen={mult_report['chosen']} "
           f"net_mult={mult_report['activation']['mult']:.0f}")
+
+    # Every structure above the signal floor must be reverse-targetable, not
+    # just the three hand-picked cases above.  l1i is the documented exception:
+    # its demand reads are line-granular and the 16 short probes stay below the
+    # per-instruction floor, so the tool must reject it explicitly.
+    targetability = document.get("targetability") or {}
+    assert targetability, "structure map must record targetability"
+    validated = []
+    for structure in sorted(targetability):
+        info = targetability[structure]
+        if not info["targetable"]:
+            assert structure == "l1i", (structure, info)
+            continue
+        structure_dir = outdir / f"target-{structure}"
+        call([sys.executable, str(TOOL), "target", "--gem5", str(gem5),
+              "--map", str(mapdir / "structure_map.json"),
+              "--structure", structure, "--top", "1",
+              "--outdir", str(structure_dir),
+              "--iterations", str(args.iterations)])
+        structure_report = json.loads(
+            (structure_dir / "candidate_report.json").read_text())
+        assert structure_report["activation"][structure] > 0, structure_report
+        validated.append(structure)
+    expected = sorted(set(targetability) - {"l1i"})
+    assert sorted(validated) == expected, (validated, expected)
+    print("target all: " + " ".join(validated))
 
     evaluated = call([sys.executable, str(TOOL), "evaluate",
                       "--dir", str(targetdir / "run"),
@@ -231,7 +269,15 @@ def main():
                              str(outdir / "bad-map"), "--modes", "add"],
                             expect=None)
     assert missing_baseline.returncode != 0, "map without baseline must fail"
-    print("error handling: unknown structure and missing baseline both fail")
+    noise_target = call([sys.executable, str(TOOL), "target",
+                         "--map", str(mapdir / "structure_map.json"),
+                         "--structure", "l1i", "--outdir",
+                         str(outdir / "bad-l1i")], expect=None)
+    assert noise_target.returncode != 0, "noise-only l1i targeting must fail"
+    assert "not per-instruction targetable" in noise_target.stderr, \
+        noise_target.stderr
+    print("error handling: unknown structure, missing baseline and noise-only"
+          " l1i all fail loudly")
     print(f"outputs: {outdir}")
 
 

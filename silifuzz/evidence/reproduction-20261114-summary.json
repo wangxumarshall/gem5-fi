@@ -1,0 +1,109 @@
+{
+  "build_test": {
+    "all_pass_groups": 5,
+    "build_exit": 0,
+    "clean_build_log": "evidence/verify-20261114-clean-build.log",
+    "clean_rebuild": true,
+    "pass_lines": 55,
+    "test_exit": 0
+  },
+  "corpus": {
+    "by_source": {
+      "capstone": 1600,
+      "ifuzz": 92652,
+      "unicorn": 1150
+    },
+    "bytes": 212647273,
+    "bytes_per_snapshot": 2228.9603257793337,
+    "code_bytes": {
+      "max": 132,
+      "min": 8,
+      "p50": 68,
+      "p90": 120
+    },
+    "end_state_signals": {
+      "SIGBUS": 4230,
+      "SIGILL": 51461,
+      "SIGSEGV": 31070,
+      "SIGTRAP": 8641
+    },
+    "snapshots": 95402
+  },
+  "date": "2026-11-14",
+  "fleet_4c_120s": {
+    "exec_per_s": 42977.7,
+    "executions": 5160039,
+    "mismatches": 0,
+    "windows": 1
+  },
+  "generation": {
+    "accepted": 1896,
+    "fix_elapsed_s": 12.217,
+    "fix_executions": 11405,
+    "player_failures": 0,
+    "player_loaded": 1000,
+    "rejected": {
+      "syscall": 72,
+      "timeout": 28
+    },
+    "requested": 2000,
+    "written": 1996
+  },
+  "host": {
+    "arch": "aarch64",
+    "cores": 128,
+    "cpu": "HiSilicon Kunpeng-920",
+    "kernel": "6.6.0-159.4.3.154.oe2403sp4.aarch64",
+    "name": "sdc-0103",
+    "numa_nodes": 4,
+    "os": "openEuler 24.03 SP4",
+    "ram_gib": 30,
+    "smt": false
+  },
+  "paper_claims": {
+    "corpus_500k": "not reached (95,402 = 19.1%)",
+    "defect_patterns_A_D": "not applicable (x86-64/x87)",
+    "proxy_attribution_40_20_40": "not measured (needs known-bad pool)",
+    "section_2_mechanics": "reproduced",
+    "smt_pair_attribution": "not applicable (no SMT)",
+    "unique_findings_45pct": "not applicable (no fleet/known-bad pool)"
+  },
+  "real_hardware_defects_found": 0,
+  "sampled_128c": {
+    "batch_size": 50,
+    "bytes_read": 67318044,
+    "elapsed_s": 6.042,
+    "errors": 0,
+    "exec_per_s": 99834.7,
+    "execs_per_batch": 1000,
+    "executions": 603201,
+    "io_bytes_per_exec": 111.6,
+    "mismatches": 0,
+    "seconds": 6,
+    "timeouts": 0
+  },
+  "schema": "silifuzz.reproduction.v1",
+  "sweep_128c": {
+    "clean_baseline_20261110": {
+      "elapsed_s": 45.473,
+      "exec_per_s": 268540.0
+    },
+    "elapsed_s": 64.757,
+    "errors": 0,
+    "exec_per_s": 188575.0,
+    "executions": 12211456,
+    "io_bytes_per_exec": 17.4,
+    "mismatches": 0,
+    "timeouts": 0
+  },
+  "synthetic_injection": {
+    "cores": "4-7",
+    "exec_per_s": 41830.0,
+    "executions": 211837,
+    "hardware_defect": false,
+    "injection": "flip:0:0:1:0",
+    "mismatches": 211837,
+    "seconds": 5,
+    "synthetic": true
+  }
+}

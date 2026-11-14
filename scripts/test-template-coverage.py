@@ -16,7 +16,6 @@ No predicted values: every assertion below is against a live stats.txt.
 """
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -24,11 +23,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sdcfuzz import coverage  # noqa: E402
+from sdcfuzz.coverage_report import write_report  # noqa: E402
 from sdcfuzz.evaluate import (  # noqa: E402
     COUNTERS,
     DEFAULT_GEM5,
     build_index,
 )
+from sdcfuzz.paths import default_cc  # noqa: E402
 from sdcfuzz.templates import TEMPLATES  # noqa: E402
 
 
@@ -37,8 +38,7 @@ def main():
     parser.add_argument("--gem5", default=str(DEFAULT_GEM5))
     parser.add_argument("--outdir", default=str(ROOT / "m5out/coverage-matrix"))
     parser.add_argument("--iterations", type=int, default=40)
-    parser.add_argument("--cc", default=os.environ.get(
-        "ARM_CC", "aarch64-linux-gnu-gcc"))
+    parser.add_argument("--cc", default=default_cc())
     args = parser.parse_args()
 
     gem5 = Path(args.gem5).resolve()
@@ -71,8 +71,10 @@ def main():
         failures = coverage.coverage_failures(template, counters)
         assert not failures, (template.id, failures)
         required = coverage.template_metrics(template)
+        target_metric = coverage.template_target_metric(template)
         matrix[template.id] = {
             "target": template.target,
+            "target_metric": target_metric,
             "required": required,
             "counters": counters,
             "coverage": entry["coverage"],
@@ -83,6 +85,10 @@ def main():
             + "/".join(f"{counters[counter]:.0f}"
                        for counter in coverage.METRIC_COUNTERS[name])
             for name in required)
+        if target_metric is not None and target_metric not in required:
+            value = sum(counters[counter]
+                        for counter in coverage.METRIC_COUNTERS[target_metric])
+            measured += f" {target_metric}(target)={value:.0f}"
         print(f"{template.id:16s} target={template.target:6s} {measured}")
 
     # FP templates specifically prove the new vector-ACE + FP-IBR path.
@@ -113,8 +119,14 @@ def main():
     }
     out = Path(args.outdir) / "coverage_matrix.json"
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    summary = write_report(report, Path(args.outdir), source=out)
+    assert summary["template_count"] == len(TEMPLATES), summary
     print(f"all {len(TEMPLATES)} templates cover every mapped instruction form")
+    print(f"coverage: {len(summary['covered_structures'])}/"
+          f"{summary['structure_count']} structures observed; "
+          f"gaps={summary['gaps']}")
     print(f"matrix: {out}")
+    print(f"summary: {Path(args.outdir) / 'coverage_summary.md'}")
 
 
 if __name__ == "__main__":

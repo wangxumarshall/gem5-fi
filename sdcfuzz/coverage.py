@@ -22,6 +22,10 @@ Metric groups are kept coarse enough to be stable across builds:
 required ``rf``/``alu`` metrics come from the integer operations in the loop.
 Branches themselves are control operations and are intentionally not part of
 FU IBR.
+
+``TARGET_METRICS`` adds a second, template-level contract: the metric named by
+``template.target`` must also be non-zero.  This catches the case where a
+template declares ``l1i`` as its target but executes only ALU instructions.
 """
 
 # A metric is satisfied when at least one of its counters is non-zero.
@@ -58,6 +62,23 @@ OP_METRICS = {
     "busy_loop": ("rf", "alu"),
 }
 
+# Template target -> the metric that must prove the declared target is active.
+# The op-level table above proves that *some* instruction form has a counter;
+# this table additionally proves that the template's own target structure is
+# non-zero.  Without it a template could silently target a structure that no
+# measured counter covers (``l1i-big-body`` was exactly this case).
+TARGET_METRICS = {
+    "rf": "rf",
+    "vec": "vec",
+    "l1i": "l1i",
+    "l1d": "l1d",
+    "alu": "alu",
+    "mult": "mult",
+    "div": "div",
+    "fpadd": "fpadd",
+    "fpmul": "fpmul",
+}
+
 
 def template_metrics(template):
     """Return ``{metric: sorted(op kinds)}`` required by one template."""
@@ -74,11 +95,19 @@ def template_metrics(template):
     return {metric: sorted(kinds) for metric, kinds in sorted(required.items())}
 
 
+def template_target_metric(template):
+    """Return the metric that proves ``template.target`` is active, if any."""
+    return TARGET_METRICS.get(getattr(template, "target", None))
+
+
 def template_counters(template):
     """Return the concrete counter names one template must make non-zero."""
     counters = set()
     for metric in template_metrics(template):
         counters.update(METRIC_COUNTERS[metric])
+    target_metric = template_target_metric(template)
+    if target_metric is not None:
+        counters.update(METRIC_COUNTERS[target_metric])
     return counters
 
 
@@ -100,4 +129,13 @@ def coverage_failures(template, counters):
                     for counter in METRIC_COUNTERS[metric])
         if value <= 0:
             failures.append((metric, kinds, value))
+    # The template's target metric is a separate contract: a template can use
+    # only ALU ops while declaring L1I as its target.  Check it explicitly
+    # instead of assuming an op-level metric happens to cover it.
+    target_metric = template_target_metric(template)
+    if target_metric is not None and target_metric not in observed:
+        value = sum(counters.get(counter, 0.0)
+                    for counter in METRIC_COUNTERS[target_metric])
+        if value <= 0:
+            failures.append((target_metric, ["target"], value))
     return failures

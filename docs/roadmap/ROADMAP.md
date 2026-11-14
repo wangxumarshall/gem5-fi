@@ -2,8 +2,8 @@
 
 > 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
-- 更新日期：2026-11-10
-- 总进度：**61.8%**（完成 22/38，其中本仓库实测 18；部分 3，未开始 11，门控 2）
+- 更新日期：2026-11-14
+- 总进度：**62.8%**（完成 23/39，其中本仓库实测 19；部分 3，未开始 11，门控 2）
 
 ![路线进度图](roadmap.svg)
 
@@ -33,15 +33,16 @@
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
-| RF ACE 与 L1 cache ACE 量化 | `done-local` | CHAOS/gem5/src/cpu/o3/rf_ace.*（整数 + 向量/FP 低 64 位）、mem/cache/l1_ace.*；test-rf/l1-ace.sh；19 模板覆盖矩阵 |
-| FU IBR 输入位覆盖率 | `done-local` | CHAOS/gem5/src/cpu/o3/fu_ibr.*（intAlu/intMult/intDiv + fpAdd/fpMult/fpDiv）；test-fu-ibr.sh；19 模板覆盖矩阵 |
-| AutoµSens 指令→结构映射与逆向靶向原型 | `done-local` | tools/autousens.py；scripts/test-autousens.py |
-| 结构覆盖度评估工具 | `done-local` | tools/autousens.py evaluate + sdcfuzz/coverage.py；scripts/test-template-coverage.py；coverage_matrix.json |
+| RF ACE 与 L1 cache ACE 量化 | `done-local` | CHAOS/gem5/src/cpu/o3/rf_ace.*（整数 + 向量/FP 低 64 位）、mem/cache/l1_ace.*；test-rf/l1-ace.sh 在原生 aarch64 + gem5-deps 环境通过；19 模板覆盖矩阵 |
+| FU IBR 输入位覆盖率 | `done-local` | CHAOS/gem5/src/cpu/o3/fu_ibr.*（intAlu/intMult/intDiv + fpAdd/fpMult/fpDiv）；test-fu-ibr.sh 在原生 aarch64 通过；19 模板覆盖矩阵 |
+| AutoµSens 指令→结构映射与逆向靶向原型 | `done-local` | tools/autousens.py；16 条指令探针/9 结构；targetability 噪声底拒绝 l1i；scripts/test-autousens.py 对 8 个可靶向结构逐一真实验证 |
+| 结构覆盖度评估工具 | `done-local` | sdcfuzz/coverage.py（含 target 指标契约）+ sdcfuzz/coverage_report.py（JSON/CSV/Markdown + SAD 占用）+ scripts/test-template-coverage.py；19 模板 9/9 结构真实激活 |
 | 本地 19 条结构语料（支撑件，非上游 19 模板） | `done-local` | sdcfuzz/templates.py；19/19 PASS；fp-add/fp-mul 已由 fpadd/fpmul IBR + 向量 ACE 测量；docs/sdcfuzz/phase0-baseline.md 明示非对等复刻 |
 | 本地操作数启发式（非上游 D13，仅作可选对照） | `done-local` | sdcfuzz/operand_heuristic.py；tests/test_sdcfuzz_operand_heuristic.py（15 项单测） |
-| 跨结构加权聚合靶向（归一化 + 贪心组合） | `done-local` | tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py |
-| NSGA-II 多目标序列集生成 | `done-local` | tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证 |
-| SAD 结构激活深度指标 | `done-local` | CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh |
+| 跨结构加权聚合靶向（归一化 + 贪心组合） | `done-local` | tools/autousens.py target --structure l1d,alu；按每指令归一化；scripts/test-autousens.py 真实验证 l1d+alu 双结构净激活 |
+| NSGA-II 多目标序列集生成 | `done-local` | tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证（size=8–14） |
+| SAD 结构激活深度指标 | `done-local` | CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh；autousens --sad 与 coverage_report --sad-run 已接入 |
+| Phase 1 一键验收（9 步） | `done-local` | scripts/test-phase1.sh；m5out/phase1-gate/phase1_gate.json；纯 Python 单测 + AutoµSens + 模板矩阵 + SAD + ACE/IBR + 覆盖汇总全通过 |
 
 #### Phase 2 · RL Mutator + 功耗应力（M4–M6，10%）
 

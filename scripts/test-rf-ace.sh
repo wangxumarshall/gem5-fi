@@ -3,7 +3,11 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 gem5_src="$repo_root/CHAOS/gem5"
-gem5_build_name="${GEM5_BUILD_NAME:-ARM_X86_HOST}"
+default_build="ARM"
+if [[ "$(uname -m)" != "aarch64" ]]; then
+    default_build="ARM_X86_HOST"
+fi
+gem5_build_name="${GEM5_BUILD_NAME:-$default_build}"
 gem5_build_rel="build/$gem5_build_name"
 gem5_build_dir="$gem5_src/$gem5_build_rel"
 gem5_bin="${GEM5_OPT:-$gem5_build_dir/gem5.opt}"
@@ -33,6 +37,12 @@ if [[ -z "${CONDA_PREFIX:-}" ]]; then
         export PATH="$conda_prefix/bin:$PATH"
         export LD_LIBRARY_PATH="$conda_prefix/lib:${LD_LIBRARY_PATH:-}"
         export PYTHON_CONFIG="$conda_prefix/bin/python3-config"
+    elif [[ -f "$HOME/gem5-deps/env.sh" ]]; then
+        # openEuler hosts build gem5 from user-space RPMs instead of conda.
+        # shellcheck disable=SC1091
+        source "$HOME/gem5-deps/env.sh"
+    elif [[ -x "$gem5_bin" ]]; then
+        echo "warning: no conda/gem5-deps; reusing $gem5_bin" >&2
     else
         # shellcheck disable=SC1091
         source "$repo_root/init-env.sh" "$conda_env"
@@ -46,11 +56,15 @@ if [[ ! -f "$gem5_build_dir/gem5.build/config" ]]; then
     (cd "$gem5_src" && scons defconfig "$gem5_build_rel" build_opts/ARM)
 fi
 
-echo "[build] gem5 ARM target (native x86 host executable)"
-(cd "$gem5_src" && scons "$gem5_build_rel/gem5.opt" -j"$jobs" \
-    "ISA_CONSTR_CCFLAGS=${ISA_CONSTR_CCFLAGS:--g0}" \
-    "ISA_EXEC_CCFLAGS=${ISA_EXEC_CCFLAGS:--g0}" \
-    --debug-fission --limit-ld-memory-usage)
+if [[ ! -x "$gem5_bin" || -n "$(find "$gem5_src/src" -newer "$gem5_bin" -print -quit)" ]]; then
+    echo "[build] gem5 ARM target (native x86 host executable)"
+    (cd "$gem5_src" && scons "$gem5_build_rel/gem5.opt" -j"$jobs" \
+        "ISA_CONSTR_CCFLAGS=${ISA_CONSTR_CCFLAGS:--g0}" \
+        "ISA_EXEC_CCFLAGS=${ISA_EXEC_CCFLAGS:--g0}" \
+        --debug-fission --limit-ld-memory-usage)
+else
+    echo "[build] reusing $gem5_bin (no sources newer than binary)"
+fi
 
 echo "[build] directed AArch64 RF ACE workload"
 "$arm_cc" -O2 -static -fno-pie -no-pie -Wall -Wextra -Werror \
