@@ -1,5 +1,5 @@
 schema: sdcfuzz.roadmap.v1
-updated: 2026-11-14
+updated: 2026-11-15
 title: sdcfuzz / gem5-CHAOS 长期任务路线与进度
 subtitle: 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
