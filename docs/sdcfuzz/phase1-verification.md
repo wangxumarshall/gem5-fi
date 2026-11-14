@@ -23,7 +23,7 @@ SDC 率、RL/功耗），本文明确标出，不把它们混进 Phase 1。
 | `p1-joint-agg` | 跨结构加权聚合 | `target --structure l1d,alu`；每指令归一化；双结构净激活 > 0 | 完成 |
 | `p1-nsga` | NSGA-II 多目标序列集 | `nsga2.py` + `pareto`；Pareto 非空（size=8–14），knee 真实 gem5 验证 | 完成 |
 | `p1-sad` | SAD 结构激活深度 | `sad.*`；ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue；`test-sad.sh` 通过；已接入 autousens/coverage_report | 完成 |
-| `p1-gate` | 一键验收闸门 + 里程碑审计 | `scripts/test-phase1.sh` 9/9；`scripts/verify-phase1.py` 10/10；`m5out/phase1-gate-final/phase1_gate.json`、`phase1_milestones.json` | 完成 |
+| `p1-gate` | 一键验收闸门 + 里程碑审计 | `scripts/test-phase1.sh` 9/9；`scripts/verify-phase1.py` 10/10；`m5out/phase1-gate-final2/phase1_gate.json`、`phase1_milestones.json` | 完成 |
 
 ## 2. 会让 Phase 1 假完成的 8 个缺口
 
@@ -151,13 +151,13 @@ FileNotFoundError: [Errno 2] No such file or directory:
 
 ## 3. 真实运行结果
 
-### 3.1 一键闸门（终验：HEAD `b072bff5`）
+### 3.1 一键闸门（终验：HEAD `c3a05c0b`）
 
 ```bash
-PHASE1_OUT=$HOME/sdc-mhw/m5out/phase1-gate-final \
+PHASE1_OUT=$HOME/sdc-mhw/m5out/phase1-gate-final2 \
   bash scripts/test-phase1.sh
 python3 scripts/verify-phase1.py \
-  --gate-dir m5out/phase1-gate-final
+  --gate-dir m5out/phase1-gate-final2
 ```
 
 | 步骤 | 命令 | 结果 |
@@ -173,10 +173,10 @@ python3 scripts/verify-phase1.py \
 | coverage-report | 汇总 + SAD 表 | 通过，rc=0 |
 
 汇总：`phase1_gate.json` 记录 `failures=0`、`passed=true`、
-`commit=b072bff5`；每步完整日志在 `m5out/phase1-gate-final/<step>.log`。
-此前两轮（`2ae3c4ed`、`1fdf8cdf`）同样 9/9，证据分别在
-`m5out/phase1-gate/` 与 `m5out/phase1-gate-20261114-final/`；三轮口径一致，
-说明结论不依赖某一次运行。
+`commit=c3a05c0b`；每步完整日志在 `m5out/phase1-gate-final2/<step>.log`。
+此前三轮（`2ae3c4ed`、`1fdf8cdf`、`b072bff5`）同样 9/9，证据分别在
+`m5out/phase1-gate/`、`m5out/phase1-gate-20261114-final/` 与
+`m5out/phase1-gate-final/`；四轮口径一致，说明结论不依赖某一次运行。
 
 里程碑审计（同一目录）：
 
@@ -203,14 +203,14 @@ alu: add=494656 sub=494144 and=493632 orr=494016 eor=494016
 mult: mul=737280 madd=737280
 div: udiv=494208; mul=0 (noise)
 l1d: ldr=3846 ldxr=3852 str=3841 (ldr per instruction=1.002)
-template forms: movz=495488 add_imm=491200 add_lsl=491072 fadd=491520 fmul=495360
+template forms: movz=495488 add_imm=491712 add_lsl=492416 fadd=491520 fmul=495360
 rf: add=11536 ldr=7700 str=7695
 vec: fadd=11523 fmul=11523
 target l1d: chosen=['ldxr', 'ldr'] net_reads=7686 coverage=0.001913 baseline=0.000973
 target l1d+alu: chosen=['ldxr', 'movz'] l1d_net=3848 alu_net=491968
 target mult: chosen=['madd'] net_mult=737088
 target all: alu div fpadd fpmul l1d mult rf vec
-pareto: size=5 knee=['add', 'ldxr', 'movz'] l1d_net=967 alu_net=247104
+pareto: size=7 knee=['add_lsl', 'ldxr', 'movz'] l1d_net=967 alu_net=247104
 error handling: unknown structure, missing baseline and noise-only l1i all fail loudly
 ```
 
@@ -222,7 +222,7 @@ error handling: unknown structure, missing baseline and noise-only l1i all fail 
 ```text
 static contract: 19 templates, 17 op kinds, 9 metric groups
 ...
-l1i-big-body     target=l1i    alu=2629632 rf=20532/20536 l1i(target)=1329
+l1i-big-body     target=l1i    alu=2630016 rf=20532/20536 l1i(target)=1332
 fp-add           target=fpadd  fpadd=81920 l1d=3/2 vec=1284/646
 fp-mul           target=fpmul  fpmul=81920 l1d=11/2 vec=1284/646
 all 19 templates cover every mapped instruction form
@@ -237,21 +237,21 @@ coverage: 9/9 structures observed; gaps={'no_targeting_template': ['rf', 'vec'],
 
 ```text
 RF ACE direction and formula checks passed
-  chain ratio: 0.01953677  dead-write ratio: 0.00785460
-  pressure ratio: 0.00793374  squash discards: 235
-  bit W/X ratios: 0.01370773 / 0.01946040
+  chain ratio: 0.01953664  dead-write ratio: 0.00791599
+  pressure ratio: 0.00793476  squash discards: 164
+  bit W/X ratios: 0.01370802 / 0.01946074
 
 L1 ACE direction and formula checks passed
-  reuse L1D ratio: 0.49332043  dead-write ratio: 0.00000018
-  pressure L1D ratio: 0.00322192  stream ratio: 0.00036944
+  reuse L1D ratio: 0.49251062  dead-write ratio: 0.00000018
+  pressure L1D ratio: 0.00353199  stream ratio: 0.00036977
 
 IBR width, utilization, formula, disabled, work-ID, cycle-window and ROI-pairing checks passed
 
 SAD window, formula, direction, disabled and cycle-mode checks passed (cycle samples=56)
 nop  samples=3745 rob=0.132089 ...
 rob  samples=25746 rob=0.344901 ...
-lsq  samples=19697 lq=0.916931 sq=0.927270 ...
-prf  samples=4546 intPrf=0.453913 ...
+lsq  samples=19798 lq=0.900647 sq=0.910910 ...
+prf  samples=4556 intPrf=0.452959 ...
 
 Atomic access, mixed-width and ROI snapshot checks passed
 IBR: 74 in-window ALU issues; 1 end-cycle issues excluded
@@ -276,7 +276,7 @@ cd ~/sdc-mhw
 source ~/gem5-deps/env.sh              # 可选；脚本会自动探测
 bash scripts/test-phase1.sh            # 9 步闸门（约 25 min）
 python3 scripts/verify-phase1.py \
-  --gate-dir m5out/phase1-gate-final   # 10 里程碑台账
+  --gate-dir m5out/phase1-gate-final2  # 10 里程碑台账
 python3 -m pytest tests/ -q            # 全量单测（77 项）
 python3 scripts/test-autousens.py \
   --gem5 CHAOS/gem5/build/ARM/gem5.opt \
@@ -287,17 +287,18 @@ python3 scripts/test-template-coverage.py \
 python3 -m sdcfuzz.coverage_report \
   --matrix m5out/coverage-verify/coverage_matrix.json \
   --outdir m5out/coverage-verify/report \
-  --sad-run m5out/phase1-gate-final/sad/rob
+  --sad-run m5out/phase1-gate-final2/sad/rob
 ```
 
 ## 6. 证据文件
 
 ```text
-m5out/phase1-gate-final/phase1_gate.json                 9 步闸门（HEAD b072bff5）
-m5out/phase1-gate-final/phase1_milestones.json           10 里程碑审计
-m5out/phase1-gate-final/<step>.log                       每步完整输出
-m5out/phase1-gate-final/report/                          coverage_summary.{json,md}
-m5out/phase1-gate-20261114-final/                        前一轮闸门（1fdf8cdf）
+m5out/phase1-gate-final2/phase1_gate.json                9 步闸门（HEAD c3a05c0b）
+m5out/phase1-gate-final2/phase1_milestones.json          10 里程碑审计
+m5out/phase1-gate-final2/<step>.log                      每步完整输出
+m5out/phase1-gate-final2/report/                         coverage_summary.{json,md}
+m5out/phase1-gate-final/                                 前一轮闸门（b072bff5）
+m5out/phase1-gate-20261114-final/                        （1fdf8cdf）
 m5out/phase1-gate/                                       首轮闸门（2ae3c4ed）
 tests/test_phase1_audit.py                               8 项里程碑审计单测
 tests/test_coverage_report.py                            5 项汇总/SAD 单测
