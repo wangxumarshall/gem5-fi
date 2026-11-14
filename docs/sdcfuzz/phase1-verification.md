@@ -146,7 +146,8 @@ FileNotFoundError: [Errno 2] No such file or directory:
 - 输出 `phase1_milestones.json` 和一张 10 行表，任一检查失败即非零退出。
 
 新增 8 项单测（`tests/test_phase1_audit.py`）：全绿、步骤失败、日志缺失、
-断言缺失、闸门过期、汇总缺失、闸门 JSON 不可读。
+断言缺失、闸门过期、汇总缺失、闸门 JSON 不可读、代码漂移（纯文档改动
+不算漂移）。
 
 ## 3. 真实运行结果
 
