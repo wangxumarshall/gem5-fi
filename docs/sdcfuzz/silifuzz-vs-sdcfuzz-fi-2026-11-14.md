@@ -195,6 +195,8 @@ python3 fi_research/sdcfuzz_vs_silifuzz/fi_campaign.py --n 40 --jobs 8
 - 汇总：`m5out/silifuzz-vs-sdcfuzz-fi/summary.json`、`summary.md`
 - 逐次证据：`m5out/silifuzz-vs-sdcfuzz-fi/runs/<stream>/rNNN/`
   （`gem5.log` + `fpu_injections.log`；stats/config 已清理）
+- 归档汇总：`docs/sdcfuzz/silifuzz-vs-sdcfuzz-fi-summary.json`、
+  `docs/sdcfuzz/silifuzz-vs-sdcfuzz-fi-summary.md`（与 m5out 同一份）
 - 快照前缀缓存：`fi_research/sdcfuzz_vs_silifuzz/work/snapshot_prefixes.json`
 - 环境：`sdc-0103`（aarch64，128 核，openEuler 24.03），
   `CHAOS/gem5/build/ARM/gem5.opt`（2026-11-10 构建），
@@ -204,8 +206,15 @@ python3 fi_research/sdcfuzz_vs_silifuzz/fi_campaign.py --n 40 --jobs 8
 
 - 早期 harness 没恢复 callee-saved 寄存器，C 侧 `g_out` 读到的地址被
   x28 污染，所有注入都显示 Masked；修复后同一模板的 `eor x8,#1` 正对照
-  能把 checksum 从 `9c091a6a5e0a7535` 变为 `5ed713e214b243bb`，证明 oracle
-  通路正确。
+  能把 checksum 从 `9c091a6a5e0a7535` 变为 `5ed713e214b243bb`，证明 GPR
+  oracle 通路正确。Q 寄存器正对照：snap-1 块末尾插入 `movi v0.16b,#0xff`
+  后 checksum 从 `18ecd7c0020a8086` 变为 `fbba5c7b911943a5`，证明 q0–q31
+  确实参与 oracle。
+- 注入日志样例（证明两臂的注入点同类，只是流不同）：
+  - sdcfuzz fp-add：`Site: fp_source_read ... PhysReg[140] ... Old: 0x4002000000000000,
+    New: 0x4002000000800000, Mask: 0x800000`（翻转常量 d1=2.25 的 bit 23）。
+  - silifuzz snap-1：`Site: fp_source_read ... PhysReg[76] ... Old: 0x0,
+    New: 0x800000, Mask: 0x800000`（翻转一个零值向量源，结果被后续写覆盖）。
 - 早期用 CHAOSReg/CHAOSPhysReg(arch_frontend) 测整数模板，12/12 Masked；
   换 CHAOSFPU 源读钩子后 fp-add 立即出现 SDC。这不是 workload 的问题，
   是注入点能否到达在飞值的问题。
