@@ -25,3 +25,4 @@ runs/
 artifacts/
 __pycache__/
 cpts/
+fi_research/sdcfuzz_vs_silifuzz/work/
