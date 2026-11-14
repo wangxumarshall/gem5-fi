@@ -226,7 +226,7 @@
           font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">SAD 指标</text>
   </g>
   <g>
-    <title>Phase 1 一键验收（9 步）｜完成（本仓库实测）｜scripts/test-phase1.sh；m5out/phase1-gate/phase1_gate.json；纯 Python 单测 + AutoµSens + 模板矩阵 + SAD + ACE/IBR + 覆盖汇总全通过</title>
+    <title>Phase 1 一键验收（9 步）｜完成（本仓库实测）｜scripts/test-phase1.sh（9 步；HEAD 1fdf8cdf 复跑 9/9）+ scripts/verify-phase1.py（10 里程碑台账 10/10）；证据 m5out/phase1-gate-20261114-final/{phase1_gate.json,phase1_milestones.json}</title>
     <rect x="370.0" y="372.0" width="113.0" height="28"
           rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
           stroke-width="1"/>
@@ -552,5 +552,5 @@
         python3 tools/render_roadmap.py</text>
   <text x="1560" y="844" font-size="11.5"
         font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#64748B" text-anchor="end">生成于
-        2026-11-14 14:29</text>
+        2026-11-14 16:06</text>
 </svg>

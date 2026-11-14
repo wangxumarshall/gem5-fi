@@ -42,7 +42,7 @@
 | 跨结构加权聚合靶向（归一化 + 贪心组合） | `done-local` | tools/autousens.py target --structure l1d,alu；按每指令归一化；scripts/test-autousens.py 真实验证 l1d+alu 双结构净激活 |
 | NSGA-II 多目标序列集生成 | `done-local` | tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证（size=8–14） |
 | SAD 结构激活深度指标 | `done-local` | CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh；autousens --sad 与 coverage_report --sad-run 已接入 |
-| Phase 1 一键验收（9 步） | `done-local` | scripts/test-phase1.sh；m5out/phase1-gate/phase1_gate.json；纯 Python 单测 + AutoµSens + 模板矩阵 + SAD + ACE/IBR + 覆盖汇总全通过 |
+| Phase 1 一键验收（9 步） | `done-local` | scripts/test-phase1.sh（9 步；HEAD 1fdf8cdf 复跑 9/9）+ scripts/verify-phase1.py（10 里程碑台账 10/10）；证据 m5out/phase1-gate-20261114-final/{phase1_gate.json,phase1_milestones.json} |
 
 #### Phase 2 · RL Mutator + 功耗应力（M4–M6，10%）
 
