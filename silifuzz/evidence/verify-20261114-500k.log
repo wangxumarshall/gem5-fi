@@ -1,0 +1,48 @@
+### corpus stats 500k
+{
+  "corpus": "work/corpus-500k",
+  "snapshots": 505020,
+  "bytes": 1126794377,
+  "bytes_per_snapshot": 2231.1876301928637,
+  "sources": {
+    "ifuzz": 505020
+  },
+  "signals": {
+    "4": 276536,
+    "11": 168655,
+    "5": 36552,
+    "7": 23277
+  },
+  "signals_by_source": {
+    "ifuzz": {
+      "4": 276536,
+      "11": 168655,
+      "5": 36552,
+      "7": 23277
+    }
+  },
+  "mappings": {
+    "7": 504880,
+    "8": 140
+  },
+  "attempts": {
+    "0": 504880,
+    "1": 140
+  },
+  "code_bytes": {
+    "min": 8,
+    "p50": 72,
+    "p90": 120,
+    "max": 132,
+    "mean": 70.96023919844758
+  }
+}
+STATS_EXIT=0
+### 128-core sweep 500k
+{"mode":"sweep","corpus_files":505020,"cores":128,"seconds":600,"elapsed_s":235.478,"executions":64642560,"exec_per_s":274515.8,"mismatches":0,"timeouts":0,"errors":0,"batches":10101,"snapshot_loads":505020,"bytes_read":1126794377,"io_bytes_per_exec":17.4,"batch_size":50,"execs_per_batch":1000,"seed":1}
+SWEEP_EXIT=0
+### 4-core 2-min 500k
+window 1/1 cores=[0, 1, 2, 3] seconds=120
+  executions=5168126 rate=43022.0/s mismatches=0
+{"windows": 1, "executions": 5168126, "mismatches": 0, "db": "work/fleet/results-500k.db"}
+FLEET_EXIT=0

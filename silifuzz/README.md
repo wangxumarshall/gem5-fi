@@ -85,12 +85,13 @@ FUZZ_SECONDS=180 ./scripts/run_scale.sh
 
 ## 实测摘要（详见 docs/measurements.md）
 
-- 语料：95,402 条 snapshot（ifuzz 92,652 / Capstone 1,600 / Unicorn 1,150），
-  约 213 MiB。
-- 单核回放约 5,100 条/秒；128 核 sampled 约 10 万次/秒；128 核全量
-  sweep 26.9 万次/秒；4 核 / 2 分钟窗口约 4.2–4.3 万次/秒。
-- 128 核全量 sweep：95,402 × 128 = 12,211,456 次执行，45.5 秒，
-  0 不匹配；4 个 4 核 / 2 分钟窗口共 20,583,479 次执行，0 不匹配。
+- 语料：95,402 条基线（ifuzz 92,652 / Capstone 1,600 / Unicorn 1,150，
+  约 213 MiB）；2026-11-14 规模复核新建 **505,020 条**（约 50 万，全部
+  ifuzz，约 1.05 GiB）。
+- 单核回放约 5,400 条/秒；128 核 50/1000 sampled 99,835 次/秒；128 核全量
+  sweep 274,516 次/秒；4 核 / 2 分钟窗口约 4.3 万次/秒。
+- 95k 语料：12,211,456 次 sweep、5,160,039 次 4 核窗口，均 0 不匹配；
+  505k 语料：**64,642,560 次 sweep、5,168,126 次 4 核窗口，均 0 不匹配**。
 - 没有发现真实硬件缺陷；检测/隔离闭环用合成注入验证。
 
 ## 目录
@@ -101,7 +102,8 @@ proxies/             Capstone/Unicorn libFuzzer 目标
 tools/               ifuzzgen、Python 快照库、fleet、quarantine、统计
 tests/               单元、跨语言、player、端到端、fleet 测试
 scripts/             build_deps.sh、run_scale.sh
-docs/                paper-mapping / measurements / limitations / vs-sdcfuzz
+docs/                paper-mapping / measurements / limitations / vs-sdcfuzz /
+                     reproduction-2026-11-14
 evidence/            真实运行日志与汇总 JSON（数字来源）
 third_party/         构建产物（gitignore，脚本可重建）
 work/                corpus / 中间语料（gitignore）

@@ -5,9 +5,10 @@ Fuzzing CPUs by proxy*, arXiv 2110.11519, 2021）第 2 节规格与第 3 节可�
 评估口径。实现目录：`silifuzz/`。主机：`sdc-0103`（Kunpeng 920，128 核，
 4 NUMA 节点，无 SMT，openEuler 24.03 SP4）。
 
-本文是 2026-11-10 首次复现之后的**独立复核**：重新构建、重跑 55 项测试、
-重新统计语料、重跑 128 核 sweep、4 核/2 分钟窗口与合成注入。所有数字来自
-本轮命令，日志在 `silifuzz/evidence/verify-20261114-*.log`。
+本文是 2026-11-10 首次复现之后的**独立复核**：clean 重建、重跑 55 项测试、
+新建 505,020 条语料、重跑 128 核 sweep（64,642,560 次执行）、4 核/2 分钟
+窗口与合成注入。所有数字来自本轮命令，日志在
+`silifuzz/evidence/verify-20261114-*.log`。
 
 ## 1. 本轮结论
 
@@ -15,9 +16,13 @@ Fuzzing CPUs by proxy*, arXiv 2110.11519, 2021）第 2 节规格与第 3 节可�
   机制全部复现**：55 项测试通过；新生成 1,996 条候选、修复收录 1,896 条；
   128 核 50/1000 采样 603,201 次执行 0 不匹配；128 核全量 sweep 12,211,456
   次执行 0 不匹配；4 核/2 分钟窗口 5,160,039 次执行 0 不匹配。
-- **第 3 节的机群统计不可在本机复现**：论文的约 500,000 条语料、真实缺陷
-  检出、45% 独有发现、70% 同物理核双逻辑核归属，都需要 Google 生产机群与
-  已知坏机器；本机只有 1 台机器、无 SMT、无缺陷芯片。
+- **第 3 节的语料规模复现**：新建 **505,020 条**语料（约 50 万），128 核全量
+  sweep **64,642,560 次执行 0 不匹配**，4 核/2 分钟窗口 **5,168,126 次
+  0 不匹配**。但语料构成是 ifuzz-only，不是论文的“代理 / ifuzz / 交叉授粉”
+  混合。
+- **第 3 节的机群统计不可在本机复现**：真实缺陷检出、45% 独有发现、70% 同
+  物理核双逻辑核归属，都需要 Google 生产机群与已知坏机器；本机只有 1 台
+  机器、无 SMT、无缺陷芯片。
 - **没有发现真实硬件缺陷**。所有“检出”都来自 `--inject` 合成注入，只验证
   checker → 隔离 → 复测闭环，不能表述为硬件缺陷。
 
@@ -51,6 +56,8 @@ make clean && make -j32 && make test
 
 ## 3. 语料
 
+### 3.1 基线语料（95,402）
+
 ```bash
 python3 tools/corpus_stats.py work/corpus evidence/corpus-stats-20261114.json
 ```
@@ -64,8 +71,46 @@ python3 tools/corpus_stats.py work/corpus evidence/corpus-stats-20261114.json
 | 代码长度 p50 / p90 / max | 68 / 120 / 132 B | 同 |
 | 端态 SIGILL / SIGSEGV / SIGTRAP / SIGBUS | 51,461 / 31,070 / 8,641 / 4,230 | 同 |
 
-语料统计与 11-10 基线逐项一致。本轮另外跑了一次小规模生成-修复-回放
-（不是 180 秒代理 fuzz 的全量重跑）：
+语料统计与 11-10 基线逐项一致。
+
+### 3.2 规模复核（505,020，约 50 万）
+
+论文第 3 节的语料约 500,000 条。本轮用 ifuzz 生成 520,000 条候选，修复后再
+补 30,000 条，最终得到 **505,020 条**：
+
+```bash
+./bin/ifuzzgen -n 520000 -seed 20261114 -min-insns 1 -max-insns 32 \
+  -out work/cand/ifuzz-520k
+./bin/sf_fix --in work/cand/ifuzz-520k --out work/corpus-500k \
+  --source ifuzz --jobs 32 --spread --ref-cores 0,32,64,96 \
+  --stats evidence/ifuzz-fix-500k.json
+./bin/ifuzzgen -n 30000 -seed 424242 -min-insns 1 -max-insns 32 \
+  -out work/cand/ifuzz-extra-30k
+./bin/sf_fix --in work/cand/ifuzz-extra-30k --out work/corpus-500k \
+  --source ifuzz --jobs 32 --spread --ref-cores 0,32,64,96 \
+  --stats evidence/ifuzz-fix-extra.json
+python3 tools/corpus_stats.py work/corpus-500k evidence/corpus-stats-500k.json
+```
+
+| 项 | 值 |
+|---|---:|
+| snapshot 总数 | **505,020** |
+| 磁盘占用 | **1,126,794,377 B**（1.05 GiB） |
+| 平均每条 | 2,231 B |
+| 来源 | 全部 ifuzz（505,020） |
+| 代码长度 min / p50 / p90 / max | 8 / 72 / 120 / 132 B |
+| 端态 SIGILL / SIGSEGV / SIGTRAP / SIGBUS | 276,536 / 168,655 / 36,552 / 23,277 |
+| 候选总数 | 534,391（504,713 + 29,678） |
+| 收录 / 拒绝 | **505,020** / syscall 21,785 + timeout 7,586 |
+| 修复执行 / 耗时 | 3,037,846 次 / 733.9 s |
+
+**构成差异（重要）**：论文的约 500,000 条是 Unicorn/XED 代理 fuzz、ifuzz 和
+两者交叉授粉的混合；本轮的 505,020 条全部来自 ifuzz。规模达到了，但
+“40% 仅代理 / 20% 仅 ifuzz / 40% 两者”的构成没有复现，见第 6 节。
+
+### 3.3 小规模生成-修复-回放（链路复核）
+
+另外跑了一次 2,000 条的小规模流水线，确认第 2.4 节链路仍然可执行：
 
 ```bash
 ./bin/ifuzzgen -n 2000 -seed 20261114 -min-insns 1 -max-insns 32 \
@@ -82,9 +127,6 @@ python3 tools/corpus_stats.py work/corpus evidence/corpus-stats-20261114.json
 | sf_fix | 1,996 候选，**1,896 收录**，syscall 72、timeout 28 |
 | 修复执行 | 11,405 次，12.217 s |
 | player 回放 | 1,000 条，0 失败、0 超时 |
-
-这说明第 2.4 节的“生成 → 补映射/去不确定性/跨核端态录制 → 回放”链路在
-本轮仍然可执行；全量 95,402 条语料没有重新生成。
 
 ## 4. 规模执行
 
@@ -125,20 +167,23 @@ python3 tools/corpus_stats.py work/corpus evidence/corpus-stats-20261114.json
 ```bash
 ./bin/sf_checker --corpus work/corpus --cores 0-127 --seconds 300 \
   --mode sweep --out evidence/sweep-20261114
+./bin/sf_checker --corpus work/corpus-500k --cores 0-127 --seconds 600 \
+  --mode sweep --out evidence/sweep-500k
 ```
 
-| 指标 | 本轮 | 2026-11-10 干净基线 |
+| 指标 | 95,402 基线 | 505,020 规模 |
 |---|---:|---:|
-| 执行次数 | **12,211,456**（95,402 × 128） | 同 |
-| 墙钟 | 64.757 s | 45.473 s |
-| 吞吐 | 188,575 次/秒 | 268,540 次/秒 |
-| 不匹配 / 超时 / 错误 | **0 / 0 / 0** | 0 / 0 / 0 |
-| 语料读取 | 95,402 次、212,647,273 B | 同 |
-| I/O 摊薄 | 17.4 B/次 | 同 |
+| 执行次数 | **12,211,456**（95,402 × 128） | **64,642,560**（505,020 × 128） |
+| 墙钟 | 64.757 s | 235.478 s |
+| 吞吐 | 188,575 次/秒 | **274,515.8 次/秒** |
+| 不匹配 / 超时 / 错误 | **0 / 0 / 0** | **0 / 0 / 0** |
+| 语料读取 | 212,647,273 B | 1,126,794,377 B |
+| I/O 摊薄 | 17.4 B/次 | 17.4 B/次 |
 
-本轮 sweep 与一次 gem5 重链接并行，吞吐低于 11-10 的干净基线；**执行次数与
-0 不匹配是硬结论，吞吐取干净基线 268,540 次/秒作为上限、本轮 188,575 次/秒
-作为保守下界**。两次都精确等于 `95,402 × 128`，说明 sweep 没有漏核或重复。
+95k 基线那次与 gem5 重链接并行，吞吐低于 11-10 的干净基线（268,540 次/秒）；
+505k 规模复核在空闲机器上跑，274,515.8 次/秒，**两次执行次数都精确等于
+语料数 × 128**，说明 sweep 没有漏核或重复。64,642,560 次执行 0 不匹配，是
+本轮最强的规模证据。
 
 ### 4.4 4 核 / 2 分钟窗口（论文 §2.5.2）
 
@@ -146,11 +191,15 @@ python3 tools/corpus_stats.py work/corpus evidence/corpus-stats-20261114.json
 python3 tools/fleet.py --corpus work/corpus --db work/fleet/results-20261114.db \
   --out-root work/fleet/runs-20261114 --cores 0-127 --window-cores 4 \
   --window-seconds 120 --windows 1
+python3 tools/fleet.py --corpus work/corpus-500k --db work/fleet/results-500k.db \
+  --out-root work/fleet/runs-500k --cores 0-127 --window-cores 4 \
+  --window-seconds 120 --windows 1
 ```
 
-| 窗口 | 核 | 执行次数 | 速率 | 不匹配 |
+| 语料 | 核 | 执行次数 | 速率 | 不匹配 |
 |---|---|---|---:|---:|
-| 1 | 0-3 | **5,160,039** | **42,977.7/s** | **0** |
+| 95,402 基线 | 0-3 | **5,160,039** | **42,977.7/s** | **0** |
+| 505,020 规模 | 0-3 | **5,168,126** | **43,022.0/s** | **0** |
 
 与 11-10 的 4 个窗口（5,191,935 / 5,143,335 / 5,199,733 / 5,048,476，
 42,044–43,308/s）一致。论文的“4 核、最多 2 分钟、窗口最终覆盖所有核”在
@@ -179,8 +228,8 @@ checker → `mismatches.jsonl` → quarantine 的链路，不是故障模型，�
 | §2.5.1 50/1000 批处理、多队列分发 | 50 条/批、1000 次/批，I/O 摊薄约 20× | `src/sf_checker.cc`；采样 603,201 次、111.6 B/次（19.97×）；sweep 17.4 B/次 | 复现 |
 | §2.5.2 4 核 / 2 分钟 / 覆盖所有核 | 4 核 × 120 s 窗口，轮转机制 | `tools/fleet.py`、`evidence/verify-20261114-scale.log` | 机制复现 |
 | §2.6 隔离、复测、命中样本保留 | 多日复现改为多次独立复测；命中入 `found/` | `tools/quarantine.py`、`tests/test_fleet.sh`（580 组确认） | 机制复现 |
-| §3 语料约 500,000 | 95,402 | `evidence/corpus-stats-20261114.json` | 未达到（19%） |
-| §3 40% 仅 Unicorn/XED、20% 仅 ifuzz、40% 两者 | 未测 | 需要已知缺陷机器做归因 | 不可复现 |
+| §3 语料约 500,000 | **505,020**（约 50 万；全部 ifuzz） | `evidence/corpus-stats-500k.json` | 规模复现，构成不同 |
+| §3 40% 仅 Unicorn/XED、20% 仅 ifuzz、40% 两者 | 未复现：505k 语料全部 ifuzz | 代理语料仅 1,600 + 1,150 | 构成不同 |
 | §3 45% findings 独有 | 无真实 findings | 无生产机群 | 不适用 |
 | §3 70% 缺陷影响同一物理核的双逻辑核 | 无 SMT（`thread_siblings_list=0`） | `lscpu` | 不适用 |
 | 附录 A–D：F2XM1 / illegal-instruction overshoot / FCOS / x87 RDP | 论文为 x86-64；本实现为 ARM64 | `docs/limitations.md` §2 | 不适用 |
@@ -191,12 +240,14 @@ checker → `mismatches.jsonl` → quarantine 的链路，不是故障模型，�
    附录 A–D 的 x86 缺陷没有复现。
 2. **规模**：1 台 128 核机器 vs Google 生产机群；没有第二台机器、没有已知坏
    机器池、没有多日复测。
-3. **语料**：95,402 vs 约 500,000；代理 fuzz 只跑了数分钟，没有做语料蒸馏与
-   跨代理交叉授粉的系统评估。
+3. **语料构成**：数量达到 505,020（约 50 万），但全部来自 ifuzz；论文的
+   约 500,000 是 Unicorn/XED 代理 fuzz、ifuzz 和交叉授粉的混合（40/20/40）。
+   本机的代理语料只有 Capstone 1,600 + Unicorn 1,150，没有做大规模代理 fuzz、
+   语料蒸馏与跨代理交叉授粉。
 4. **初态来源**：本实现的初态由内容哈希确定性生成，不是从真实进程捕获；
    数据页零填充。这会影响“测试真实程序状态”的覆盖行为。
 5. **缺陷检出**：0 个真实缺陷；合成注入只验证管线。
-6. **性能口径**：论文没有给吞吐数字，本机 188k–269k 次/秒（sweep）、
+6. **性能口径**：论文没有给吞吐数字，本机 188k–275k 次/秒（sweep）、
    43k 次/秒（4 核窗口）只能作为本机基线，不能与论文机群对比。
 
 ### 6.1 附录 A–D 为什么不能在本实现复现
@@ -242,11 +293,18 @@ evidence/verify-20261114-generate.log     新生成 1,996 → 收录 1,896 → �
 evidence/ifuzz-fix-20261114.json          本轮修复统计
 evidence/verify-20261114-sampled.log      单核 5,405/s + 128 核 50/1000 采样
 evidence/sampled-20261114/                采样 summary.json（0 不匹配）
-evidence/verify-20261114-scale.log        语料统计 + sweep + fleet + 注入
-evidence/corpus-stats-20261114.json       本轮语料统计
-evidence/sweep-20261114/summary.json      128 核 sweep 原始输出
-work/fleet/results-20261114.db            4 核窗口结果库
+evidence/verify-20261114-scale.log        95k 语料统计 + sweep + fleet + 注入
+evidence/corpus-stats-20261114.json       95k 语料统计
+evidence/sweep-20261114/summary.json      95k 128 核 sweep 原始输出
+work/fleet/results-20261114.db            95k 4 核窗口结果库
 work/inject-20261114/                     合成注入结果
+evidence/verify-20261114-500k.log         505k 语料统计 + sweep + fleet
+evidence/corpus-stats-500k.json           505k 语料统计
+evidence/ifuzz-fix-500k.json              520k 候选修复统计
+evidence/ifuzz-fix-extra.json             30k 补充候选修复统计
+evidence/sweep-500k/summary.json          64,642,560 次 sweep（0 不匹配）
+work/fleet/results-500k.db                505k 4 核窗口结果库
+work/corpus-500k/                         505,020 条语料（约 1.05 GiB）
 ```
 
 本文件不改变 `docs/measurements.md` 的 2026-11-10 基线；它是一次独立复核，

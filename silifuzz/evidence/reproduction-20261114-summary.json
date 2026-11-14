@@ -29,10 +29,44 @@
     },
     "snapshots": 95402
   },
+  "corpus_500k": {
+    "accepted": 505020,
+    "by_source": {
+      "ifuzz": 505020
+    },
+    "bytes": 1126794377,
+    "bytes_per_snapshot": 2231.1876301928637,
+    "candidates": 534391,
+    "code_bytes": {
+      "max": 132,
+      "min": 8,
+      "p50": 72,
+      "p90": 120
+    },
+    "end_state_signals": {
+      "SIGBUS": 23277,
+      "SIGILL": 276536,
+      "SIGSEGV": 168655,
+      "SIGTRAP": 36552
+    },
+    "fix_elapsed_s": 733.882,
+    "fix_executions": 3037846,
+    "rejected": {
+      "syscall": 21785,
+      "timeout": 7586
+    },
+    "snapshots": 505020
+  },
   "date": "2026-11-14",
   "fleet_4c_120s": {
     "exec_per_s": 42977.7,
     "executions": 5160039,
+    "mismatches": 0,
+    "windows": 1
+  },
+  "fleet_500k_4c_120s": {
+    "exec_per_s": 43022.0,
+    "executions": 5168126,
     "mismatches": 0,
     "windows": 1
   },
@@ -61,9 +95,10 @@
     "smt": false
   },
   "paper_claims": {
-    "corpus_500k": "not reached (95,402 = 19.1%)",
+    "corpus_500k": "reached (505,020; ifuzz-only composition)",
     "defect_patterns_A_D": "not applicable (x86-64/x87)",
     "proxy_attribution_40_20_40": "not measured (needs known-bad pool)",
+    "proxy_mix_40_20_40": "not reproduced (corpus is ifuzz-only)",
     "section_2_mechanics": "reproduced",
     "smt_pair_attribution": "not applicable (no SMT)",
     "unique_findings_45pct": "not applicable (no fleet/known-bad pool)"
@@ -92,6 +127,15 @@
     "errors": 0,
     "exec_per_s": 188575.0,
     "executions": 12211456,
+    "io_bytes_per_exec": 17.4,
+    "mismatches": 0,
+    "timeouts": 0
+  },
+  "sweep_500k": {
+    "elapsed_s": 235.478,
+    "errors": 0,
+    "exec_per_s": 274515.8,
+    "executions": 64642560,
     "io_bytes_per_exec": 17.4,
     "mismatches": 0,
     "timeouts": 0

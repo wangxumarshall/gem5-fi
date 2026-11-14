@@ -24,7 +24,7 @@ oracle、工具链不同**，数字不能直接相加，也不能互相替代。
 | 故障模型 | **没有**（只检测已存在的缺陷） | 19 个 CHAOS 注入器、bit-flip、byte_lane_skew 等 |
 | 仿真依赖 | 无（Capstone/Unicorn 仅作生成代理） | 强依赖 `CHAOS/gem5`（ACE/IBR/SAD、注入器、m5out） |
 | 真机执行 | driver+harness player，逐核绑核；128 核 checker | 上游 nolibc/seccomp Runner + Orchestrator（4 板 446 核为外部证据） |
-| 规模 | 95,402 条语料；12,211,456 次 sweep；4 核窗口 5.16M 次/2 分钟 | 19 模板 × 9 结构；AutoµSens 16 探针/8 可靶向结构；D13 4×100 |
+| 规模 | 505,020 条语料；64,642,560 次 sweep；4 核窗口 5.17M 次/2 分钟 | 19 模板 × 9 结构；AutoµSens 16 探针/8 可靶向结构；D13 4×100 |
 | 反馈闭环 | 结果库 → quarantine 复测 → 命中样本入 `found/` | Vault 持久库 + 血缘（Phase 3）、D1–D13 迭代、RL/功耗（规划中） |
 | 失败语义 | end-state mismatch = 该核潜在缺陷；超时/错误单独计 | `RunSnapOutcome` 区分真正 SDC 与噪声；masked/SDC/异常分类 |
 | 目标读者 | 核对论文实现、要独立基线的工程/评审 | 推进生成器、指标与故障注入研究，冲刺竞赛/论文 |
@@ -35,11 +35,14 @@ oracle、工具链不同**，数字不能直接相加，也不能互相替代。
 
 | 指标 | 值 | 证据 |
 |---|---:|---|
-| Snapshot 语料 | 95,402 条 / 212.6 MiB | `silifuzz/evidence/corpus-stats-20261114.json` |
+| 基线语料 | 95,402 条 / 212.6 MiB | `silifuzz/evidence/corpus-stats-20261114.json` |
+| 规模复核语料 | **505,020 条 / 1.13 GiB**（约 50 万，全部 ifuzz） | `silifuzz/evidence/corpus-stats-500k.json` |
 | 新生成 → 修复 | 1,996 候选 → 1,896 收录（12.2 s） | `silifuzz/evidence/verify-20261114-generate.log` |
-| 128 核全量 sweep | 12,211,456 次执行，0 不匹配 | `silifuzz/evidence/verify-20261114-scale.log` |
-| sweep 吞吐 | 188,575 次/秒（本轮，含并发重链接）；268,540 次/秒（11-10 干净基线） | 同上 + `docs/measurements.md` |
-| 4 核 / 2 分钟窗口 | 5,160,039 次，42,977.7 次/秒，0 不匹配 | 同上 |
+| 95k 全量 sweep | 12,211,456 次执行，0 不匹配 | `silifuzz/evidence/verify-20261114-scale.log` |
+| 505k 全量 sweep | **64,642,560 次执行，0 不匹配** | `silifuzz/evidence/sweep-500k/summary.json` |
+| sweep 吞吐 | 188,575 次/秒（95k，含并发重链接）；274,515.8 次/秒（505k）；268,540 次/秒（11-10 基线） | 同上 + `docs/measurements.md` |
+| 95k 4 核 / 2 分钟窗口 | 5,160,039 次，42,977.7 次/秒，0 不匹配 | 同上 |
+| 505k 4 核 / 2 分钟窗口 | **5,168,126 次，43,022.0 次/秒，0 不匹配** | `silifuzz/evidence/verify-20261114-500k.log` |
 | 测试 | 55 项 PASS，`make test` 退出 0 | `silifuzz/evidence/verify-20261114-build-test.log` |
 | 合成注入 | 211,837/211,837 不匹配（100%，synthetic） | 同上 |
 
@@ -124,7 +127,8 @@ oracle、工具链不同**，数字不能直接相加，也不能互相替代。
 ## 6. 事实边界
 
 - `silifuzz/` 的数字全部来自本轮真实命令，证据在
-  `silifuzz/evidence/verify-20261114-*.log`。
+  `silifuzz/evidence/verify-20261114-*.log`；505k 规模复核的语料构成是
+  ifuzz-only，不能据此声称复现了论文的 40/20/40 代理混合。
 - sdcfuzz 的 4 板 446 核部署、p2 草稿属于外部证据，本机未复验；D13 的
   2.833×/12.800× 来自本机 `docs/sdcfuzz/d13-repro/summary.json` 的 4×100
   记录，不是本轮重新跑的 400 次实验。
