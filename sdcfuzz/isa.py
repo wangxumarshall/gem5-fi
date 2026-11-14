@@ -209,8 +209,8 @@ def run_body(body, state, repetitions):
             apply(op, state)
 
 
-def expected_checksum(template, iterations, reps=16):
-    state = State()
+def expected_checksum(template, iterations, reps=16, memory=None):
+    state = State(mem=list(memory)) if memory is not None else State()
     for op in template.setup:
         apply(op, state)
     run_body(template.body, state, iterations * reps)

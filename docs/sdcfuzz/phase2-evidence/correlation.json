@@ -1,0 +1,372 @@
+{
+  "schema": "sdcfuzz.power_sdc.v1",
+  "records": [
+    {
+      "stream": "type1-fpadd",
+      "pattern": "type1",
+      "structure": "fpadd",
+      "power": {
+        "length": 3200,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 34.328865,
+        "components": {
+          "C0_IC": 0.493569,
+          "C0_BTB": 0.003792,
+          "C0_BP": 0.017366,
+          "C0_IB": 0.004996,
+          "C0_ID": 0.313167,
+          "C0_REN": 7.05357,
+          "C0_DC": 1.01003,
+          "C0_LQ": 0.025673,
+          "C0_SQ": 0.025717,
+          "C0_MMU": 6.14646,
+          "C0_IRF": 0.009149,
+          "C0_FPRF": 0.025302,
+          "C0_IW": 0.010918,
+          "C0_FPIW": 0.015548,
+          "C0_ROB": 0.019563,
+          "C0_IALU": 0.185055,
+          "C0_FPU": 0.578396,
+          "C0_CALU": 0.245625,
+          "C0_RBB": 0.145501,
+          "C0_L2": 0.80967,
+          "C0_Other": 17.1898
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 15,
+      "n": 20,
+      "rate": 0.75
+    },
+    {
+      "stream": "type1-fpmul",
+      "pattern": "type1",
+      "structure": "fpmul",
+      "power": {
+        "length": 3200,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.565907,
+        "components": {
+          "C0_IC": 0.406136,
+          "C0_BTB": 0.003663,
+          "C0_BP": 0.017163,
+          "C0_IB": 0.002796,
+          "C0_ID": 0.308255,
+          "C0_REN": 6.15323,
+          "C0_DC": 1.00993,
+          "C0_LQ": 0.025651,
+          "C0_SQ": 0.025674,
+          "C0_MMU": 5.69662,
+          "C0_IRF": 0.00869,
+          "C0_FPRF": 0.016938,
+          "C0_IW": 0.007285,
+          "C0_FPIW": 0.010155,
+          "C0_ROB": 0.012747,
+          "C0_IALU": 0.183661,
+          "C0_FPU": 0.523335,
+          "C0_CALU": 0.26509,
+          "C0_RBB": 0.123117,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9561
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 17,
+      "n": 20,
+      "rate": 0.85
+    },
+    {
+      "stream": "type2-fpadd",
+      "pattern": "type2",
+      "structure": "fpadd",
+      "power": {
+        "length": 3200,
+        "average": 0.6,
+        "peak": 1.0,
+        "variance": 0.16,
+        "slope": 0.0,
+        "stress": 0.108
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 36.730906,
+        "components": {
+          "C0_IC": 0.566508,
+          "C0_BTB": 0.003591,
+          "C0_BP": 0.017043,
+          "C0_IB": 0.006832,
+          "C0_ID": 0.317265,
+          "C0_REN": 7.79948,
+          "C0_DC": 1.01015,
+          "C0_LQ": 0.025697,
+          "C0_SQ": 0.025767,
+          "C0_MMU": 6.52189,
+          "C0_IRF": 0.015331,
+          "C0_FPRF": 0.021542,
+          "C0_IW": 0.013948,
+          "C0_FPIW": 0.013139,
+          "C0_ROB": 0.02525,
+          "C0_IALU": 0.212637,
+          "C0_FPU": 0.553796,
+          "C0_CALU": 0.241525,
+          "C0_RBB": 0.158246,
+          "C0_L2": 0.80967,
+          "C0_Other": 18.3716
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 15,
+      "n": 20,
+      "rate": 0.75
+    },
+    {
+      "stream": "type2-fpmul",
+      "pattern": "type2",
+      "structure": "fpmul",
+      "power": {
+        "length": 3200,
+        "average": 0.85,
+        "peak": 1.5,
+        "variance": 0.4225,
+        "slope": 0.0,
+        "stress": 0.166958
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 33.927504,
+        "components": {
+          "C0_IC": 0.461409,
+          "C0_BTB": 0.003565,
+          "C0_BP": 0.017005,
+          "C0_IB": 0.004187,
+          "C0_ID": 0.31136,
+          "C0_REN": 6.71939,
+          "C0_DC": 1.01001,
+          "C0_LQ": 0.025669,
+          "C0_SQ": 0.025709,
+          "C0_MMU": 5.981,
+          "C0_IRF": 0.012361,
+          "C0_FPRF": 0.015971,
+          "C0_IW": 0.009581,
+          "C0_FPIW": 0.009541,
+          "C0_ROB": 0.017056,
+          "C0_IALU": 0.19993,
+          "C0_FPU": 0.51706,
+          "C0_CALU": 0.260814,
+          "C0_RBB": 0.134416,
+          "C0_L2": 0.80967,
+          "C0_Other": 17.3818
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 17,
+      "n": 20,
+      "rate": 0.85
+    },
+    {
+      "stream": "type3-fpadd",
+      "pattern": "type3",
+      "structure": "fpadd",
+      "power": {
+        "length": 3584,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.962967,
+        "components": {
+          "C0_IC": 0.428592,
+          "C0_BTB": 0.00354,
+          "C0_BP": 0.016966,
+          "C0_IB": 0.003361,
+          "C0_ID": 0.309516,
+          "C0_REN": 6.38499,
+          "C0_DC": 1.00996,
+          "C0_LQ": 0.025656,
+          "C0_SQ": 0.025685,
+          "C0_MMU": 5.81214,
+          "C0_IRF": 0.008312,
+          "C0_FPRF": 0.020401,
+          "C0_IW": 0.008218,
+          "C0_FPIW": 0.012386,
+          "C0_ROB": 0.014497,
+          "C0_IALU": 0.182574,
+          "C0_FPU": 0.546115,
+          "C0_CALU": 0.240245,
+          "C0_RBB": 0.120042,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9801
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 14,
+      "n": 20,
+      "rate": 0.7
+    },
+    {
+      "stream": "type3-fpmul",
+      "pattern": "type3",
+      "structure": "fpmul",
+      "power": {
+        "length": 3584,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.175914,
+        "components": {
+          "C0_IC": 0.386521,
+          "C0_BTB": 0.003536,
+          "C0_BP": 0.016961,
+          "C0_IB": 0.002303,
+          "C0_ID": 0.307153,
+          "C0_REN": 5.95157,
+          "C0_DC": 1.00991,
+          "C0_LQ": 0.025646,
+          "C0_SQ": 0.025664,
+          "C0_MMU": 5.59572,
+          "C0_IRF": 0.008273,
+          "C0_FPRF": 0.01589,
+          "C0_IW": 0.00647,
+          "C0_FPIW": 0.009479,
+          "C0_ROB": 0.011218,
+          "C0_IALU": 0.182433,
+          "C0_FPU": 0.516427,
+          "C0_CALU": 0.26051,
+          "C0_RBB": 0.114761,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9158
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      },
+      "sdc": 17,
+      "n": 20,
+      "rate": 0.85
+    }
+  ],
+  "h1_power_vs_sdc": {
+    "average": {
+      "pearson": 0.553497,
+      "spearman": 0.397276,
+      "permutation_p": 0.280772
+    },
+    "peak": {
+      "pearson": 0.961524,
+      "spearman": 0.948683,
+      "permutation_p": 0.09769
+    },
+    "variance": {
+      "pearson": 0.314963,
+      "spearman": 0.200832,
+      "permutation_p": 0.69943
+    },
+    "slope": {
+      "pearson": 0.0,
+      "spearman": 0.0,
+      "permutation_p": 1.0
+    },
+    "stress": {
+      "pearson": 0.849132,
+      "spearman": 0.810443,
+      "permutation_p": 0.082392
+    },
+    "mcpat_dynamic_power_w": {
+      "pearson": -0.411504,
+      "spearman": -0.493771,
+      "permutation_p": 0.460454,
+      "n": 6
+    }
+  },
+  "h2_oscillation_vs_continuous": {
+    "pairs": [
+      {
+        "structure": "fpadd",
+        "type1_mean": 0.75,
+        "type2_mean": 0.75,
+        "delta": 0.0
+      },
+      {
+        "structure": "fpmul",
+        "type1_mean": 0.85,
+        "type2_mean": 0.85,
+        "delta": 0.0
+      }
+    ],
+    "mean_delta": 0.0,
+    "positive_pairs": 0,
+    "pairs_count": 2,
+    "permutation_p": 1.0,
+    "counts": {
+      "type1": [
+        32,
+        8
+      ],
+      "type2": [
+        32,
+        8
+      ]
+    },
+    "fisher_p": 1.0
+  },
+  "h3_hotspot_vs_global": {
+    "pairs": [
+      {
+        "structure": "fpadd",
+        "type3_mean": 0.7,
+        "type1_mean": 0.75,
+        "delta": 0.050000000000000044
+      },
+      {
+        "structure": "fpmul",
+        "type3_mean": 0.85,
+        "type1_mean": 0.85,
+        "delta": 0.0
+      }
+    ],
+    "mean_delta": 0.025,
+    "positive_pairs": 1,
+    "pairs_count": 2,
+    "permutation_p": 1.0,
+    "counts": {
+      "type3": [
+        31,
+        9
+      ],
+      "type1": [
+        32,
+        8
+      ]
+    },
+    "fisher_p": 1.0
+  },
+  "trials": 10000,
+  "seed": 20260825
+}

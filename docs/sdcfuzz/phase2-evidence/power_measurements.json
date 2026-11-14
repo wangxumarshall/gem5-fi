@@ -1,0 +1,392 @@
+{
+  "schema": "sdcfuzz.power.measurements.v1",
+  "streams": {
+    "type1-udiv": {
+      "pattern": "type1",
+      "structure": "div",
+      "golden": "76689c1cc5212ef3",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 4.0,
+        "peak": 4.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.533333
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 31.137661,
+        "components": {
+          "C0_IC": 0.333453,
+          "C0_BTB": 0.00356,
+          "C0_BP": 0.017,
+          "C0_IB": 0.000967,
+          "C0_ID": 0.304171,
+          "C0_REN": 5.40489,
+          "C0_DC": 1.00984,
+          "C0_LQ": 0.02563,
+          "C0_SQ": 0.025633,
+          "C0_MMU": 5.32276,
+          "C0_IRF": 0.0101,
+          "C0_FPRF": 0.008203,
+          "C0_IW": 0.004265,
+          "C0_FPIW": 0.004525,
+          "C0_ROB": 0.007081,
+          "C0_IALU": 0.186441,
+          "C0_FPU": 0.465843,
+          "C0_CALU": 0.234664,
+          "C0_RBB": 0.072565,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.8864
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type1-fpadd": {
+      "pattern": "type1",
+      "structure": "fpadd",
+      "golden": "4f270da434488ea8",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 34.328865,
+        "components": {
+          "C0_IC": 0.493569,
+          "C0_BTB": 0.003792,
+          "C0_BP": 0.017366,
+          "C0_IB": 0.004996,
+          "C0_ID": 0.313167,
+          "C0_REN": 7.05357,
+          "C0_DC": 1.01003,
+          "C0_LQ": 0.025673,
+          "C0_SQ": 0.025717,
+          "C0_MMU": 6.14646,
+          "C0_IRF": 0.009149,
+          "C0_FPRF": 0.025302,
+          "C0_IW": 0.010918,
+          "C0_FPIW": 0.015548,
+          "C0_ROB": 0.019563,
+          "C0_IALU": 0.185055,
+          "C0_FPU": 0.578396,
+          "C0_CALU": 0.245625,
+          "C0_RBB": 0.145501,
+          "C0_L2": 0.80967,
+          "C0_Other": 17.1898
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type1-fpmul": {
+      "pattern": "type1",
+      "structure": "fpmul",
+      "golden": "8f5b054d95c349f8",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.565907,
+        "components": {
+          "C0_IC": 0.406136,
+          "C0_BTB": 0.003663,
+          "C0_BP": 0.017163,
+          "C0_IB": 0.002796,
+          "C0_ID": 0.308255,
+          "C0_REN": 6.15323,
+          "C0_DC": 1.00993,
+          "C0_LQ": 0.025651,
+          "C0_SQ": 0.025674,
+          "C0_MMU": 5.69662,
+          "C0_IRF": 0.00869,
+          "C0_FPRF": 0.016938,
+          "C0_IW": 0.007285,
+          "C0_FPIW": 0.010155,
+          "C0_ROB": 0.012747,
+          "C0_IALU": 0.183661,
+          "C0_FPU": 0.523335,
+          "C0_CALU": 0.26509,
+          "C0_RBB": 0.123117,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9561
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type2-udiv": {
+      "pattern": "type2",
+      "structure": "div",
+      "golden": "76689c1cc5212ef3",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 2.1,
+        "peak": 4.0,
+        "variance": 3.61,
+        "slope": 0.0,
+        "stress": 0.5555
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 31.426285,
+        "components": {
+          "C0_IC": 0.348425,
+          "C0_BTB": 0.003544,
+          "C0_BP": 0.016975,
+          "C0_IB": 0.001344,
+          "C0_ID": 0.305012,
+          "C0_REN": 5.55839,
+          "C0_DC": 1.00985,
+          "C0_LQ": 0.025633,
+          "C0_SQ": 0.025637,
+          "C0_MMU": 5.39977,
+          "C0_IRF": 0.010967,
+          "C0_FPRF": 0.008204,
+          "C0_IW": 0.004887,
+          "C0_FPIW": 0.004527,
+          "C0_ROB": 0.008248,
+          "C0_IALU": 0.190257,
+          "C0_FPU": 0.465872,
+          "C0_CALU": 0.234642,
+          "C0_RBB": 0.076731,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9177
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type2-fpadd": {
+      "pattern": "type2",
+      "structure": "fpadd",
+      "golden": "12d2cb2434488ea8",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 0.6,
+        "peak": 1.0,
+        "variance": 0.16,
+        "slope": 0.0,
+        "stress": 0.108
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 36.730906,
+        "components": {
+          "C0_IC": 0.566508,
+          "C0_BTB": 0.003591,
+          "C0_BP": 0.017043,
+          "C0_IB": 0.006832,
+          "C0_ID": 0.317265,
+          "C0_REN": 7.79948,
+          "C0_DC": 1.01015,
+          "C0_LQ": 0.025697,
+          "C0_SQ": 0.025767,
+          "C0_MMU": 6.52189,
+          "C0_IRF": 0.015331,
+          "C0_FPRF": 0.021542,
+          "C0_IW": 0.013948,
+          "C0_FPIW": 0.013139,
+          "C0_ROB": 0.02525,
+          "C0_IALU": 0.212637,
+          "C0_FPU": 0.553796,
+          "C0_CALU": 0.241525,
+          "C0_RBB": 0.158246,
+          "C0_L2": 0.80967,
+          "C0_Other": 18.3716
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type2-fpmul": {
+      "pattern": "type2",
+      "structure": "fpmul",
+      "golden": "33fd280a4b91a178",
+      "returncode": 0,
+      "power": {
+        "length": 3200,
+        "average": 0.85,
+        "peak": 1.5,
+        "variance": 0.4225,
+        "slope": 0.0,
+        "stress": 0.166958
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 33.927504,
+        "components": {
+          "C0_IC": 0.461409,
+          "C0_BTB": 0.003565,
+          "C0_BP": 0.017005,
+          "C0_IB": 0.004187,
+          "C0_ID": 0.31136,
+          "C0_REN": 6.71939,
+          "C0_DC": 1.01001,
+          "C0_LQ": 0.025669,
+          "C0_SQ": 0.025709,
+          "C0_MMU": 5.981,
+          "C0_IRF": 0.012361,
+          "C0_FPRF": 0.015971,
+          "C0_IW": 0.009581,
+          "C0_FPIW": 0.009541,
+          "C0_ROB": 0.017056,
+          "C0_IALU": 0.19993,
+          "C0_FPU": 0.51706,
+          "C0_CALU": 0.260814,
+          "C0_RBB": 0.134416,
+          "C0_L2": 0.80967,
+          "C0_Other": 17.3818
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type3-fpadd": {
+      "pattern": "type3",
+      "structure": "fpadd",
+      "golden": "a0deada434488ea8",
+      "returncode": 0,
+      "power": {
+        "length": 3584,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.962967,
+        "components": {
+          "C0_IC": 0.428592,
+          "C0_BTB": 0.00354,
+          "C0_BP": 0.016966,
+          "C0_IB": 0.003361,
+          "C0_ID": 0.309516,
+          "C0_REN": 6.38499,
+          "C0_DC": 1.00996,
+          "C0_LQ": 0.025656,
+          "C0_SQ": 0.025685,
+          "C0_MMU": 5.81214,
+          "C0_IRF": 0.008312,
+          "C0_FPRF": 0.020401,
+          "C0_IW": 0.008218,
+          "C0_FPIW": 0.012386,
+          "C0_ROB": 0.014497,
+          "C0_IALU": 0.182574,
+          "C0_FPU": 0.546115,
+          "C0_CALU": 0.240245,
+          "C0_RBB": 0.120042,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9801
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type3-fpmul": {
+      "pattern": "type3",
+      "structure": "fpmul",
+      "golden": "575e3c128cc662f8",
+      "returncode": 0,
+      "power": {
+        "length": 3584,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 32.175914,
+        "components": {
+          "C0_IC": 0.386521,
+          "C0_BTB": 0.003536,
+          "C0_BP": 0.016961,
+          "C0_IB": 0.002303,
+          "C0_ID": 0.307153,
+          "C0_REN": 5.95157,
+          "C0_DC": 1.00991,
+          "C0_LQ": 0.025646,
+          "C0_SQ": 0.025664,
+          "C0_MMU": 5.59572,
+          "C0_IRF": 0.008273,
+          "C0_FPRF": 0.01589,
+          "C0_IW": 0.00647,
+          "C0_FPIW": 0.009479,
+          "C0_ROB": 0.011218,
+          "C0_IALU": 0.182433,
+          "C0_FPU": 0.516427,
+          "C0_CALU": 0.26051,
+          "C0_RBB": 0.114761,
+          "C0_L2": 0.80967,
+          "C0_Other": 16.9158
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    },
+    "type3-l1d": {
+      "pattern": "type3",
+      "structure": "l1d",
+      "golden": "146e7a2434488ea8",
+      "returncode": 0,
+      "power": {
+        "length": 3584,
+        "average": 1.2,
+        "peak": 1.2,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.16
+      },
+      "mcpat": {
+        "status": "ok",
+        "dynamic_power_w": 38.550299,
+        "components": {
+          "C0_IC": 0.547311,
+          "C0_BTB": 0.003551,
+          "C0_BP": 0.016981,
+          "C0_IB": 0.006349,
+          "C0_ID": 0.316187,
+          "C0_REN": 7.60295,
+          "C0_DC": 1.24636,
+          "C0_LQ": 0.077592,
+          "C0_SQ": 0.129556,
+          "C0_MMU": 6.84575,
+          "C0_IRF": 0.027213,
+          "C0_FPRF": 0.008223,
+          "C0_IW": 0.01315,
+          "C0_FPIW": 0.004557,
+          "C0_ROB": 0.023752,
+          "C0_IALU": 0.237709,
+          "C0_FPU": 0.466179,
+          "C0_CALU": 0.226922,
+          "C0_RBB": 0.123836,
+          "C0_L2": 0.80967,
+          "C0_Other": 19.8165
+        },
+        "area_mm2": 15594775.21,
+        "mcpat_home": "/home/sdc/wangxu/silifuzz/third_party/mcpat"
+      }
+    }
+  }
+}

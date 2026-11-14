@@ -1,0 +1,23 @@
+{
+  "schema": "sdcfuzz.rl.validation.v1",
+  "streams": {
+    "rl-best-fp": {
+      "sdc": 14,
+      "n": 20,
+      "cats": {
+        "SDC": 14,
+        "Masked": 6
+      }
+    },
+    "fp-add-baseline": {
+      "sdc": 17,
+      "n": 20,
+      "cats": {
+        "SDC": 17,
+        "Masked": 3
+      }
+    }
+  },
+  "fisher_p": 0.45057645057645446,
+  "delta": -0.15000000000000002
+}

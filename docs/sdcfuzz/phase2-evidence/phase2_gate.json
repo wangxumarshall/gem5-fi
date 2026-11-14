@@ -1,0 +1,76 @@
+{
+  "schema": "sdcfuzz.phase2.gate.v1",
+  "generated": "2026-11-15T01:55:22",
+  "steps": [
+    {
+      "step": "unit-tests",
+      "status": "PASS"
+    },
+    {
+      "step": "avalanche",
+      "status": "PASS"
+    },
+    {
+      "step": "rl",
+      "status": "PASS"
+    },
+    {
+      "step": "rl-validate",
+      "status": "PASS"
+    },
+    {
+      "step": "power-gen",
+      "status": "PASS"
+    },
+    {
+      "step": "power-run",
+      "status": "PASS"
+    },
+    {
+      "step": "fi",
+      "status": "PASS"
+    },
+    {
+      "step": "mcpat-select",
+      "status": "PASS"
+    },
+    {
+      "step": "correlate",
+      "status": "PASS"
+    },
+    {
+      "step": "audit",
+      "status": "PASS"
+    }
+  ],
+  "steps_passed": 10,
+  "steps_total": 10,
+  "milestones": {
+    "p2-mask": {
+      "status": "PASS",
+      "detail": "19 templates; penalty range 0.000..1.000; >0.5:5, <0.5:11",
+      "artifact": "m5out/phase2-avalanche/avalanche.json"
+    },
+    "p2-rl-pipeline": {
+      "status": "PASS",
+      "detail": "episodes=200; state_dim=32; action_dim=10; trained_mean=-3.027; baseline_mean=-5.011",
+      "artifact": "m5out/phase2-rl/training.json"
+    },
+    "p2-rl-mutator": {
+      "status": "PASS",
+      "detail": "action families exercised=4/4; counts={'replace': 738, 'operand': 365, 'power': 71, 'recombine': 26}; best_body_ops=1; best_sfi=1.0; FI rl=14/20 vs fp-add=17/20 fisher=0.451",
+      "artifact": "m5out/phase2-rl/validation.json"
+    },
+    "p2-power3": {
+      "status": "PASS",
+      "detail": "streams=9; measured=9; patterns=['type1', 'type2', 'type3']; mcpat_ok=9",
+      "artifact": "m5out/phase2-power/power_measurements.json"
+    },
+    "p2-power-corr": {
+      "status": "PASS",
+      "detail": "records=6; h1_features=['average', 'mcpat_dynamic_power_w', 'peak', 'slope', 'stress', 'variance']; h2_pairs=2; h3_pairs=2; h2_fisher=1.0; h3_fisher=1.0",
+      "artifact": "m5out/phase2-power/correlation.json"
+    }
+  },
+  "overall": "PASS"
+}

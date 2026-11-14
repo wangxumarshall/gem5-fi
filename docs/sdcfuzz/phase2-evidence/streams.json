@@ -1,0 +1,170 @@
+{
+  "schema": "sdcfuzz.power.streams.v1",
+  "weights": {
+    "mov": 0.2,
+    "add": 0.5,
+    "sub": 0.5,
+    "and": 0.5,
+    "orr": 0.5,
+    "eor": 0.5,
+    "add_imm": 0.5,
+    "add_lsl": 0.6,
+    "mul": 1.5,
+    "madd": 2.0,
+    "udiv": 4.0,
+    "fadd": 1.0,
+    "fsub": 1.0,
+    "fmul": 1.5,
+    "fdiv": 6.0,
+    "ldr": 1.2,
+    "ldrf": 1.2,
+    "str": 1.0,
+    "busy_loop": 0.5
+  },
+  "streams": {
+    "type1-udiv": {
+      "pattern": "type1",
+      "structure": "div",
+      "iterations": 200,
+      "reps": 16,
+      "expected_checksum": "76689c1cc5212ef3",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type1-udiv.c",
+      "power": {
+        "length": 3200,
+        "average": 4.0,
+        "peak": 4.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.533333
+      }
+    },
+    "type1-fpadd": {
+      "pattern": "type1",
+      "structure": "fpadd",
+      "iterations": 200,
+      "reps": 16,
+      "expected_checksum": "4f270da434488ea8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type1-fpadd.c",
+      "power": {
+        "length": 3200,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      }
+    },
+    "type1-fpmul": {
+      "pattern": "type1",
+      "structure": "fpmul",
+      "iterations": 200,
+      "reps": 16,
+      "expected_checksum": "8f5b054d95c349f8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type1-fpmul.c",
+      "power": {
+        "length": 3200,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      }
+    },
+    "type2-udiv": {
+      "pattern": "type2",
+      "structure": "div",
+      "iterations": 25,
+      "reps": 16,
+      "expected_checksum": "76689c1cc5212ef3",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type2-udiv.c",
+      "power": {
+        "length": 3200,
+        "average": 2.1,
+        "peak": 4.0,
+        "variance": 3.61,
+        "slope": 0.0,
+        "stress": 0.5555
+      }
+    },
+    "type2-fpadd": {
+      "pattern": "type2",
+      "structure": "fpadd",
+      "iterations": 25,
+      "reps": 16,
+      "expected_checksum": "12d2cb2434488ea8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type2-fpadd.c",
+      "power": {
+        "length": 3200,
+        "average": 0.6,
+        "peak": 1.0,
+        "variance": 0.16,
+        "slope": 0.0,
+        "stress": 0.108
+      }
+    },
+    "type2-fpmul": {
+      "pattern": "type2",
+      "structure": "fpmul",
+      "iterations": 25,
+      "reps": 16,
+      "expected_checksum": "33fd280a4b91a178",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type2-fpmul.c",
+      "power": {
+        "length": 3200,
+        "average": 0.85,
+        "peak": 1.5,
+        "variance": 0.4225,
+        "slope": 0.0,
+        "stress": 0.166958
+      }
+    },
+    "type3-fpadd": {
+      "pattern": "type3",
+      "structure": "fpadd",
+      "iterations": 7,
+      "reps": 16,
+      "expected_checksum": "a0deada434488ea8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type3-fpadd.c",
+      "power": {
+        "length": 3584,
+        "average": 1.0,
+        "peak": 1.0,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.133333
+      }
+    },
+    "type3-fpmul": {
+      "pattern": "type3",
+      "structure": "fpmul",
+      "iterations": 7,
+      "reps": 16,
+      "expected_checksum": "575e3c128cc662f8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type3-fpmul.c",
+      "power": {
+        "length": 3584,
+        "average": 1.5,
+        "peak": 1.5,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.2
+      }
+    },
+    "type3-l1d": {
+      "pattern": "type3",
+      "structure": "l1d",
+      "iterations": 7,
+      "reps": 16,
+      "expected_checksum": "146e7a2434488ea8",
+      "source": "/home/sdc/sdc-mhw/m5out/phase2-power/src/type3-l1d.c",
+      "power": {
+        "length": 3584,
+        "average": 1.2,
+        "peak": 1.2,
+        "variance": 0.0,
+        "slope": 0.0,
+        "stress": 0.16
+      }
+    }
+  }
+}

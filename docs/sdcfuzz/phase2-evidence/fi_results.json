@@ -1,0 +1,83 @@
+{
+  "schema": "sdcfuzz.power.fi.v1",
+  "streams": {
+    "type1-fpadd": {
+      "sdc": 15,
+      "n": 20,
+      "cats": {
+        "SDC": 15,
+        "Masked": 5,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "4f270da434488ea8"
+    },
+    "type1-fpmul": {
+      "sdc": 17,
+      "n": 20,
+      "cats": {
+        "SDC": 17,
+        "Masked": 3,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "8f5b054d95c349f8"
+    },
+    "type2-fpadd": {
+      "sdc": 15,
+      "n": 20,
+      "cats": {
+        "SDC": 15,
+        "Masked": 5,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "12d2cb2434488ea8"
+    },
+    "type2-fpmul": {
+      "sdc": 17,
+      "n": 20,
+      "cats": {
+        "SDC": 17,
+        "Masked": 3,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "33fd280a4b91a178"
+    },
+    "type3-fpadd": {
+      "sdc": 14,
+      "n": 20,
+      "cats": {
+        "SDC": 14,
+        "Masked": 6,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "a0deada434488ea8"
+    },
+    "type3-fpmul": {
+      "sdc": 17,
+      "n": 20,
+      "cats": {
+        "SDC": 17,
+        "Masked": 3,
+        "Crash": 0,
+        "Hang": 0,
+        "Inactive": 0,
+        "SimulatorError": 0
+      },
+      "golden": "575e3c128cc662f8"
+    }
+  }
+}

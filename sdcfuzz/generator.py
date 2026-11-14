@@ -63,13 +63,13 @@ def asm_lines(template):
 
 
 def render_guest(template: Template, iterations=DEFAULT_ITERATIONS,
-                 operand=None):
+                 operand=None, memory=None):
     """Return ``(c_source, expected_checksum)`` for one template."""
     if iterations <= 0:
         raise ValueError("iterations must be positive")
     if operand is not None:
         template = with_operand(template, "x12", operand)
-    expected = isa.expected_checksum(template, iterations)
+    expected = isa.expected_checksum(template, iterations, memory=memory)
     asm_body = "".join(f'        "{line}\\n\\t"\n' for line in asm_lines(template))
     outputs = ",\n        ".join(
         [f'[o{reg[1:]}] "=r"(o{reg[1:]})' for reg in isa.GPRS]
@@ -97,7 +97,7 @@ def render_guest(template: Template, iterations=DEFAULT_ITERATIONS,
 #define ITERATIONS {iterations}ULL
 #define EXPECTED_CHECKSUM 0x{expected:016x}ULL
 
-{memory_initializer(isa.initial_memory())}
+{memory_initializer(memory if memory is not None else isa.initial_memory())}
 
 static uint64_t
 mix(uint64_t h, uint64_t v)

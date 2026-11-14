@@ -1,0 +1,1023 @@
+{
+  "schema": "sdcfuzz.rl.training.v1",
+  "seed": 20260825,
+  "episodes": 200,
+  "steps": 6,
+  "gamma": 0.9,
+  "state_dim": 32,
+  "action_dim": 10,
+  "seed_streams": 23,
+  "history": [
+    {
+      "episode": 0,
+      "reward": -0.6499168190485771,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 1,
+      "reward": -5.758742015,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 2,
+      "reward": -0.75,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 3,
+      "reward": 0.21046090999999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 4,
+      "reward": -5.726268740417939,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 5,
+      "reward": -5.181207573589743,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 6,
+      "reward": -2.5999262125,
+      "best_sfi": 0.6875
+    },
+    {
+      "episode": 7,
+      "reward": 0.2125737875,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 8,
+      "reward": -3.1237492803140094,
+      "best_sfi": 0.5625
+    },
+    {
+      "episode": 9,
+      "reward": -5.943344918410429,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 10,
+      "reward": -4.551317134991038,
+      "best_sfi": 0.34375
+    },
+    {
+      "episode": 11,
+      "reward": -5.602224096933296,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 12,
+      "reward": -0.8027277569189477,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 13,
+      "reward": -1.2876611750000002,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 14,
+      "reward": -5.648270927673364,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 15,
+      "reward": -4.563826154052603,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 16,
+      "reward": -3.761877230159689,
+      "best_sfi": 0.666667
+    },
+    {
+      "episode": 17,
+      "reward": -7.695912036704405,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 18,
+      "reward": -6.862796932487266,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 19,
+      "reward": -5.531192976149346,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 20,
+      "reward": -7.660599442517651,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 21,
+      "reward": -3.8162667740203977,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 22,
+      "reward": -1.0,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 23,
+      "reward": -0.2249262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 24,
+      "reward": -7.907929871967038,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 25,
+      "reward": 0.9626332200000001,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 26,
+      "reward": -6.0,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 27,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 28,
+      "reward": 0.211636525,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 29,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 30,
+      "reward": -0.7942300316666666,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 31,
+      "reward": -1.9550301416666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 32,
+      "reward": -5.010607573589744,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 33,
+      "reward": -5.782046077838826,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 34,
+      "reward": -2.414297115152491,
+      "best_sfi": 0.8125
+    },
+    {
+      "episode": 35,
+      "reward": -0.287661175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 36,
+      "reward": -3.8989440215526012,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 37,
+      "reward": -2.934342458400429,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 38,
+      "reward": -2.2874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 39,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 40,
+      "reward": -3.2317300316666664,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 41,
+      "reward": -0.695221727530864,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 42,
+      "reward": -5.758742015,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 43,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 44,
+      "reward": -7.910441564143909,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 45,
+      "reward": -2.220993357487922,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 46,
+      "reward": -0.5373667799999999,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 47,
+      "reward": -3.253320069166668,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 48,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 49,
+      "reward": -6.0,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 50,
+      "reward": -4.580236735833333,
+      "best_sfi": 0.333333
+    },
+    {
+      "episode": 51,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 52,
+      "reward": -2.585403402500001,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 53,
+      "reward": -7.988748990600069,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 54,
+      "reward": -2.917375624722223,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 55,
+      "reward": -6.332701575,
+      "best_sfi": 0.5625
+    },
+    {
+      "episode": 56,
+      "reward": -0.6624262124999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 57,
+      "reward": -4.465932186918948,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 58,
+      "reward": -7.988748990600069,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 59,
+      "reward": -6.192506737814011,
+      "best_sfi": 0.21875
+    },
+    {
+      "episode": 60,
+      "reward": -2.850161175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 61,
+      "reward": -5.0351178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 62,
+      "reward": -6.0,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 63,
+      "reward": 1.4626332199999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 64,
+      "reward": -3.2488078300000005,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 65,
+      "reward": 0.15013322000000007,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 66,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 67,
+      "reward": -2.418736735833334,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 68,
+      "reward": -3.1624262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 69,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 70,
+      "reward": -2.7479148325,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 71,
+      "reward": -2.7479148325,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 72,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 73,
+      "reward": -2.8300301416666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 74,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 75,
+      "reward": -3.701826690821256,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 76,
+      "reward": -4.2488078300000005,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 77,
+      "reward": -3.0,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 78,
+      "reward": -6.0,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 79,
+      "reward": -7.909448717083334,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 80,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 81,
+      "reward": -0.013333333333333197,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 82,
+      "reward": -3.5202015749999997,
+      "best_sfi": 0.5625
+    },
+    {
+      "episode": 83,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 84,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 85,
+      "reward": -4.6875,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 86,
+      "reward": -1.7874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 87,
+      "reward": -3.584042291388889,
+      "best_sfi": 0.333333
+    },
+    {
+      "episode": 88,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 89,
+      "reward": -2.82557121,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 90,
+      "reward": -7.353461489166667,
+      "best_sfi": 0.0625
+    },
+    {
+      "episode": 91,
+      "reward": -4.6875,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 92,
+      "reward": 0.0875737875,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 93,
+      "reward": -1.7249262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 94,
+      "reward": -4.2488078300000005,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 95,
+      "reward": -2.74880783,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 96,
+      "reward": -2.82557121,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 97,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 98,
+      "reward": -3.0,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 99,
+      "reward": -2.9577015749999997,
+      "best_sfi": 0.5625
+    },
+    {
+      "episode": 100,
+      "reward": -2.03736678,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 101,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 102,
+      "reward": -0.736951154052603,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 103,
+      "reward": -3.7474973225,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 104,
+      "reward": -3.917375624722223,
+      "best_sfi": 0.333333
+    },
+    {
+      "episode": 105,
+      "reward": -2.82557121,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 106,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 107,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 108,
+      "reward": -1.0133333333333332,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 109,
+      "reward": -6.7572928004777255,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 110,
+      "reward": -6.8945943914655174,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 111,
+      "reward": -2.085403402500001,
+      "best_sfi": 0.666667
+    },
+    {
+      "episode": 112,
+      "reward": -2.4561921791666674,
+      "best_sfi": 0.666667
+    },
+    {
+      "episode": 113,
+      "reward": 0.2520851675,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 114,
+      "reward": -3.9148200691666672,
+      "best_sfi": 0.333333
+    },
+    {
+      "episode": 115,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 116,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 117,
+      "reward": -5.724527643585615,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 118,
+      "reward": -4.6875,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 119,
+      "reward": -2.7608306558333333,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 120,
+      "reward": -5.4726178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 121,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 122,
+      "reward": -3.78953909,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 123,
+      "reward": -1.7474973225000001,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 124,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 125,
+      "reward": 0.2057699683333334,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 126,
+      "reward": -0.5383634749999999,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 127,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 128,
+      "reward": -0.6067300316666664,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 129,
+      "reward": -5.758742015,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 130,
+      "reward": -1.28736678,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 131,
+      "reward": -4.0,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 132,
+      "reward": -3.7474973225,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 133,
+      "reward": -2.74880783,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 134,
+      "reward": -2.74880783,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 135,
+      "reward": -5.758742015,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 136,
+      "reward": -3.4550301416666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 137,
+      "reward": 0.2520851675,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 138,
+      "reward": -2.0374262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 139,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 140,
+      "reward": -1.8499262124999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 141,
+      "reward": -1.2873667800000002,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 142,
+      "reward": -2.7874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 143,
+      "reward": -0.013333333333333197,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 144,
+      "reward": -5.755112315,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 145,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 146,
+      "reward": -2.287661175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 147,
+      "reward": -1.5376611750000002,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 148,
+      "reward": -4.2874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 149,
+      "reward": -3.2488078300000005,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 150,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 151,
+      "reward": -3.917375624722223,
+      "best_sfi": 0.333333
+    },
+    {
+      "episode": 152,
+      "reward": -2.9192300316666664,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 153,
+      "reward": 1.2391693441666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 154,
+      "reward": -4.215932186918948,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 155,
+      "reward": -2.6624262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 156,
+      "reward": -2.350161175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 157,
+      "reward": -2.7942300316666664,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 158,
+      "reward": -2.225161175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 159,
+      "reward": 1.2126332199999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 160,
+      "reward": -0.75,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 161,
+      "reward": -0.2249262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 162,
+      "reward": -0.013333333333333197,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 163,
+      "reward": 0.2391693441666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 164,
+      "reward": -0.75,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 165,
+      "reward": -4.082701575,
+      "best_sfi": 0.5625
+    },
+    {
+      "episode": 166,
+      "reward": 0.21047448749999997,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 167,
+      "reward": -3.5999262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 168,
+      "reward": -3.2488078300000005,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 169,
+      "reward": -0.7895390899999999,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 170,
+      "reward": -2.74880783,
+      "best_sfi": 0.5
+    },
+    {
+      "episode": 171,
+      "reward": -2.9749262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 172,
+      "reward": -1.3501611750000002,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 173,
+      "reward": -1.0133333333333332,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 174,
+      "reward": -5.734581499166667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 175,
+      "reward": -5.734581499166667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 176,
+      "reward": -0.16336347499999992,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 177,
+      "reward": -0.6216968083333334,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 178,
+      "reward": -4.4601178675,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 179,
+      "reward": -2.2874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 180,
+      "reward": -4.910453760252281,
+      "best_sfi": 0.25
+    },
+    {
+      "episode": 181,
+      "reward": -6.0,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 182,
+      "reward": -4.910453760252281,
+      "best_sfi": 0.25
+    },
+    {
+      "episode": 183,
+      "reward": -4.6875,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 184,
+      "reward": -7.353461489166667,
+      "best_sfi": 0.0625
+    },
+    {
+      "episode": 185,
+      "reward": -1.9749262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 186,
+      "reward": -2.350161175,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 187,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 188,
+      "reward": -0.08003014166666667,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 189,
+      "reward": -0.7883634749999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 190,
+      "reward": -0.9192300316666664,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 191,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 192,
+      "reward": -5.758742015,
+      "best_sfi": 0.0
+    },
+    {
+      "episode": 193,
+      "reward": -1.0374262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 194,
+      "reward": -3.0,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 195,
+      "reward": -4.6875,
+      "best_sfi": 0.4375
+    },
+    {
+      "episode": 196,
+      "reward": -1.5374262124999998,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 197,
+      "reward": -0.51988941,
+      "best_sfi": 0.875
+    },
+    {
+      "episode": 198,
+      "reward": -0.7874262125,
+      "best_sfi": 1.0
+    },
+    {
+      "episode": 199,
+      "reward": -0.7895390899999999,
+      "best_sfi": 1.0
+    }
+  ],
+  "trained_mean_reward": -3.0270203544505865,
+  "baseline_mean_reward": -5.0108279326602165,
+  "trained_best_sfi": 1.0,
+  "baseline_best_sfi": 1.0,
+  "action_counts": {
+    "replace": 738,
+    "operand": 365,
+    "power": 71,
+    "recombine": 26
+  },
+  "trained_best_fp_sfi": 0.875
+}

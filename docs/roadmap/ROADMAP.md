@@ -3,7 +3,7 @@
 > 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
 - 更新日期：2026-11-14
-- 总进度：**62.8%**（完成 23/39，其中本仓库实测 19；部分 3，未开始 11，门控 2）
+- 总进度：**74.4%**（完成 28/39，其中本仓库实测 24；部分 2，未开始 7，门控 2）
 
 ![路线进度图](roadmap.svg)
 
@@ -44,15 +44,15 @@
 | SAD 结构激活深度指标 | `done-local` | CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh；autousens --sad 与 coverage_report --sad-run 已接入 |
 | Phase 1 一键验收（9 步） | `done-local` | scripts/test-phase1.sh（9 步；HEAD 1fdf8cdf 复跑 9/9）+ scripts/verify-phase1.py（10 里程碑台账 10/10）；证据 m5out/phase1-gate-20261114-final/{phase1_gate.json,phase1_milestones.json} |
 
-#### Phase 2 · RL Mutator + 功耗应力（M4–M6，10%）
+#### Phase 2 · RL Mutator + 功耗应力（M4–M6，100%）
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
-| 逻辑屏蔽惩罚（雪崩测试） | `partial` | D13 已用翻转密度/进位链近似屏蔽风险；雪崩测试未实现 |
-| RL 训练管道 | `todo` |  |
-| RL 引导的指令/操作数/序列变异 | `todo` |  |
-| Type-I/II/III 功耗应力模式生成 | `todo` |  |
-| 功耗-SDC 相关性（Pearson/Spearman） | `todo` |  |
+| 逻辑屏蔽惩罚（雪崩测试） | `done-local` | sdcfuzz/avalanche.py（输入扰动 + 瞬态 + 稳态 pre-roll）；19 模板 40 迭代 m5out/phase2-avalanche/avalanche.json（penalty 0.000–1.000，>0.5 5 条、<0.5 11 条）；7 项单测 |
+| RL 训练管道 | `done-local` | sdcfuzz/rl.py（1 层 2 头 Transformer 状态 + 9 维实测/代理覆盖 + 4 维功耗 + 3 维屏蔽；32×10 策略，REINFORCE）；200 轮 m5out/phase2-rl/{training.json,policy.json}，trained_mean −3.027 vs baseline −5.011；6 项单测 |
+| RL 引导的指令/操作数/序列变异 | `done-local` | 四类动作 replace 738 / operand 365 / power 71 / recombine 26；最优 FP 流 CHAOSFPU 验证 m5out/phase2-rl/validation.json（fadd 14/20 vs fp-add 17/20，Fisher p=0.451）；代理从 fdiv 1/20 修正到 fadd 14/20 的过程见 docs/sdcfuzz/phase2-verification.md §3 |
+| Type-I/II/III 功耗应力模式生成 | `done-local` | sdcfuzz/power.py；9 条流 × gem5 + McPAT（pypat arm64-kunpeng920，9/9 ok，动态功耗 31.14–38.55 W）；m5out/phase2-power/{streams.json,power_measurements.json}；6 项单测 |
+| 功耗-SDC 相关性（Pearson/Spearman） | `done-local` | sdcfuzz/power_sdc.py；6 条 FP 流 ×20 次 CHAOSFPU；H1 proxy peak r=+0.962 (p=0.098) 但 McPAT r=−0.412 (p=0.461)；H2 Δ=0 (p=1)；H3 Δ=+0.025 (p=1)；m5out/phase2-power/correlation.{json,md}；H1–H3 未获支持，边界见 phase2-verification.md §5/§7 |
 
 #### Phase 3 · 仿真→硬件闭环（M7–M9，17%）
 

@@ -1,0 +1,94 @@
+{
+  "schema": "sdcfuzz.rl.mcpat_selection.v1",
+  "selected": {
+    "stream": "type2-fpmul",
+    "source": "power-pattern",
+    "sdc_rate": 0.85,
+    "n": 20,
+    "mcpat_power_w": 33.927504,
+    "score": 0.8650420344340259
+  },
+  "candidates": [
+    {
+      "stream": "type2-fpmul",
+      "source": "power-pattern",
+      "sdc_rate": 0.85,
+      "n": 20,
+      "mcpat_power_w": 33.927504,
+      "score": 0.8650420344340259
+    },
+    {
+      "stream": "type2-fpadd",
+      "source": "power-pattern",
+      "sdc_rate": 0.75,
+      "n": 20,
+      "mcpat_power_w": 36.730906,
+      "score": 0.8514023490453342
+    },
+    {
+      "stream": "type1-fpmul",
+      "source": "power-pattern",
+      "sdc_rate": 0.85,
+      "n": 20,
+      "mcpat_power_w": 32.565907,
+      "score": 0.8473820287360158
+    },
+    {
+      "stream": "type3-fpmul",
+      "source": "power-pattern",
+      "sdc_rate": 0.85,
+      "n": 20,
+      "mcpat_power_w": 32.175914,
+      "score": 0.8423237930009311
+    },
+    {
+      "stream": "type1-fpadd",
+      "source": "power-pattern",
+      "sdc_rate": 0.75,
+      "n": 20,
+      "mcpat_power_w": 34.328865,
+      "score": 0.8202477139022968
+    },
+    {
+      "stream": "rl-best-fp",
+      "source": "rl-policy",
+      "sdc_rate": 0.7,
+      "n": 20,
+      "mcpat_power_w": 34.215636,
+      "score": 0.7937791260711103
+    },
+    {
+      "stream": "type3-fpadd",
+      "source": "power-pattern",
+      "sdc_rate": 0.7,
+      "n": 20,
+      "mcpat_power_w": 32.962967,
+      "score": 0.7775319239417572
+    },
+    {
+      "stream": "type3-l1d",
+      "source": "power-pattern",
+      "sdc_rate": 0.0,
+      "n": 0,
+      "mcpat_power_w": 38.550299,
+      "score": 0.5
+    },
+    {
+      "stream": "type2-udiv",
+      "source": "power-pattern",
+      "sdc_rate": 0.0,
+      "n": 0,
+      "mcpat_power_w": 31.426285,
+      "score": 0.40760105388547047
+    },
+    {
+      "stream": "type1-udiv",
+      "source": "power-pattern",
+      "sdc_rate": 0.0,
+      "n": 0,
+      "mcpat_power_w": 31.137661,
+      "score": 0.4038575809749232
+    }
+  ],
+  "rule": "0.5*SDC_rate + 0.5*(McPAT_power/peak_power)"
+}
