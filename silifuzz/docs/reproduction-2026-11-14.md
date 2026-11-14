@@ -226,7 +226,7 @@ checker → `mismatches.jsonl` → quarantine 的链路，不是故障模型，�
 | §2.4 代理 fuzz：XED/ifuzz/Unicorn | ARM64 映射为 Capstone / syzkaller ifuzz / Unicorn | `proxies/`、`evidence/*-fuzz.log` | 复现（代理不同） |
 | §2.4.4 补映射、去不确定性、跨核端态录制 | 补零页、3 次同核 + 4 NUMA 节点一致才收录 | `src/sf_fix.cc`、`evidence/ifuzz-fix.json` | 复现 |
 | §2.5.1 50/1000 批处理、多队列分发 | 50 条/批、1000 次/批，I/O 摊薄约 20× | `src/sf_checker.cc`；采样 603,201 次、111.6 B/次（19.97×）；sweep 17.4 B/次 | 复现 |
-| §2.5.2 4 核 / 2 分钟 / 覆盖所有核 | 4 核 × 120 s 窗口，轮转机制 | `tools/fleet.py`、`evidence/verify-20261114-scale.log` | 机制复现 |
+| §2.5.2 4 核 / 2 分钟 / 覆盖所有核 | 4 核 × 120 s 窗口，轮转机制；95k/505k 两个语料 | `tools/fleet.py`、`evidence/verify-20261114-{scale,500k}.log` | 机制复现 |
 | §2.6 隔离、复测、命中样本保留 | 多日复现改为多次独立复测；命中入 `found/` | `tools/quarantine.py`、`tests/test_fleet.sh`（580 组确认） | 机制复现 |
 | §3 语料约 500,000 | **505,020**（约 50 万；全部 ifuzz） | `evidence/corpus-stats-500k.json` | 规模复现，构成不同 |
 | §3 40% 仅 Unicorn/XED、20% 仅 ifuzz、40% 两者 | 未复现：505k 语料全部 ifuzz | 代理语料仅 1,600 + 1,150 | 构成不同 |

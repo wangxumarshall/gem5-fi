@@ -35,8 +35,8 @@ oracle、工具链不同**，数字不能直接相加，也不能互相替代。
 
 | 指标 | 值 | 证据 |
 |---|---:|---|
-| 基线语料 | 95,402 条 / 212.6 MiB | `silifuzz/evidence/corpus-stats-20261114.json` |
-| 规模复核语料 | **505,020 条 / 1.13 GiB**（约 50 万，全部 ifuzz） | `silifuzz/evidence/corpus-stats-500k.json` |
+| 基线语料 | 95,402 条 / 202.8 MiB（212.6 MB） | `silifuzz/evidence/corpus-stats-20261114.json` |
+| 规模复核语料 | **505,020 条 / 1.05 GiB（1.13 GB）**（约 50 万，全部 ifuzz） | `silifuzz/evidence/corpus-stats-500k.json` |
 | 新生成 → 修复 | 1,996 候选 → 1,896 收录（12.2 s） | `silifuzz/evidence/verify-20261114-generate.log` |
 | 95k 全量 sweep | 12,211,456 次执行，0 不匹配 | `silifuzz/evidence/verify-20261114-scale.log` |
 | 505k 全量 sweep | **64,642,560 次执行，0 不匹配** | `silifuzz/evidence/sweep-500k/summary.json` |

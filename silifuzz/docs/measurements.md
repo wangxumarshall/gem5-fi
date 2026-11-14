@@ -17,7 +17,7 @@ CPU          : HiSilicon Kunpeng-920, 128 CPUs, 1 thread/core, 4 NUMA nodes
 OS           : openEuler 24.03 SP4, kernel 6.6.0-159.4.3.154.oe2403sp4.aarch64
 Compiler     : g++ 12.3.1, clang 17.0.6 (libFuzzer)
 Other        : Python 3.11.6, Go 1.24.2; 30 GiB RAM
-Corpus disk  : work/corpus 约 213 MiB
+Corpus disk  : work/corpus 约 203 MiB（212.6 MB）
 ```
 
 `lscpu`、`uname -a` 的完整输出见本文件末尾“采集命令”。
