@@ -1,0 +1,127 @@
+{
+  "campaign": "MMU-REPEATABILITY-20261114",
+  "runs": {
+    "REP-FINAL-MMU-M02-R02-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 2293.0,
+      "trace_events": 4478,
+      "activation_kind": "refill_pfn_corrupt",
+      "activation_present": true,
+      "fault_tagged_events": 5,
+      "board_terminal_present": true,
+      "trace_sha256": "6d65116ef6c7e25acde610ee39c4859fa26cf7cf9572538d999b897aed0bbda4",
+      "terminal_sha256": "ff9034928430a907e22350d8e57d8c6a84e406d3e8b713fb0f6df8da8713eab0"
+    },
+    "REP-FINAL-MMU-M03-R01-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1116.5,
+      "trace_events": 535,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "9912cab3eb0b0ebe01d9f2d5210e80613076b7b858d098f7be99556998c23661",
+      "terminal_sha256": "88a9bc03e38013e5169169620906ea64e6b1ab2e3a90d9a8f21d8556e5475385"
+    },
+    "REP-FINAL-MMU-M03-R05-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1088.4,
+      "trace_events": 337,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "d02d11e9cce4d228cc5a090218b147da837dba7e0422fa1c789c9ed4c1d6172e",
+      "terminal_sha256": "252d71733d405365991184812bf3dd0d0a9427e8b7e67d4a53658ec644f0ab3d"
+    },
+    "REP-FINAL-MMU-M04-R05-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1120.8,
+      "trace_events": 546,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "45ec6a75c038e6f9b7172dafa685e83d07c3c81798f70866e2449d652a0ebc13",
+      "terminal_sha256": "d4d16086fb53ea86770028e4240e2c72be19d8aef1777b40896a81445a3970b4"
+    },
+    "REP-FINAL-MMU-M05-R05-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1098.8,
+      "trace_events": 297,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 3,
+      "board_terminal_present": true,
+      "trace_sha256": "3d381f45748958169dd4d01e01e9940339165e179d5a1404d149babe86cdcacd",
+      "terminal_sha256": "60f100d3d8cc66893c0c59af5dc2000f60165a008a394a0813a79e075097a0f8"
+    },
+    "REP-FINAL-MMU-M06-R02-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 2841.6,
+      "trace_events": 8607,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 4,
+      "board_terminal_present": true,
+      "trace_sha256": "59bf58312be11393f1ed4a6312e817f639151cef58837008c4aaa2fc8afba66d",
+      "terminal_sha256": "fe8fbaa6642d7f8ae05f14a3420c99df11a81f6cb457c7a3f1f1ca8f463570c2"
+    },
+    "REP-FINAL-MMU-M07-R01-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1106.4,
+      "trace_events": 471,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "5bf02356cc0a8f333cbf78c63d672e9dfcf80347e295d4e0e70b06f233d9c352",
+      "terminal_sha256": "9573aad144d8d85bca7cfb9e683493e012f1a54b4f34db6be26c02c40920ed0f"
+    },
+    "REP-FINAL-MMU-M07-R05-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 1083.7,
+      "trace_events": 413,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "163631b7529fa08bf0fdfd43227d49f3d604e608d30f49f2ff812f72365a1553",
+      "terminal_sha256": "cbb51b435986a2bc970a917fa7ff495fb284e5075e44c3ab22858a9950e4aa38"
+    },
+    "REP-FINAL-MMU-M08-R01-01": {
+      "status": "COMPLETED",
+      "exit_code": 0,
+      "seconds": 2337.8,
+      "trace_events": 4475,
+      "activation_kind": "mmu_fault_activate",
+      "activation_present": true,
+      "fault_tagged_events": 2,
+      "board_terminal_present": true,
+      "trace_sha256": "e31ab27ab87629bb00c72e11c5ef0ea9a3d031eb24a252f71d1e107b60bef3df",
+      "terminal_sha256": "a9333511eb27a947ffce2803c0a4ec4d11859f2678021b354dd0241904585b5c"
+    }
+  },
+  "order": [
+    "REP-FINAL-MMU-M02-R02-01",
+    "REP-FINAL-MMU-M03-R01-01",
+    "REP-FINAL-MMU-M03-R05-01",
+    "REP-FINAL-MMU-M04-R05-01",
+    "REP-FINAL-MMU-M05-R05-01",
+    "REP-FINAL-MMU-M06-R02-01",
+    "REP-FINAL-MMU-M07-R01-01",
+    "REP-FINAL-MMU-M07-R05-01",
+    "REP-FINAL-MMU-M08-R01-01"
+  ],
+  "started_utc": "2026-11-14T05:11:33Z",
+  "status": "ALL_COMPLETED",
+  "finished_utc": "2026-11-14T09:06:20Z"
+}

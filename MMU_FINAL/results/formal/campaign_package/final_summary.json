@@ -1,0 +1,198 @@
+{
+ "campaign_id": "MMU-FORMAL-20261113",
+ "status": "FORMAL_CAMPAIGN_COMPLETE_WITH_LIMITATIONS",
+ "limitations": [
+  "4 sample(s) end SQUASHED with PARTIAL downstream propagation by design (the faulted translation is squashed before a data-side consumer); their raw trace is COMPLETE.",
+  "The frozen binary does not emit per-instruction IFU fetch-response, decode, or IFU-specific commit events; instruction-side samples use MMU translation/permission -> Execute Request -> Guest Oracle and mark the unobserved nodes NOT_EMITTED_BY_FROZEN_BINARY.",
+  "Two samples were re-run under AttemptID A02 after an external process kill; original A01 partial attempts are preserved."
+ ],
+ "planned_samples": 40,
+ "started_samples": 40,
+ "completed_samples": 40,
+ "valid_injection_evidence": 40,
+ "fault_state_consumed": 40,
+ "full_propagation": 36,
+ "partial_propagation_legal_squash": 4,
+ "chain_complete": 40,
+ "legal_terminal": 40,
+ "unfinished_samples": 0,
+ "control_runs_referenced": 28,
+ "control_zero_proven": 28,
+ "terminal_distribution": {
+  "SDC": 31,
+  "SQUASHED": 4,
+  "DETECTED_CONTAINED": 5
+ },
+ "activation_distribution": {
+  "ACTIVATED": 40
+ },
+ "propagation_distribution": {
+  "FULL": 36,
+  "PARTIAL": 4
+ },
+ "trace_distribution": {
+  "COMPLETE": 40
+ },
+ "oracle_distribution": {
+  "FAIL": 31,
+  "PASS": 4,
+  "PASS_EXPECTED_DETECTION": 5
+ },
+ "per_model": {
+  "M01": {
+   "mechanism": "L2/Unified TLB invalidation suppression",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  },
+  "M02": {
+   "mechanism": "PTW refill PFN corruption",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  },
+  "M03": {
+   "mechanism": "ASID tag-match false positive",
+   "samples": 5,
+   "terminal": {
+    "SQUASHED": 4,
+    "SDC": 1
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "PARTIAL": 4,
+    "FULL": 1
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "PASS": 4,
+    "FAIL": 1
+   }
+  },
+  "M04": {
+   "mechanism": "Resident TLB PFN substitution",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  },
+  "M05": {
+   "mechanism": "L2 partial walk-cache pointer substitution",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  },
+  "M06": {
+   "mechanism": "PTW leaf descriptor valid-bit corruption",
+   "samples": 5,
+   "terminal": {
+    "DETECTED_CONTAINED": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "PASS_EXPECTED_DETECTION": 5
+   }
+  },
+  "M07": {
+   "mechanism": "Permission grant decision inversion",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  },
+  "M08": {
+   "mechanism": "Final PA materialization corruption",
+   "samples": 5,
+   "terminal": {
+    "SDC": 5
+   },
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "propagation": {
+    "FULL": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   }
+  }
+ }
+}

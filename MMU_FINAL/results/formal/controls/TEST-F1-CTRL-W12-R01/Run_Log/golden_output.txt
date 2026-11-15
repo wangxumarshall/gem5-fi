@@ -1,0 +1,1 @@
+W12_RESULT ctx=R01 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS

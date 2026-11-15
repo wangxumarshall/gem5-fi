@@ -1,0 +1,11 @@
+EventID,ParentEventID,Kind,Tick,TranslationID,LookupID,WalkID,EntryID,EntryGeneration,DynamicInstSeqNum,VA,PA,CommitSeq,SquashStatus,Field,Before,After,StateBefore,StateAfter,Outcome,asid,vmid,regime,security_state,tlb_instance,candidate_asid,candidate_entry_id,candidate_generation,candidate_pfn,candidate_pa,lookup_outcome,fault_site,fault_persistence,permission_result,memory_attribute,fault_status
+266,,translation_start,260357932782,5,,,,,106471303,4004000000,,,,,,,,,,234,0,EL10,NonSecure,,,,,,,,,,,,
+267,266,tlb_lookup_miss,260357932782,5,42792381,,,,106471303,4004000000,,,,,,,,,,234,0,EL10,NonSecure,dtb,,,,,,,,,,,
+268,267,mmu_fault_activate,260357932782,5,,,,,106471303,4004000000,,,,,,,,,activated,234,0,EL10,NonSecure,l2_shared,236,946,11,0x83543,0x83543000,false_hit,tlb_lookup_miss_false_hit,one_shot,,,
+269,268,tlb_lookup_hit,260357932782,5,42792382,,,11,106471303,4004000000,83543000,,,,,,,,,234,0,EL10,NonSecure,l2_shared,,,,,,,,,,,
+270,269,tlb_entry_insert,260357932782,5,,,,3140,106471303,4004000000,,,,,,,,,,234,0,EL10,NonSecure,dtb,,,,,,,,,,,
+271,270,permission_eval,260357932782,5,,,,,106471303,4004000000,,,,,,,,,,,,EL10,NonSecure,,,,,,,,,,deny,,
+272,271,translation_result,260357932782,5,,,,11,106471303,4004000000,83543000,,,,,,,,,,,EL10,NonSecure,,,,,,,,,,,mtype=2;shareable=0;inner=0;outer=0;noncacheable=0;xn=1;ap=3,Data
+273,272,squash,260357995053,5,,,,,106471303,,,,SQUASH,,,,,,,,,,,,,,,,,,,,,,
+533,273,chain_end,261561767742,,,,,,,,,,,,,,,,run_end,,,,,,,,,,,,,,,,
+534,533,mmu_fault_summary,261561767742,,,,,11,,4004000000,,,,,,,,,activated_not_consumed,,,,,,,,,,,,,one_shot,,,

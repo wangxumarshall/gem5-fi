@@ -1,0 +1,29 @@
+[
+  {
+    "Pair": "M02/M04/M08",
+    "ModelsForAnalysisOnly": "M02,M04,M08",
+    "WhySimilar": "all can produce a wrong PA or wrong data value",
+    "ObservableFeatureSet": "ObservedPTW, ObservedPartialEntry, ObservedTLBHits, ObservedConsumerKind, GuestValueMismatch_SW",
+    "DistinguishingEvidence": "M02 has PTW; M04 has resident TLB hit in some contexts; M08 has final request PA corruption (simulator-only).",
+    "AmbiguousCases": "Blinded observation cannot separate M02/M04/M08 reliably: all show PTW and/or resident-hit signals and the same wrong-value symptom. M04 vs M08 is not separable without internal entry/request-PA instrumentation.",
+    "RequiredAdditionalObservability": "Simulator-assisted: refill-PFN event, entry lineage, request-PA delta. Production: page-table/PMU evidence not proven."
+  },
+  {
+    "Pair": "M01/M03",
+    "ModelsForAnalysisOnly": "M01,M03",
+    "WhySimilar": "stale vs foreign-ASID translation",
+    "ObservableFeatureSet": "ObservedMaintenanceEvents, ObservedTLBHits, ObservedPermissionResults, ObservedSquash, GuestValueMismatch_SW",
+    "DistinguishingEvidence": "M01 shows maintenance events followed by reuse; M03 shows permission-eval categories (deny+squash or grant+execute).",
+    "AmbiguousCases": "If only the final wrong value is available, both are ambiguous. The observation must include maintenance history and permission/squash events.",
+    "RequiredAdditionalObservability": "Simulator-assisted: TLBI match/suppression, candidate ASID. Production: TLB maintenance history + ASID correlation may be indirectly testable but is not proven."
+  },
+  {
+    "Pair": "M06/M07",
+    "ModelsForAnalysisOnly": "M06,M07",
+    "WhySimilar": "detection vs permission inversion",
+    "ObservableFeatureSet": "ObservedExceptionDelivery, ObservedPermissionResults, ObservedSquash, GuestSignal_SW, GuestValueMismatch_SW, GuestUnexpectedSuccess_SW",
+    "DistinguishingEvidence": "M06 has exception delivery/containment; M07 has permission denial followed by a successful consumer or unexpected success.",
+    "AmbiguousCases": "If exception delivery is not observed, M06 vs M07 can be ambiguous; guest unexpected-success is a software-visible separator when present.",
+    "RequiredAdditionalObservability": "Simulator-assisted: fault_state_consumed / exception class. Production: SIGSEGV/ESR and policy test are available, but exact internal cause is not."
+  }
+]

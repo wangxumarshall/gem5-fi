@@ -1,0 +1,73 @@
+{
+  "manifest_version": "1.0",
+  "campaign_id": "MMU-FORMAL-20261113",
+  "statement": "The results archive is complete. Two runtime assets are not bundled in this repository because they exceed normal Git object sizes and have no public distribution channel yet. They are marked EXTERNAL_ASSET_NOT_YET_DISTRIBUTED; external independent reproduction is blocked until they are published. Do not claim that 'git clone' alone is sufficient to run the full-system samples.",
+  "assets": [
+    {
+      "AssetName": "gem5.opt (frozen experiment binary)",
+      "Purpose": "Simulator binary used for all 40 formal samples and 10 repeat runs.",
+      "Source": "Built from source commit 60f1a8760410288128061d85582e5395b24c0106 in CHAOS/gem5.",
+      "BundleLocation": null,
+      "SHA256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+      "SizeBytes": 1237801472,
+      "RequiredForBuild": false,
+      "RequiredForRun": true,
+      "RequiredForVerification": true,
+      "DistributionStatus": "BUILDABLE_FROM_SOURCE",
+      "RetrievalInstructions": "Run reproduction/build_mmu.sh, then compare the resulting SHA256 with the recorded value. A different hash is not automatically equivalent; follow MMU_REPRODUCTION_GUIDE.md section 4."
+    },
+    {
+      "AssetName": "vmlinux (Linux kernel image)",
+      "Purpose": "Full-system kernel used by the restored checkpoint.",
+      "Source": "gem5-fs submodule content on the 0202 server (not tracked by this branch).",
+      "BundleLocation": null,
+      "SHA256": "9b9b9ce70bc6fb831461b527ccf36f124f1af8f3dc717d7ef13e62060aecfa7e",
+      "SizeBytes": 237716656,
+      "RequiredForBuild": false,
+      "RequiredForRun": true,
+      "RequiredForVerification": true,
+      "DistributionStatus": "EXTERNAL_ASSET_NOT_YET_DISTRIBUTED",
+      "RetrievalInstructions": "Internal 0202 archive only. No public URL exists. External reproduction is blocked until this file is published."
+    },
+    {
+      "AssetName": "boot.arm64 (boot loader)",
+      "Purpose": "Full-system boot loader.",
+      "Source": "gem5-fs submodule content on the 0202 server.",
+      "BundleLocation": "MMU_FINAL/runtime_assets/gem5-fs/boot.arm64",
+      "SHA256": "37ca07b55da2c0843d6670bb0693d21159236e0c6b74526f531abaeeaab51bfd",
+      "SizeBytes": 1432,
+      "RequiredForBuild": false,
+      "RequiredForRun": true,
+      "RequiredForVerification": true,
+      "DistributionStatus": "BUNDLED"
+    },
+    {
+      "AssetName": "mmu_template.img (guest disk template)",
+      "Purpose": "Fresh disk image copied for every sample; identical to the disk used by the formal campaign.",
+      "Source": "runs/disks/mmu_template.img on the 0202 server.",
+      "BundleLocation": null,
+      "SHA256": "bb872707d6bae3885688556908536d4f92e07da68aae0401d27ff03216425759",
+      "SizeBytes": 2361393152,
+      "RequiredForBuild": false,
+      "RequiredForRun": true,
+      "RequiredForVerification": true,
+      "DistributionStatus": "EXTERNAL_ASSET_NOT_YET_DISTRIBUTED",
+      "RetrievalInstructions": "Internal 0202 archive only. No public URL exists. External reproduction is blocked until this file is published."
+    },
+    {
+      "AssetName": "mmu_bootF1 checkpoint (cpt.244799013609)",
+      "Purpose": "Boot checkpoint restored by every sample.",
+      "Source": "runs/mmu_bootF1/cpt.244799013609 on the 0202 server.",
+      "BundleLocation": "MMU_FINAL/runtime_assets/checkpoint/cpt.244799013609",
+      "SHA256RecordedInFormalConfig": "4aa1ba38b5288fe1c7e58dde73a1f27166e67f846f77f241fcd1fb2cd89e6417",
+      "SHA256RecomputedSortedManifestDigest": "ab20065700a56c5dc22e18aacca40c7edae786db7abde37cb5aca94c0d2fd244",
+      "ManifestDigestMethod": "sha256 of the sorted 'sha256sum' output over the checkpoint files (see MMU_FINAL/runtime_assets/checkpoint/SHA256SUMS.txt; digest of that file text).",
+      "SizeBytes": 32311994,
+      "RequiredForBuild": false,
+      "RequiredForRun": true,
+      "RequiredForVerification": true,
+      "DistributionStatus": "BUNDLED_WITH_RECORDED_HASH_DISCREPANCY",
+      "Note": "The checkpoint files are present and are exercised by the independent smoke test. The originally recorded 4aa1ba... digest could not be reproduced by any tested sorted-manifest method against the current directory; the discrepancy is reported, not hidden."
+    }
+  ]
+}

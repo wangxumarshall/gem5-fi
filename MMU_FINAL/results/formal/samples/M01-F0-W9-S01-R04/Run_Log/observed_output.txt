@@ -1,0 +1,5 @@
+W9_RESULT ctx=R01 va=0x4000000000 pa1=0x83482000 pa2=0x83470000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS
+W9_RESULT ctx=R02 va=0x4000000000 pa1=0x83470000 pa2=0x83461000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS
+W9_RESULT ctx=R03 va=0x4000000000 pa1=0x83461000 pa2=0x83466000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=1 vec0=0x00 result=PASS
+W9_RESULT ctx=R04 va=0x4000000000 pa1=0x83466000 pa2=0x8346e000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0xaa old_alias=0xaa branch=0 vec0=0x00 result=FAIL
+W9_RESULT ctx=R05 va=0x4000000000 pa1=0x8346e000 pa2=0x83477000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x56 result=PASS

@@ -1,0 +1,128 @@
+{
+  "campaign_id": "MMU-FORMAL-20261113",
+  "final_branch": "mmu-final-reproducible",
+  "base_freeze_commit": "872953c2",
+  "source_closure_commit": "60f1a8760410288128061d85582e5395b24c0106",
+  "frozen_binary": {
+    "path": "CHAOS/gem5/build/ARM/gem5.opt",
+    "sha256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+    "verification": "recomputed on 0202: match"
+  },
+  "source_closure_check": "git diff 60f1a876..872953c2 -- CHAOS/gem5/src is empty (no binary-source change after the freeze)",
+  "seed_semantics": {
+    "seed": "N/A_DETERMINISTIC",
+    "policy": "DETERMINISTIC",
+    "source": "RESEARCHER_APPROVED",
+    "used_by_gem5": false,
+    "note": "never converted to a random seed"
+  },
+  "formal_results": {
+    "samples": 40,
+    "completed": 40,
+    "terminal": {
+      "SDC": 31,
+      "DETECTED_CONTAINED": 5,
+      "SQUASHED": 4
+    },
+    "activation": {
+      "ACTIVATED": 40
+    },
+    "propagation": {
+      "FULL": 36,
+      "PARTIAL": 4
+    },
+    "trace": {
+      "COMPLETE": 40
+    },
+    "oracle": {
+      "FAIL": 31,
+      "PASS": 4,
+      "PASS_EXPECTED_DETECTION": 5
+    },
+    "control_runs_referenced": 28,
+    "attempts": {
+      "A01": 40,
+      "A02_reruns": [
+        "M06-F0-W10-S01-R04",
+        "M08-F0-W10-S01-R04"
+      ]
+    }
+  },
+  "repeatability": {
+    "campaign": "MMU-REPEATABILITY-20261114",
+    "runs": 10,
+    "activation_match": 10,
+    "propagation_match": 10,
+    "terminal_match": 10,
+    "mismatches": 0
+  },
+  "workload_sha256": {
+    "W9": [
+      "ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b"
+    ],
+    "W10": [
+      "733b8a80150b9728b640fbaad0889f139b09b92a98462778753975a4917a63ae",
+      "fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3"
+    ],
+    "W11": [
+      "1393b2737e33db75a8dfa38dbd0fa888d7640e7fb791cb7da1df815bd21451c4"
+    ],
+    "W12": [
+      "8fa269fd88eaf9126f67cf80d5d77f13600e211948db5cd7f4b89f42c147fdbc"
+    ],
+    "W13": [
+      "6e7d926e863c15433b3887e3ac069169e510751190d4b0de5dae0e7aa886ec70"
+    ],
+    "W14": [
+      "f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36"
+    ]
+  },
+  "special_configurations": {
+    "M05": {
+      "mmu_m05_decoy_table_base": "0",
+      "mmu_m05_decoy_va": "0x4010200000"
+    },
+    "M07": {
+      "R03": "PAGE_EXECONLY + EL0 load",
+      "R04_target_va": "0x400d400100",
+      "R05_target_va": "0x400d600180"
+    },
+    "W9": {
+      "canonical_build_sha256": "ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b",
+      "executed_guest_binary_sha256": "4f3ddbf2615ebefcbc6e8499a862666679ba4c13e478af09dda9104ee6508c98",
+      "note": "the EPAN checkpoint installs /root/mmu_w9 from the live build; both are the same W9 source"
+    }
+  },
+  "runtime_assets": {
+    "checkpoint": {
+      "path": "MMU_FINAL/runtime_assets/checkpoint/cpt.244799013609",
+      "files": 10,
+      "size_bytes": 32311994,
+      "recorded_digest": "4aa1ba38b5288fe1c7e58dde73a1f27166e67f846f77f241fcd1fb2cd89e6417",
+      "recomputed_manifest_digest": "ab20065700a56c5dc22e18aacca40c7edae786db7abde37cb5aca94c0d2fd244",
+      "status": "RECORDED_DIGEST_NOT_REPRODUCED"
+    },
+    "disk_template": {
+      "sha256": "bb872707d6bae3885688556908536d4f92e07da68aae0401d27ff03216425759",
+      "size_bytes": 2361393152,
+      "distribution": "EXTERNAL_ASSET_NOT_YET_DISTRIBUTED"
+    },
+    "kernel": {
+      "sha256": "9b9b9ce70bc6fb831461b527ccf36f124f1af8f3dc717d7ef13e62060aecfa7e",
+      "size_bytes": 237716656,
+      "distribution": "EXTERNAL_ASSET_NOT_YET_DISTRIBUTED"
+    },
+    "bootloader": {
+      "sha256": "37ca07b55da2c0843d6670bb0693d21159236e0c6b74526f531abaeeaab51bfd",
+      "size_bytes": 1432,
+      "distribution": "BUNDLED"
+    }
+  },
+  "results_archive": {
+    "files": 1502,
+    "size_bytes": 246994393,
+    "manifest": "MMU_FINAL/results/MMU_Final_Results_SHA256.txt",
+    "integrity": "PASS"
+  },
+  "generated_utc": "2026-11-15T12:08:02Z"
+}

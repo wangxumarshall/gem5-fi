@@ -1,0 +1,18 @@
+{
+  "control_oracle_sha256": "d643e2d62a1bd9a114bdf4375fd93e05e9cad07465f3f559f512d395e89c9d6e",
+  "exit_code": 0,
+  "gem5_exit_code": 0,
+  "gem5_sha256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+  "outdir": "runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M01-F0-W9-S01-R01",
+  "run_id": "M01-F0-W9-S01-R01",
+  "run_kind": "FORMAL",
+  "seed": "N/A_DETERMINISTIC",
+  "seed_policy": "DETERMINISTIC",
+  "seed_source": "RESEARCHER_APPROVED",
+  "seed_used_by_gem5": false,
+  "timed_out": false,
+  "trace_read_error": "",
+  "validator_exit_code": 0,
+  "validator_status": "PASS",
+  "workload_sha256": "ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b"
+}

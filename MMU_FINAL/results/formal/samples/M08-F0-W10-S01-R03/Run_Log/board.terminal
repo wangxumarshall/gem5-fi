@@ -1,0 +1,9 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w10] start buf=/mnt/shm/mmu_w10_pages
+W10_INFO fill start pages=4096
+W10_INFO pages=4096 mlock=ok rlim_cur=18446744073709551615
+W10_INFO pagemap block read start pages=4096
+W10_RESULT ctx=R03 pages=4096 alias=0x4002000000 target=0x4001200000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x60 branch=2 vec0=0x00 result=FAIL
+[mmu-w10] rc=1

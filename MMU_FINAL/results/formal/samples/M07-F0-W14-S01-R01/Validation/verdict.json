@@ -1,0 +1,132 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [
+      343
+    ],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "translation_result",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "faulted observation differs from the independent control",
+      "control_observed": 2,
+      "diff": true,
+      "expected_sentinel": null,
+      "faulted_observed": 1234605616436508609,
+      "line": "W14_RESULT ctx=R01 signal=11 phase=store_ro observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d000000 fault_class=permission fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 expected=0x11223344556677c1 value_ok=0 msg=fault result=PASS",
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R01/Run_Log/golden_output.txt",
+      "present": true,
+      "sha256": "00ad725bc1841834d53258ab97aec1500e95ae06c8458d4cc573df01a8a35464"
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 7200,
+      "last_event_id": 470,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "261036652050",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "ARCH_STATE_CORRUPTION",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "SDC",
+      "TRACE_INCOMPLETE"
+    ],
+    "fault_activation_basis": "mmu_fault_activate",
+    "fault_consumption_basis": "explicit_consumer",
+    "ifu_lookup_identity_join": [],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "cache_response",
+      "chain_end",
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "mshr_alloc",
+      "permission_eval",
+      "translation_result"
+    ],
+    "oracle": {
+      "basis": "W14 permission guard (shared_changed / injected_success)",
+      "context": "R01",
+      "golden": null,
+      "injected_success": 1,
+      "line": "W14_RESULT ctx=R01 signal=0 phase=store_ro observed=0x11223344556677c1 observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x11223344556677c1 shared_changed=1 injected_success=1 expected=0x11223344556677c1 value_ok=1 msg=done result=FAIL",
+      "observed": 1234605616436508609,
+      "shared_changed": 1,
+      "workload_result": "FAIL",
+      "wrong": null
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "permission_eval",
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 93,
+    "strict_evidence_chain": null,
+    "terminal_evidence_basis": "TRACE_PLUS_GUEST_ORACLE",
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "permission grant false -> true"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultActivated": "ACTIVATED",
+  "FaultConsumptionStatus": "CONSUMED",
+  "FaultStateConsumed": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W14 permission guard (shared_changed / injected_success)",
+    "context": "R01",
+    "golden": null,
+    "injected_success": 1,
+    "line": "W14_RESULT ctx=R01 signal=0 phase=store_ro observed=0x11223344556677c1 observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x11223344556677c1 shared_changed=1 injected_success=1 expected=0x11223344556677c1 value_ok=1 msg=done result=FAIL",
+    "observed": 1234605616436508609,
+    "shared_changed": 1,
+    "workload_result": "FAIL",
+    "wrong": null
+  },
+  "OracleResult": "FAIL",
+  "PropagationComplete": "FULL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 344,
+  "consumption_event_id": 345,
+  "context": "R01",
+  "event_count": 471,
+  "fault_id": "1",
+  "golden_output": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M07-F0-W14-S01-R01/Run_Log/observed_output.txt",
+  "model": "M07",
+  "parse_skipped": 0,
+  "run_id": "M07-F0-W14-S01-R01",
+  "sample_run_id": "M07-F0-W14-S01-R01",
+  "target_mode": "Write",
+  "target_va": 275096010752,
+  "terminal": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M07-F0-W14-S01-R01/Run_Log/board.terminal",
+  "trace": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M07-F0-W14-S01-R01/Trace/prop_evt.txt.gz",
+  "trace_read_error": "",
+  "validator": "mmu_formal_validate",
+  "workload": "W14"
+}

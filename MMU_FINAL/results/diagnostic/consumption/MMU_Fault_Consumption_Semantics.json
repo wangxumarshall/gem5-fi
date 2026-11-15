@@ -1,0 +1,61 @@
+{
+  "samples": 40,
+  "fault_injected": 40,
+  "fault_activated": 40,
+  "fault_state_consumed": 40,
+  "explicit_fault_state_consumed_event": 5,
+  "downstream_architectural_consumption": 36,
+  "architectural_data_corruption": 28,
+  "terminal_distribution": {
+    "SDC": 31,
+    "SQUASHED": 4,
+    "DETECTED_CONTAINED": 5
+  },
+  "propagation_distribution": {
+    "FULL": 36,
+    "PARTIAL": 4
+  },
+  "per_model": {
+    "M01": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    },
+    "M02": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    },
+    "M03": {
+      "consumed": 5,
+      "downstream": 1,
+      "explicit": 0
+    },
+    "M04": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    },
+    "M05": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    },
+    "M06": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 5
+    },
+    "M07": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    },
+    "M08": {
+      "consumed": 5,
+      "downstream": 5,
+      "explicit": 0
+    }
+  },
+  "low_confidence": []
+}

@@ -1,0 +1,18 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w9] ctx=R01
+W9_RESULT ctx=R01 va=0x4000000000 pa1=0x83482000 pa2=0x83470000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS
+[mmu-w9] ctx=R01 rc=0
+[mmu-w9] ctx=R02
+W9_RESULT ctx=R02 va=0x4000000000 pa1=0x83470000 pa2=0x83461000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS
+[mmu-w9] ctx=R02 rc=0
+[mmu-w9] ctx=R03
+W9_RESULT ctx=R03 va=0x4000000000 pa1=0x83461000 pa2=0x83466000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=1 vec0=0x00 result=PASS
+[mmu-w9] ctx=R03 rc=0
+[mmu-w9] ctx=R04
+W9_RESULT ctx=R04 va=0x4000000000 pa1=0x83466000 pa2=0x8346e000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS
+[mmu-w9] ctx=R04 rc=0
+[mmu-w9] ctx=R05
+W9_RESULT ctx=R05 va=0x4000000000 pa1=0x8346e000 pa2=0x83477000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0xaa old_alias=0xaa branch=0 vec0=0xab result=FAIL
+[mmu-w9] ctx=R05 rc=1

@@ -1,0 +1,102 @@
+[
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M01-R01-01",
+    "OriginalSampleRunID": "M01-F0-W9-S01-R01",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W9",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W9/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "d643e2d62a1bd9a114bdf4375fd93e05e9cad07465f3f559f512d395e89c9d6e",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M02-R02-01",
+    "OriginalSampleRunID": "M02-F0-W10-S01-R02",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10-R02",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10-R02/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "66a42431eb599efc6311cb340cbbf2af51c433660dda4bd8b23a9c12172284cc",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M03-R01-01",
+    "OriginalSampleRunID": "M03-F0-W11-S01-R01",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W11-R01",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W11-R01/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "18e141d5b2ec47d11f5065df765c6fedc00054cf92f766a9d79313f08e0ad8ba",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M03-R05-01",
+    "OriginalSampleRunID": "M03-F0-W11-S01-R05",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W11-R05",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W11-R05/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "2287dd9ee6eb5b1cd1b8e25a22dda54e435c874f6f3d3f681a291e7edc767f3d",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M04-R05-01",
+    "OriginalSampleRunID": "M04-F0-W12-S01-R05",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R05",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R05/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "ffac96ce5f5f785beea87e1288f20468178056f48557fd34000b1aad8b9cd2cc",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M05-R05-01",
+    "OriginalSampleRunID": "M05-F0-W13-S01-R05",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W13-R05",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W13-R05/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "c29dc938017abfdc2d6e8836deda0b105c20fe1885627ef9defde106b8f365ff",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M06-R02-01",
+    "OriginalSampleRunID": "M06-F0-W10-S01-R02",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-COLD",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10S-COLD/Run_Log/board.terminal",
+    "ControlOracleSHA256": "fe8fbaa6642d7f8ae05f14a3420c99df11a81f6cb457c7a3f1f1ca8f463570c2",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M07-R01-01",
+    "OriginalSampleRunID": "M07-F0-W14-S01-R01",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R01",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R01/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "00ad725bc1841834d53258ab97aec1500e95ae06c8458d4cc573df01a8a35464",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M07-R05-01",
+    "OriginalSampleRunID": "M07-F0-W14-S01-R05",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R05",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R05/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "1740418067275f060118328992fcdc0a39a10c50468520db484035d48c73118f",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  },
+  {
+    "RepeatRunID": "REP-FINAL-MMU-M08-R01-01",
+    "OriginalSampleRunID": "M08-F0-W10-S01-R01",
+    "ControlRunDir": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10-R01",
+    "ControlOraclePath": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10-R01/Run_Log/golden_output.txt",
+    "ControlOracleSHA256": "0c129fccb17eab0c985f8ab5d14dd44f67ec7eb94d5c8f540c0aa776ec6a9800",
+    "ControlDesign": "SHARED_APPROVED_FORMAL_BASELINE",
+    "IndependentRepeatControlExecuted": false,
+    "Note": "No new repeat control was authorized in this round."
+  }
+]

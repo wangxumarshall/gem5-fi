@@ -1,0 +1,264 @@
+{
+  "REPEATABILITY_PREFLIGHT": "PASS",
+  "READY": 10,
+  "PARAMETER_PARITY": "10/10",
+  "OUTPUT_COLLISION": 0,
+  "UNRESOLVED_PLACEHOLDER": 0,
+  "checks": [
+    {
+      "Check": "repeat_rows_10",
+      "Status": "PASS",
+      "Detail": "10"
+    },
+    {
+      "Check": "all_ready",
+      "Status": "PASS",
+      "Detail": "[]"
+    },
+    {
+      "Check": "binary_sha256",
+      "Status": "PASS",
+      "Detail": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185"
+    },
+    {
+      "Check": "source_sha256",
+      "Status": "PASS",
+      "Detail": "['CHAOS/gem5/src/arch/arm/mmu.cc', 'CHAOS/gem5/src/arch/arm/table_walker.cc', 'CHAOS/gem5/src/arch/arm/table_walker.hh', 'CHAOS/gem5/src/arch/arm/tlb.cc', 'CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc', 'CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh']"
+    },
+    {
+      "Check": "source_closure",
+      "Status": "PASS",
+      "Detail": ""
+    },
+    {
+      "Check": "formal_integrity_audit",
+      "Status": "PASS",
+      "Detail": "PASS"
+    },
+    {
+      "Check": "original_zip_unchanged",
+      "Status": "PASS",
+      "Detail": ""
+    },
+    {
+      "Check": "no_gem5_running",
+      "Status": "PASS",
+      "Detail": ""
+    },
+    {
+      "Check": "disk_space",
+      "Status": "PASS",
+      "Detail": "7187361792"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M01-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M01-R01-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M01-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M01-R01-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M01-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M01-R01-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M01-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M01-R01-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M02-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M02-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M02-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M02-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M03-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R01-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M03-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R01-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M03-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R01-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M03-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R01-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M03-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R05-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M03-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R05-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M03-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R05-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M03-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M03-R05-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M04-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M04-R05-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M04-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M04-R05-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M04-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M04-R05-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M04-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M04-R05-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M05-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M05-R05-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M05-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M05-R05-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M05-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M05-R05-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M05-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M05-R05-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M06-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M06-R02-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M06-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M06-R02-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M06-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M06-R02-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M06-R02-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M06-R02-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M07-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R01-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M07-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R01-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M07-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R01-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M07-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R01-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M07-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R05-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M07-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R05-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M07-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R05-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M07-R05-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M07-R05-01/outdir"
+    },
+    {
+      "Check": "rcs_REP-FINAL-MMU-M08-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M08-R01-01/rcS.scoped"
+    },
+    {
+      "Check": "disk_REP-FINAL-MMU-M08-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M08-R01-01/disk.img"
+    },
+    {
+      "Check": "cmd_REP-FINAL-MMU-M08-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M08-R01-01/command.sh"
+    },
+    {
+      "Check": "outdir_REP-FINAL-MMU-M08-R01-01",
+      "Status": "PASS",
+      "Detail": "/home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M08-R01-01/outdir"
+    },
+    {
+      "Check": "unique_ids_outdirs",
+      "Status": "PASS",
+      "Detail": "(10, 10)"
+    },
+    {
+      "Check": "formal_40_immutable",
+      "Status": "PASS",
+      "Detail": "[]"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "status": "COMPLETED",
+  "exit_code": 0,
+  "seconds": 2293.0,
+  "trace_events": 4478,
+  "activation_kind": "refill_pfn_corrupt",
+  "activation_present": true,
+  "fault_tagged_events": 5,
+  "board_terminal_present": true,
+  "trace_sha256": "6d65116ef6c7e25acde610ee39c4859fa26cf7cf9572538d999b897aed0bbda4",
+  "terminal_sha256": "ff9034928430a907e22350d8e57d8c6a84e406d3e8b713fb0f6df8da8713eab0"
+}

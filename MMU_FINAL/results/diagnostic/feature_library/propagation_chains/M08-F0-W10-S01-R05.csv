@@ -1,0 +1,15 @@
+EventID,ParentEventID,Kind,Tick,TranslationID,LookupID,WalkID,EntryID,EntryGeneration,DynamicInstSeqNum,VA,PA,CommitSeq,SquashStatus,Field,Before,After,StateBefore,StateAfter,Outcome,asid,vmid,regime,security_state,old_pfn,new_pfn,old_pa,new_pa,request_pa_before,request_pa_after,fault_site,fault_persistence,memory_attribute,fault_status
+8629,,translation_start,284513429439,9,,,,,233576583,4001400000,,,,,,,,,,0,0,EL10,NonSecure,,,,,,,,,,
+8630,8629,mmu_fault_activate,284513429439,9,,,,14303,233576583,4001400000,0x8352d000,,,,,,,,activated,,,,,0x8352c,0x8352c,0x8352c000,0x8352d000,0x8352c000,0x8352d000,mmu_translate_set_paddr,one_shot,,
+8631,8630,translation_result,284513429439,9,,,,14303,233576583,4001400000,8352d000,,,,,,,,,,,EL10,NonSecure,,,,,,,,,mtype=2;shareable=0;inner=0;outer=0;noncacheable=0;xn=1;ap=1,NoFault
+8632,8631,lsu_request,284513429439,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,EL10,NonSecure,,,,,,,,,,
+8633,8632,commit,284513430105,9,,,,,233576583,,,184020319,,,,,,,,,,,,,,,,,,,,,
+8634,8633,cache_request,284513430771,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8635,8634,cache_lookup,284513430771,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8636,8635,mshr_alloc,284513430771,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8637,8636,cache_request,284513431104,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8638,8637,cache_lookup,284513431104,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8639,8638,cache_response,284513435100,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8640,8632,memory_response,284513435433,9,,,,,233576583,4001400000,8352d000,,,,,,,,,,,,,,,,,,,,,,
+8717,8640,chain_end,288234106371,,,,,,,,,,,,,,,,run_end,,,,,,,,,,,,,,
+8718,8717,mmu_fault_summary,288234106371,,,,,0,,4001400000,,,,,,,,,activated_not_consumed,,,,,,,,,,,,one_shot,,

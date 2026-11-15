@@ -1,0 +1,18 @@
+{
+  "ActivationMatch": "MATCH",
+  "ContextID": "R05",
+  "FabricatedEventCount": 0,
+  "FormalOracleLine": "W14_RESULT ctx=R05 signal=0 phase=fetch_xn_indirect observed=0x5a observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0x5a value_ok=1 msg=done result=FAIL",
+  "FormalTerminal": "SDC",
+  "ModelID": "M07",
+  "OriginalSampleRunID": "M07-F0-W14-S01-R05",
+  "PropagationMatch": "MATCH",
+  "RepeatOracleLine": "W14_RESULT ctx=R05 signal=0 phase=fetch_xn_indirect observed=0x5a observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0x5a value_ok=1 msg=done result=FAIL",
+  "RepeatRunID": "REP-FINAL-MMU-M07-R05-01",
+  "RepeatTerminal": "SDC",
+  "SliceEvents": 73,
+  "SliceMissingEventIDs": [],
+  "TerminalMatch": "MATCH",
+  "TraceEvents": "413",
+  "TraceSHA256": "163631b7529fa08bf0fdfd43227d49f3d604e608d30f49f2ff812f72365a1553"
+}

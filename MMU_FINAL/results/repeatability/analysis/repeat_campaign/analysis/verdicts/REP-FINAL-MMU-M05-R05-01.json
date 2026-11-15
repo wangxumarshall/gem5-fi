@@ -1,0 +1,18 @@
+{
+  "ActivationMatch": "MATCH",
+  "ContextID": "R05",
+  "FabricatedEventCount": 0,
+  "FormalOracleLine": "W13_RESULT ctx=R05 target_va=0x4010000000 target_pfn=0x83575 decoy_va=0x4010200000 decoy_pfn=0x83544 alias_va=0x4010001000 observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=TRACE_CONFIRMED result=FAIL",
+  "FormalTerminal": "SDC",
+  "ModelID": "M05",
+  "OriginalSampleRunID": "M05-F0-W13-S01-R05",
+  "PropagationMatch": "MATCH",
+  "RepeatOracleLine": "W13_RESULT ctx=R05 target_va=0x4010000000 target_pfn=0x83575 decoy_va=0x4010200000 decoy_pfn=0x83544 alias_va=0x4010001000 observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=TRACE_CONFIRMED result=FAIL",
+  "RepeatRunID": "REP-FINAL-MMU-M05-R05-01",
+  "RepeatTerminal": "SDC",
+  "SliceEvents": 81,
+  "SliceMissingEventIDs": [],
+  "TerminalMatch": "MATCH",
+  "TraceEvents": "297",
+  "TraceSHA256": "3d381f45748958169dd4d01e01e9940339165e179d5a1404d149babe86cdcacd"
+}

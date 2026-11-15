@@ -1,0 +1,86 @@
+[
+  {
+    "Feature": "ObservedPathClass",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "event-kind derived; no production equivalent proven"
+  },
+  {
+    "Feature": "ObservedEventKinds",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "gem5 trace instrumentation"
+  },
+  {
+    "Feature": "ObservedTLBHits/Misses",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "TLB internals"
+  },
+  {
+    "Feature": "ObservedPTW/PartialEntry",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "walker internals"
+  },
+  {
+    "Feature": "ObservedPermissionResults",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "internal permission decision"
+  },
+  {
+    "Feature": "ObservedSquash",
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "pipeline squash"
+  },
+  {
+    "Feature": "ObservedExceptionDelivery",
+    "ObservabilityClass": "POTENTIALLY_SOFTWARE_OBSERVABLE",
+    "Source": "blind_features.derive_blind",
+    "EvidenceBasis": "architectural exception may be visible; exact hardware path unproven"
+  },
+  {
+    "Feature": "GuestSignal/SICode",
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "Source": "guest oracle",
+    "EvidenceBasis": "process-visible signal"
+  },
+  {
+    "Feature": "GuestValueMismatch",
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "Source": "guest oracle + application oracle",
+    "EvidenceBasis": "needs an expected value"
+  },
+  {
+    "Feature": "GuestUnexpectedSuccess",
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "Source": "guest oracle + control",
+    "EvidenceBasis": "software sees missing fault"
+  },
+  {
+    "Feature": "TLBEntryID/Generation",
+    "ObservabilityClass": "UNKNOWN",
+    "Source": "simulator-assisted only",
+    "EvidenceBasis": "no proven real-hardware interface"
+  },
+  {
+    "Feature": "ModifiedPFN/InternalPTE",
+    "ObservabilityClass": "UNKNOWN",
+    "Source": "simulator-assisted only",
+    "EvidenceBasis": "requires internal inspection"
+  },
+  {
+    "Feature": "PermissionGrantDecision",
+    "ObservabilityClass": "UNKNOWN",
+    "Source": "simulator-assisted only",
+    "EvidenceBasis": "internal decision not exposed"
+  },
+  {
+    "Feature": "Per-instruction IFU Fetch/Decode/Commit",
+    "ObservabilityClass": "UNKNOWN",
+    "Source": "not emitted by frozen binary",
+    "EvidenceBasis": "cannot be reconstructed"
+  }
+]

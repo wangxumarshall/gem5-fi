@@ -1,0 +1,206 @@
+{
+ "campaign_id": "MMU-FORMAL-20261113",
+ "planned": 40,
+ "completed": 40,
+ "missing": [],
+ "terminal": {
+  "SDC": 31,
+  "SQUASHED": 4,
+  "DETECTED_CONTAINED": 5
+ },
+ "activation": {
+  "ACTIVATED": 40
+ },
+ "propagation": {
+  "FULL": 36,
+  "PARTIAL": 4
+ },
+ "trace": {
+  "COMPLETE": 40
+ },
+ "oracle": {
+  "FAIL": 31,
+  "PASS": 4,
+  "PASS_EXPECTED_DETECTION": 5
+ },
+ "per_model": {
+  "M01": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M01-F0-W9-S01-R01": 25,
+    "M01-F0-W9-S01-R02": 49,
+    "M01-F0-W9-S01-R03": 49,
+    "M01-F0-W9-S01-R04": 54,
+    "M01-F0-W9-S01-R05": 56
+   }
+  },
+  "M02": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M02-F0-W10-S01-R01": 48,
+    "M02-F0-W10-S01-R02": 48,
+    "M02-F0-W10-S01-R03": 48,
+    "M02-F0-W10-S01-R04": 59,
+    "M02-F0-W10-S01-R05": 63
+   }
+  },
+  "M03": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SQUASHED": 4,
+    "SDC": 1
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "PASS": 4,
+    "FAIL": 1
+   },
+   "chain_events": {
+    "M03-F0-W11-S01-R01": 10,
+    "M03-F0-W11-S01-R02": 10,
+    "M03-F0-W11-S01-R03": 10,
+    "M03-F0-W11-S01-R04": 10,
+    "M03-F0-W11-S01-R05": 45
+   }
+  },
+  "M04": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M04-F0-W12-S01-R01": 67,
+    "M04-F0-W12-S01-R02": 67,
+    "M04-F0-W12-S01-R03": 75,
+    "M04-F0-W12-S01-R04": 75,
+    "M04-F0-W12-S01-R05": 107
+   }
+  },
+  "M05": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M05-F0-W13-S01-R01": 169,
+    "M05-F0-W13-S01-R02": 165,
+    "M05-F0-W13-S01-R03": 165,
+    "M05-F0-W13-S01-R04": 165,
+    "M05-F0-W13-S01-R05": 81
+   }
+  },
+  "M06": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "DETECTED_CONTAINED": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "PASS_EXPECTED_DETECTION": 5
+   },
+   "chain_events": {
+    "M06-F0-W10-S01-R01": 26,
+    "M06-F0-W10-S01-R02": 25,
+    "M06-F0-W10-S01-R03": 26,
+    "M06-F0-W10-S01-R04": 26,
+    "M06-F0-W10-S01-R05": 34
+   }
+  },
+  "M07": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M07-F0-W14-S01-R01": 42,
+    "M07-F0-W14-S01-R02": 28,
+    "M07-F0-W14-S01-R03": 45,
+    "M07-F0-W14-S01-R04": 55,
+    "M07-F0-W14-S01-R05": 73
+   }
+  },
+  "M08": {
+   "samples": 5,
+   "activation": {
+    "ACTIVATED": 5
+   },
+   "terminal": {
+    "SDC": 5
+   },
+   "trace": {
+    "COMPLETE": 5
+   },
+   "oracle": {
+    "FAIL": 5
+   },
+   "chain_events": {
+    "M08-F0-W10-S01-R01": 42,
+    "M08-F0-W10-S01-R02": 42,
+    "M08-F0-W10-S01-R03": 42,
+    "M08-F0-W10-S01-R04": 42,
+    "M08-F0-W10-S01-R05": 14
+   }
+  }
+ }
+}

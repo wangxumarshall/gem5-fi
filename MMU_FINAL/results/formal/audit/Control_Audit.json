@@ -1,0 +1,31 @@
+{
+  "fault_control_references": 40,
+  "distinct_control_oracles": 28,
+  "control_dirs_existing": 28,
+  "zero_proven": 28,
+  "oracle_hash_match": 40,
+  "workload_compatible": 40,
+  "context_compatible": 40,
+  "zero_proof_rows": 40,
+  "audit_pass": 40,
+  "audit_review": [],
+  "approval": {
+    "exists": true,
+    "path": "/home/sdc/gem5-fi-mmu-impl-v2/phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.1/MMU_Control_Inventory_Reconciliation.md",
+    "sha256": "f4ff0b398ccf4e286c710af73252a855dea18810c5d441ad192b468770b1cbce",
+    "line_numbers": [
+      92,
+      140
+    ],
+    "verdict": "**CONTROL_INVENTORY_VERDICT = RECONCILED (34 run dirs / 28 referenced oracles /",
+    "approved": true
+  },
+  "unreferenced_control_dirs": [
+    "TEST-F1-CTRL-W14-R01",
+    "TEST-F1-CTRL-W14-R02",
+    "TEST-F1-CTRL-W14-R03",
+    "TEST-F1-CTRL-W14-R04",
+    "TEST-F1-CTRL-W14-R05",
+    "TEST-F1-CTRL-W9T"
+  ]
+}

@@ -1,0 +1,14 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w11] install
+[mmu-w11] start
+W11_INFO ctx=R02 stage=parent_a_ready pid=317 va=0x4004000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R02 stage=a_ready pid=318 va=0x4004000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R02 stage=b_setup_complete pid=319 va=0x4004000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R02 stage=a_b_ready pid=318 va=0x4004000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R02 stage=a_rewarmed pid=318 va=0x4004000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R02 stage=b_rewarmed pid=319 va=0x4004000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R02 stage=a_released pid=318 va=0x4004000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R02 va=0x4004000000 pid_a=318 pid_b=319 pfn_a=0x83543 pfn_b=0x83542 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS
+[mmu-w11] rc=0

@@ -1,0 +1,7 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w12] install
+[mmu-w12] start
+W12_RESULT ctx=R02 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=FAIL
+[mmu-w12] rc=1

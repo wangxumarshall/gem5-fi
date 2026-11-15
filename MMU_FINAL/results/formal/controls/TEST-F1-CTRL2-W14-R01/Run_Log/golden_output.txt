@@ -1,0 +1,1 @@
+W14_RESULT ctx=R01 signal=11 phase=store_ro observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d000000 fault_class=permission fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 expected=0x11223344556677c1 value_ok=0 msg=fault result=PASS

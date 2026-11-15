@@ -1,0 +1,48 @@
+Feature,View,Source,GroundTruthSource,Note
+ObservedEventKinds,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedPathClass,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedPathAmbiguity,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedMaintenanceEvents,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedPTW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedPartialEntry,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedTLBHits,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedTLBMisses,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedPermissionResults,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedSquash,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedExceptionDelivery,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedConsumerKind,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedTranslationVAs,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedTranslationPAs,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedAccessMode_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+ObservedTargetVA_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestSignal_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestSICode_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestFaultClass_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestObservedValue_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestExpectedValue_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestValueMismatch_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+GuestUnexpectedSuccess_SW,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+OpaqueSampleID,Blinded,blind_features.derive_blind / guest_from_verdict,NONE,generated without model/fault-site/fault-field inputs
+SampleRunID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+OpaqueSampleID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ChainEventKinds,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ChainEventIDs,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ActivationEventID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ActivationKind,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ConsumptionEventID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ConsumptionKind,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+TranslationID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+TraceFaultSite,SimulatorAssisted,build_final_dataset.SimulatorAssisted,YES,simulator-assisted analysis only
+FaultField,SimulatorAssisted,build_final_dataset.SimulatorAssisted,YES,simulator-assisted analysis only
+FaultModelID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,YES,simulator-assisted analysis only
+FaultOrigin,SimulatorAssisted,build_final_dataset.SimulatorAssisted,YES,simulator-assisted analysis only
+StateTransitionFields,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+StateTransitionValues,SimulatorAssisted,build_final_dataset.SimulatorAssisted,YES,simulator-assisted analysis only
+DownstreamKinds,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+NodeCount,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ProvenanceClasses,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+ContextID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+WorkloadID,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+TerminalState,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+OracleResult,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only
+PropagationStatus,SimulatorAssisted,build_final_dataset.SimulatorAssisted,NO,simulator-assisted analysis only

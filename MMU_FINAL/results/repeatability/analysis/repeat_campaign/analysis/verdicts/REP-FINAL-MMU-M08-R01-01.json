@@ -1,0 +1,18 @@
+{
+  "ActivationMatch": "MATCH",
+  "ContextID": "R01",
+  "FabricatedEventCount": 0,
+  "FormalOracleLine": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x60 branch=0 vec0=0x00 result=FAIL",
+  "FormalTerminal": "SDC",
+  "ModelID": "M08",
+  "OriginalSampleRunID": "M08-F0-W10-S01-R01",
+  "PropagationMatch": "MATCH",
+  "RepeatOracleLine": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x60 branch=0 vec0=0x00 result=FAIL",
+  "RepeatRunID": "REP-FINAL-MMU-M08-R01-01",
+  "RepeatTerminal": "SDC",
+  "SliceEvents": 42,
+  "SliceMissingEventIDs": [],
+  "TerminalMatch": "MATCH",
+  "TraceEvents": "4475",
+  "TraceSHA256": "e31ab27ab87629bb00c72e11c5ef0ea9a3d031eb24a252f71d1e107b60bef3df"
+}

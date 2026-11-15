@@ -1,0 +1,4 @@
+W14_INFO ctx=R05 stage=target_computed target=0x400d600180 source=table index=1
+W14_INFO ctx=R05 stage=indirect_branch insn=br target=0x400d600180 lr=local_label
+W14_INFO ctx=R05 stage=executed marker=0x5a
+W14_RESULT ctx=R05 signal=0 phase=fetch_xn_indirect observed=0x5a observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0x5a value_ok=1 msg=done result=FAIL

@@ -1,0 +1,17 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 4424,
+  "consumption_event_id": 4427,
+  "context": "R04",
+  "fault_id": "1",
+  "model": "M02",
+  "run_id": "M02-F0-W10-S01-R04",
+  "workload": "W10"
+}

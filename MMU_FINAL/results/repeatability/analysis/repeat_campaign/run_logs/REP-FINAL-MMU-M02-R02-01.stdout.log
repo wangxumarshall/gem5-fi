@@ -1,0 +1,18 @@
+Global frequency set at 1000000000000 ticks per second
+[CHAOSPropagation] MMU fault model M02 armed: M01(va=0 asid=-1 vmid=-1 n=12) M02(va=0x4001100000 old_pfn=0x834b2 xor=0x1) target(va=0 asid=-1 vmid=-1 n=-1 mode= instance= level=-1 seq=0 ordinal=1)
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Nov 12 2026 10:51:32
+gem5 started Nov 14 2026 13:11:33
+gem5 executing on cathelper-k8s-worker2, pid 3438025
+command line: /home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/outdir /home/sdc/gem5-fi-mmu-impl-v2/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/disk.img --bootloader /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609 --readfile /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/post_campaign_closure/final_closure/repeatability/launch/REP-FINAL-MMU-M02-R02-01/rcS.scoped --chaos_propagation --prop_mmu_va_lo 0x4001000000 --prop_mmu_va_hi 0x4001500000 --prop_run_id REP-FINAL-MMU-M02-R02-01 --prop_sample_run_id REP-FINAL-MMU-M02-R02-01 --prop_mmu_trace --prop_write_log on --mmu_fault_model M02 --mmu_fault_enable true --mmu_m02_va 0x4001100000 --mmu_m02_old_pfn 0x834b2 --mmu_m02_xor_mask 1 --mmu_m02_dram_lo 0x80000000 --mmu_m02_dram_hi 0x100000000
+
+info: Standard input is not a terminal, disabling listeners.
+[lsu_b0_fs] shim: injecting --lsu_b0 (params applied inside arm_chaos_fs.py, pre-Simulator)
+[arm_chaos_fs] restoring from checkpoint: /home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609
+[arm_chaos_fs] LSU-B0 applied: DTLB=32 LQ=16 SQ=16
+[arm_chaos_fs] CHAOSPropagation attached (trace=prop_trace.csv.gz, run_id='REP-FINAL-MMU-M02-R02-01', sample_run_id='REP-FINAL-MMU-M02-R02-01', mmu_trace=True, va=[0x4001000000,0x4001500000), fault_model='M02')
+[CHAOSPropagation] M02 refill PFN corrupted: fault_id=1 walk=189754 pfn 0x834b2 -> 0x834b3 (PA 0x834b2000 -> 0x834b3000)
+[CHAOSPropagation] M02 fault entry consumed: fault_id=1 dtb entry=72 gen=14240 va=0x4001100000 pa=0x834b3000 dyn_seq=206180962 (origin seq=206180962 squash_event=0)

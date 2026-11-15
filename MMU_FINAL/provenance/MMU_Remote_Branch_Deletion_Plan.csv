@@ -1,0 +1,2 @@
+BranchName,HEAD,LastCommitDate,RelationToMMU,UniqueUnarchivedCommits,ReferencedByOtherProject,CoveredByFinalBranch,Action,Status
+<NONE>,-,-,No MMU-specific branch exists on GitHub,0,no,-,NO_DELETION,VERIFIED: remote MMU branch count = 0 before publication; mmu-final-reproducible will be the only one after publication

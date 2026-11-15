@@ -1,0 +1,167 @@
+{
+  "authority_version": "3.0.2",
+  "created_utc": "2026-11-13T00:00:00Z",
+  "kind": "PARAMETER_PARITY_ADDENDUM",
+  "provenance": {
+    "W13 binary": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W13/mmu_w13",
+      "sha256": "6e7d926e863c15433b3887e3ac069169e510751190d4b0de5dae0e7aa886ec70"
+    },
+    "W13 source": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W13/mmu_w13.c",
+      "sha256": "a5a05c337d562ec5e7d916247c229f7e3727c162ad35629721bc36fa8593edae"
+    },
+    "W13_DECOY_VA": {
+      "source": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W13/mmu_w13.c",
+      "symbol": "W13_DECOY_VA",
+      "value": "0x4010200000"
+    },
+    "W14 binary": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W14/mmu_w14",
+      "sha256": "f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36"
+    },
+    "W14 source": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W14/mmu_w14.c",
+      "sha256": "261356afc15474a0dae9a060e86294bd4965a7acbbea544da59f55fee124a5d4"
+    },
+    "W14_exact_VA": {
+      "source": "/home/sdc/gem5-fi-mmu-impl-v2/workloads/mmu/W14/mmu_w14.c",
+      "symbols": {
+        "CODE_OFF": "0x100",
+        "R05_CODE_OFF": "0x180",
+        "W14_NONE_CODE_VA": "0x400d600000",
+        "W14_XN_VA": "0x400d400000"
+      }
+    },
+    "pilot R01": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R01/sample_manifest.json",
+      "sha256": "8a38e05d04ebee7d314b5bf60982a26dd7ee8e9ab3c5a640b4e65e78c9fea7e2"
+    },
+    "pilot R02": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R02/sample_manifest.json",
+      "sha256": "2e9e3eaecc1037f7a1ef4fdbea388cc0a9a33933ec660505a2a24326a06a1a05"
+    },
+    "pilot R03": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R03/sample_manifest.json",
+      "sha256": "e5bdbe99d8f88efd1874aa71eee9758caa814bd3a766878ef2d447c169d7724a"
+    },
+    "pilot R04": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R04/sample_manifest.json",
+      "sha256": "24fc9f65740b50d8be825f3f5599dd706134d112a9dabc369c224c54b0095e75"
+    },
+    "pilot R05": {
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R05/sample_manifest.json",
+      "sha256": "ba777aeb03c8ebe06bf9daca2db122c626a0b4a52934f4b11ea6ae8542796357"
+    },
+    "supersession_note": "The older closure pilot TEST-M07-R05 used 0x400d600100; the final F1 pilot TEST-F1-M07-R05 uses 0x400d600180, matching W14_NONE_CODE_VA + R05_CODE_OFF (0x180)."
+  },
+  "samples": {
+    "M05-F0-W13-S01-R01": {
+      "ContextID": "R01",
+      "M05DecoyTableBase": "0",
+      "M05DecoyVA": "0x4010200000",
+      "ModelID": "M05",
+      "pilot_decoy_table_base": "0",
+      "pilot_decoy_va": "0x4010200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M05-R01/sample_manifest.json",
+      "pilot_manifest_sha256": "a7ddb80886a64de8cf5866fcb79a15d6306d178fffcaeebf5a5681758f7e3fe5"
+    },
+    "M05-F0-W13-S01-R02": {
+      "ContextID": "R02",
+      "M05DecoyTableBase": "0",
+      "M05DecoyVA": "0x4010200000",
+      "ModelID": "M05",
+      "pilot_decoy_table_base": "0",
+      "pilot_decoy_va": "0x4010200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M05-R02/sample_manifest.json",
+      "pilot_manifest_sha256": "8518f0d5f3c21929ae1b668bafb779f45b1f5828bba24349f71972a41b7ac1dd"
+    },
+    "M05-F0-W13-S01-R03": {
+      "ContextID": "R03",
+      "M05DecoyTableBase": "0",
+      "M05DecoyVA": "0x4010200000",
+      "ModelID": "M05",
+      "pilot_decoy_table_base": "0",
+      "pilot_decoy_va": "0x4010200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M05-R03/sample_manifest.json",
+      "pilot_manifest_sha256": "d828fdca45e894a8456545f717c3ce2fbdb968a3e75d6e25baa37806216ffbfc"
+    },
+    "M05-F0-W13-S01-R04": {
+      "ContextID": "R04",
+      "M05DecoyTableBase": "0",
+      "M05DecoyVA": "0x4010200000",
+      "ModelID": "M05",
+      "pilot_decoy_table_base": "0",
+      "pilot_decoy_va": "0x4010200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M05-R04/sample_manifest.json",
+      "pilot_manifest_sha256": "e1888dfb06cdca7f220ac627d6a99f2fca0eda76312c3c31de3e108f1b559623"
+    },
+    "M05-F0-W13-S01-R05": {
+      "ContextID": "R05",
+      "M05DecoyTableBase": "0",
+      "M05DecoyVA": "0x4010200000",
+      "ModelID": "M05",
+      "pilot_decoy_table_base": "0",
+      "pilot_decoy_va": "0x4010200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M05-R05/sample_manifest.json",
+      "pilot_manifest_sha256": "e1f66ec49cb6404adef752793ac9002a3cc17274be2d14f9c22bbd9c15df87de"
+    },
+    "M07-F0-W14-S01-R01": {
+      "ContextID": "R01",
+      "ModelID": "M07",
+      "TargetVAExact": "0x400d000000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R01/sample_manifest.json",
+      "pilot_manifest_sha256": "8a38e05d04ebee7d314b5bf60982a26dd7ee8e9ab3c5a640b4e65e78c9fea7e2",
+      "pilot_target_mode": "Write",
+      "pilot_target_n": "12",
+      "pilot_target_va": "0x400d000000"
+    },
+    "M07-F0-W14-S01-R02": {
+      "ContextID": "R02",
+      "ModelID": "M07",
+      "TargetVAExact": "0x400d000000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R02/sample_manifest.json",
+      "pilot_manifest_sha256": "2e9e3eaecc1037f7a1ef4fdbea388cc0a9a33933ec660505a2a24326a06a1a05",
+      "pilot_target_mode": "Atomic",
+      "pilot_target_n": "12",
+      "pilot_target_va": "0x400d000000"
+    },
+    "M07-F0-W14-S01-R03": {
+      "ContextID": "R03",
+      "ModelID": "M07",
+      "TargetVAExact": "0x400d200000",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R03/sample_manifest.json",
+      "pilot_manifest_sha256": "e5bdbe99d8f88efd1874aa71eee9758caa814bd3a766878ef2d447c169d7724a",
+      "pilot_target_mode": "Read",
+      "pilot_target_n": "12",
+      "pilot_target_va": "0x400d200000"
+    },
+    "M07-F0-W14-S01-R04": {
+      "ContextID": "R04",
+      "ModelID": "M07",
+      "TargetVAExact": "0x400d400100",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R04/sample_manifest.json",
+      "pilot_manifest_sha256": "24fc9f65740b50d8be825f3f5599dd706134d112a9dabc369c224c54b0095e75",
+      "pilot_target_mode": "Execute",
+      "pilot_target_n": "12",
+      "pilot_target_va": "0x400d400100"
+    },
+    "M07-F0-W14-S01-R05": {
+      "ContextID": "R05",
+      "ModelID": "M07",
+      "TargetVAExact": "0x400d600180",
+      "pilot_manifest": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-M07-R05/sample_manifest.json",
+      "pilot_manifest_sha256": "ba777aeb03c8ebe06bf9daca2db122c626a0b4a52934f4b11ea6ae8542796357",
+      "pilot_target_mode": "Execute",
+      "pilot_target_n": "12",
+      "pilot_target_va": "0x400d600180"
+    }
+  },
+  "scope": "M05 decoy VA/table base; M07 exact target VA parity",
+  "source_v3_0_1": {
+    "csv_sha256": "94a0700e13ac6302548da392e0202edbb5f0d44a5ec62fe4a1f79f881797e99e",
+    "dir": "/home/sdc/gem5-fi-mmu-impl-v2/phase3/final/MMU_Final_Formal_Readiness_Package_v3.0.1",
+    "xlsx_sha256": "2c4d0453bbebe09c6e170ed0b523b1aa95c99dcd5230e987474786bb64d6d5e4"
+  },
+  "supersedes": "3.0.1"
+}

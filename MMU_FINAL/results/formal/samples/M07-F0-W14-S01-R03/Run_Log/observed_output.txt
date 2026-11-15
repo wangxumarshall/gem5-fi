@@ -1,0 +1,2 @@
+W14_INFO ctx=R03 stage=mapping prot=PROT_EXEC access=load pte_present=1
+W14_RESULT ctx=R03 signal=0 phase=read_exec_only observed=0x88 observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0x88 value_ok=1 msg=done result=FAIL

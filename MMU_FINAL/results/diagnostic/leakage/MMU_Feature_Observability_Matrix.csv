@@ -1,0 +1,15 @@
+Feature,ObservabilityClass,Source,EvidenceBasis
+ObservedPathClass,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,event-kind derived; no production equivalent proven
+ObservedEventKinds,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,gem5 trace instrumentation
+ObservedTLBHits/Misses,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,TLB internals
+ObservedPTW/PartialEntry,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,walker internals
+ObservedPermissionResults,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,internal permission decision
+ObservedSquash,SIMULATOR_INSTRUMENTATION_ONLY,blind_features.derive_blind,pipeline squash
+ObservedExceptionDelivery,POTENTIALLY_SOFTWARE_OBSERVABLE,blind_features.derive_blind,architectural exception may be visible; exact hardware path unproven
+GuestSignal/SICode,PRODUCTION_OBSERVABLE,guest oracle,process-visible signal
+GuestValueMismatch,PRODUCTION_OBSERVABLE,guest oracle + application oracle,needs an expected value
+GuestUnexpectedSuccess,PRODUCTION_OBSERVABLE,guest oracle + control,software sees missing fault
+TLBEntryID/Generation,UNKNOWN,simulator-assisted only,no proven real-hardware interface
+ModifiedPFN/InternalPTE,UNKNOWN,simulator-assisted only,requires internal inspection
+PermissionGrantDecision,UNKNOWN,simulator-assisted only,internal decision not exposed
+Per-instruction IFU Fetch/Decode/Commit,UNKNOWN,not emitted by frozen binary,cannot be reconstructed

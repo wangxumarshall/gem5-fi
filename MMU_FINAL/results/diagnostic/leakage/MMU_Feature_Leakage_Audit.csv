@@ -1,0 +1,22 @@
+FeatureName,SourceFile,SourceFunction,SourceFields,DerivedFromGroundTruth,ObservabilityClass,LeakageRisk,AllowedInBlindView,Reason
+FaultModelID,MMU_Final_Dataset.json,build_final_dataset.GroundTruth,manifest.model,True,GROUND_TRUTH,CRITICAL,NO,direct model identity
+FaultOrigin,MMU_Final_Dataset.json,build_final_dataset.GroundTruth,feature_library.ModelMechanism,True,GROUND_TRUTH,CRITICAL,NO,direct model mechanism
+InjectionLocation,MMU_Final_Dataset.json,build_final_dataset.GroundTruth,feature_library.InjectionLocation,True,GROUND_TRUTH,CRITICAL,NO,injector source/site
+TraceFaultSite,MMU_Final_Dataset.json,build_final_dataset.GroundTruth,feature_library.InjectionLocation.TraceFaultSite,True,GROUND_TRUTH_DERIVED,CRITICAL,NO,old UpstreamPathClass used this field; now forbidden
+FaultField,MMU_Final_Dataset.json,build_final_dataset.GroundTruth,feature_library.TargetField,True,GROUND_TRUTH_DERIVED,CRITICAL,NO,mutated field known only to the injector
+UpstreamPathClass_SIM (addendum v1),addendum/observable_features/build_observable_features.py,build_observable_features.main,InjectionLocation.TraceFaultSite,True,SIMULATOR_INSTRUMENTATION_ONLY,HIGH,NO,legacy field used TraceFaultSite; replaced by ObservedPathClass_BLIND
+ObservedPathClass,final_closure/scripts/blind_features.py,blind_features.derive_blind,non-injector event kinds only,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,derived from observed events; no GT argument in signature
+ObservedEventKinds,final_closure/scripts/blind_features.py,blind_features.derive_blind,non-injector event kinds only,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,injector-only kinds are filtered out
+ObservedMaintenanceEvents,final_closure/scripts/blind_features.py,blind_features.derive_blind,tlbi_match/tlbi_invalidate,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,"real maintenance events, not injector labels"
+ObservedPTW,final_closure/scripts/blind_features.py,blind_features.derive_blind,ptw_start/pte_read,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,real walker events
+ObservedPartialEntry,final_closure/scripts/blind_features.py,blind_features.derive_blind,partial_entry_insert,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,real walk-cache event
+ObservedPermissionResults,final_closure/scripts/blind_features.py,blind_features.derive_blind,permission_eval result,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,real permission evaluation event
+ObservedSquash,final_closure/scripts/blind_features.py,blind_features.derive_blind,squash,False,SIMULATOR_INSTRUMENTATION_ONLY,NONE,YES,real pipeline event
+ObservedExceptionDelivery,final_closure/scripts/blind_features.py,blind_features.derive_blind,exception_delivery,False,POTENTIALLY_SOFTWARE_OBSERVABLE,NONE,YES,architectural exception event; real hardware observability not proven
+GuestSignal,final_closure/scripts/build_final_dataset.py,guest_from_verdict,verdict.oracle.line.signal,False,PRODUCTION_OBSERVABLE,NONE,YES,software-visible process signal
+GuestValueMismatch,final_closure/scripts/build_final_dataset.py,guest_from_verdict,verdict.oracle.line observed/expected,False,PRODUCTION_OBSERVABLE,NONE,YES,requires an application-level oracle
+GuestUnexpectedSuccess,final_closure/scripts/build_final_dataset.py,guest_from_verdict,verdict.oracle.line signal/control signal,False,PRODUCTION_OBSERVABLE,NONE,YES,software sees an access succeed without fault
+OpaqueSampleID,MMU_Opaque_ID_Map.csv,build_final_dataset.main,sorted index S001..S040,False,INDEX_ONLY,NONE,INDEX_ONLY,external index; carries no model identity
+ChainEventKinds,MMU_Final_Dataset.json,build_final_dataset.SimulatorAssisted,chain events,True,SIMULATOR_INSTRUMENTATION_ONLY,HIGH,NO,chain includes injector-only event kinds and is not blinded
+FaultStateBefore/After,MMU_Final_Dataset.json,build_final_dataset.SimulatorAssisted,activation state,True,SIMULATOR_INSTRUMENTATION_ONLY,HIGH,NO,activation state is injector-authored
+ConsumptionEvidenceEventID,MMU_Final_Dataset.json,consumption_semantics.evaluate,verdict consumption event,False,SIMULATOR_INSTRUMENTATION_ONLY,MEDIUM,NO,event-level consumption evidence is for simulator-assisted analysis; not a blind production input

@@ -1,0 +1,605 @@
+{
+ "summary": {
+  "samples": 40,
+  "pass": 40,
+  "fail": 0,
+  "failed_samples": []
+ },
+ "samples": [
+  {
+   "SampleRunID": "M01-F0-W9-S01-R01",
+   "ModelID": "M01",
+   "ContextID": "R01",
+   "checks": {
+    "tlbi_match_present": true,
+    "tlbi_suppressed_present": true,
+    "stale_entry_consumed": true,
+    "wrong_pa_to_lsu": true,
+    "wrong_value_proof": true,
+    "l2_shared_instance": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M01-F0-W9-S01-R02",
+   "ModelID": "M01",
+   "ContextID": "R02",
+   "checks": {
+    "tlbi_match_present": true,
+    "tlbi_suppressed_present": true,
+    "stale_entry_consumed": true,
+    "wrong_pa_to_lsu": true,
+    "wrong_value_proof": true,
+    "l2_shared_instance": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M01-F0-W9-S01-R03",
+   "ModelID": "M01",
+   "ContextID": "R03",
+   "checks": {
+    "tlbi_match_present": true,
+    "tlbi_suppressed_present": true,
+    "stale_entry_consumed": true,
+    "wrong_pa_to_lsu": true,
+    "wrong_value_proof": true,
+    "l2_shared_instance": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M01-F0-W9-S01-R04",
+   "ModelID": "M01",
+   "ContextID": "R04",
+   "checks": {
+    "tlbi_match_present": true,
+    "tlbi_suppressed_present": true,
+    "stale_entry_consumed": true,
+    "wrong_pa_to_lsu": true,
+    "wrong_value_proof": true,
+    "l2_shared_instance": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M01-F0-W9-S01-R05",
+   "ModelID": "M01",
+   "ContextID": "R05",
+   "checks": {
+    "tlbi_match_present": true,
+    "tlbi_suppressed_present": true,
+    "stale_entry_consumed": true,
+    "wrong_pa_to_lsu": true,
+    "wrong_value_proof": true,
+    "l2_shared_instance": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M02-F0-W10-S01-R01",
+   "ModelID": "M02",
+   "ContextID": "R01",
+   "checks": {
+    "refill_pfn_corrupt": true,
+    "pte_read_decode": true,
+    "tlb_entry_insert": true,
+    "old_pfn_from_context_control": true,
+    "approved_not_legacy": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M02-F0-W10-S01-R02",
+   "ModelID": "M02",
+   "ContextID": "R02",
+   "checks": {
+    "refill_pfn_corrupt": true,
+    "pte_read_decode": true,
+    "tlb_entry_insert": true,
+    "old_pfn_from_context_control": true,
+    "approved_not_legacy": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M02-F0-W10-S01-R03",
+   "ModelID": "M02",
+   "ContextID": "R03",
+   "checks": {
+    "refill_pfn_corrupt": true,
+    "pte_read_decode": true,
+    "tlb_entry_insert": true,
+    "old_pfn_from_context_control": true,
+    "approved_not_legacy": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M02-F0-W10-S01-R04",
+   "ModelID": "M02",
+   "ContextID": "R04",
+   "checks": {
+    "refill_pfn_corrupt": true,
+    "pte_read_decode": true,
+    "tlb_entry_insert": true,
+    "old_pfn_from_context_control": true,
+    "approved_not_legacy": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M02-F0-W10-S01-R05",
+   "ModelID": "M02",
+   "ContextID": "R05",
+   "checks": {
+    "refill_pfn_corrupt": true,
+    "pte_read_decode": true,
+    "tlb_entry_insert": true,
+    "old_pfn_from_context_control": true,
+    "approved_not_legacy": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M03-F0-W11-S01-R01",
+   "ModelID": "M03",
+   "ContextID": "R01",
+   "checks": {
+    "requester_asid": true,
+    "candidate_asid": true,
+    "false_hit_asid_mismatch": true,
+    "foreign_entry_identity": true,
+    "false_hit_consumed": true,
+    "legal_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M03-F0-W11-S01-R02",
+   "ModelID": "M03",
+   "ContextID": "R02",
+   "checks": {
+    "requester_asid": true,
+    "candidate_asid": true,
+    "false_hit_asid_mismatch": true,
+    "foreign_entry_identity": true,
+    "false_hit_consumed": true,
+    "legal_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M03-F0-W11-S01-R03",
+   "ModelID": "M03",
+   "ContextID": "R03",
+   "checks": {
+    "requester_asid": true,
+    "candidate_asid": true,
+    "false_hit_asid_mismatch": true,
+    "foreign_entry_identity": true,
+    "false_hit_consumed": true,
+    "legal_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M03-F0-W11-S01-R04",
+   "ModelID": "M03",
+   "ContextID": "R04",
+   "checks": {
+    "requester_asid": true,
+    "candidate_asid": true,
+    "false_hit_asid_mismatch": true,
+    "foreign_entry_identity": true,
+    "false_hit_consumed": true,
+    "legal_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M03-F0-W11-S01-R05",
+   "ModelID": "M03",
+   "ContextID": "R05",
+   "checks": {
+    "requester_asid": true,
+    "candidate_asid": true,
+    "false_hit_asid_mismatch": true,
+    "foreign_entry_identity": true,
+    "false_hit_consumed": true,
+    "legal_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M04-F0-W12-S01-R01",
+   "ModelID": "M04",
+   "ContextID": "R01",
+   "checks": {
+    "decoy_pfn_expected": true,
+    "target_entry_identity": true,
+    "entry_lifetime_lineage": true,
+    "substituted_pfn": true,
+    "wrong_pa_consumed": true,
+    "downstream_or_execute": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M04-F0-W12-S01-R02",
+   "ModelID": "M04",
+   "ContextID": "R02",
+   "checks": {
+    "decoy_pfn_expected": true,
+    "target_entry_identity": true,
+    "entry_lifetime_lineage": true,
+    "substituted_pfn": true,
+    "wrong_pa_consumed": true,
+    "downstream_or_execute": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M04-F0-W12-S01-R03",
+   "ModelID": "M04",
+   "ContextID": "R03",
+   "checks": {
+    "decoy_pfn_expected": true,
+    "target_entry_identity": true,
+    "entry_lifetime_lineage": true,
+    "substituted_pfn": true,
+    "wrong_pa_consumed": true,
+    "downstream_or_execute": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M04-F0-W12-S01-R04",
+   "ModelID": "M04",
+   "ContextID": "R04",
+   "checks": {
+    "decoy_pfn_expected": true,
+    "target_entry_identity": true,
+    "entry_lifetime_lineage": true,
+    "substituted_pfn": true,
+    "wrong_pa_consumed": true,
+    "downstream_or_execute": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M04-F0-W12-S01-R05",
+   "ModelID": "M04",
+   "ContextID": "R05",
+   "checks": {
+    "decoy_pfn_expected": true,
+    "target_entry_identity": true,
+    "entry_lifetime_lineage": true,
+    "substituted_pfn": true,
+    "wrong_pa_consumed": true,
+    "downstream_or_execute": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M05-F0-W13-S01-R01",
+   "ModelID": "M05",
+   "ContextID": "R01",
+   "checks": {
+    "explicit_decoy_va_flag": true,
+    "decoy_va_recorded": true,
+    "table_base_zero": true,
+    "no_live_scan_fallback": true,
+    "partial_entry_insert": true,
+    "pointer_substitution": true,
+    "decoy_pte_read": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M05-F0-W13-S01-R02",
+   "ModelID": "M05",
+   "ContextID": "R02",
+   "checks": {
+    "explicit_decoy_va_flag": true,
+    "decoy_va_recorded": true,
+    "table_base_zero": true,
+    "no_live_scan_fallback": true,
+    "partial_entry_insert": true,
+    "pointer_substitution": true,
+    "decoy_pte_read": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M05-F0-W13-S01-R03",
+   "ModelID": "M05",
+   "ContextID": "R03",
+   "checks": {
+    "explicit_decoy_va_flag": true,
+    "decoy_va_recorded": true,
+    "table_base_zero": true,
+    "no_live_scan_fallback": true,
+    "partial_entry_insert": true,
+    "pointer_substitution": true,
+    "decoy_pte_read": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M05-F0-W13-S01-R04",
+   "ModelID": "M05",
+   "ContextID": "R04",
+   "checks": {
+    "explicit_decoy_va_flag": true,
+    "decoy_va_recorded": true,
+    "table_base_zero": true,
+    "no_live_scan_fallback": true,
+    "partial_entry_insert": true,
+    "pointer_substitution": true,
+    "decoy_pte_read": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M05-F0-W13-S01-R05",
+   "ModelID": "M05",
+   "ContextID": "R05",
+   "checks": {
+    "explicit_decoy_va_flag": true,
+    "decoy_va_recorded": true,
+    "table_base_zero": true,
+    "no_live_scan_fallback": true,
+    "partial_entry_insert": true,
+    "pointer_substitution": true,
+    "decoy_pte_read": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M06-F0-W10-S01-R01",
+   "ModelID": "M06",
+   "ContextID": "R01",
+   "checks": {
+    "descriptor_bit_changed": true,
+    "valid_bit_cleared": true,
+    "original_pte_unchanged_upper_levels": true,
+    "local_decode_invalid": true,
+    "translation_fault_propagated": true,
+    "fault_state_consumed": true,
+    "legal_detected_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M06-F0-W10-S01-R02",
+   "ModelID": "M06",
+   "ContextID": "R02",
+   "checks": {
+    "descriptor_bit_changed": true,
+    "valid_bit_cleared": true,
+    "original_pte_unchanged_upper_levels": true,
+    "local_decode_invalid": true,
+    "translation_fault_propagated": true,
+    "fault_state_consumed": true,
+    "legal_detected_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M06-F0-W10-S01-R03",
+   "ModelID": "M06",
+   "ContextID": "R03",
+   "checks": {
+    "descriptor_bit_changed": true,
+    "valid_bit_cleared": true,
+    "original_pte_unchanged_upper_levels": true,
+    "local_decode_invalid": true,
+    "translation_fault_propagated": true,
+    "fault_state_consumed": true,
+    "legal_detected_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M06-F0-W10-S01-R04",
+   "ModelID": "M06",
+   "ContextID": "R04",
+   "checks": {
+    "descriptor_bit_changed": true,
+    "valid_bit_cleared": true,
+    "original_pte_unchanged_upper_levels": true,
+    "local_decode_invalid": true,
+    "translation_fault_propagated": true,
+    "fault_state_consumed": true,
+    "legal_detected_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M06-F0-W10-S01-R05",
+   "ModelID": "M06",
+   "ContextID": "R05",
+   "checks": {
+    "descriptor_bit_changed": true,
+    "valid_bit_cleared": true,
+    "original_pte_unchanged_upper_levels": true,
+    "local_decode_invalid": true,
+    "translation_fault_propagated": true,
+    "fault_state_consumed": true,
+    "legal_detected_terminal": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M07-F0-W14-S01-R01",
+   "ModelID": "M07",
+   "ContextID": "R01",
+   "checks": {
+    "exact_target_va": true,
+    "permission_before_deny": true,
+    "permission_after_grant": true,
+    "activation_at_permission_eval": true,
+    "consumer_observed": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M07-F0-W14-S01-R02",
+   "ModelID": "M07",
+   "ContextID": "R02",
+   "checks": {
+    "exact_target_va": true,
+    "permission_before_deny": true,
+    "permission_after_grant": true,
+    "activation_at_permission_eval": true,
+    "consumer_observed": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M07-F0-W14-S01-R03",
+   "ModelID": "M07",
+   "ContextID": "R03",
+   "checks": {
+    "exact_target_va": true,
+    "permission_before_deny": true,
+    "permission_after_grant": true,
+    "activation_at_permission_eval": true,
+    "consumer_observed": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M07-F0-W14-S01-R04",
+   "ModelID": "M07",
+   "ContextID": "R04",
+   "checks": {
+    "exact_target_va": true,
+    "permission_before_deny": true,
+    "permission_after_grant": true,
+    "activation_at_permission_eval": true,
+    "consumer_observed": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M07-F0-W14-S01-R05",
+   "ModelID": "M07",
+   "ContextID": "R05",
+   "checks": {
+    "exact_target_va": true,
+    "permission_before_deny": true,
+    "permission_after_grant": true,
+    "activation_at_permission_eval": true,
+    "consumer_observed": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M08-F0-W10-S01-R01",
+   "ModelID": "M08",
+   "ContextID": "R01",
+   "checks": {
+    "pa_xor_mask_4096": true,
+    "final_pa_xor": true,
+    "request_pa_is_xored": true,
+    "translation_to_request": true,
+    "downstream_memory": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M08-F0-W10-S01-R02",
+   "ModelID": "M08",
+   "ContextID": "R02",
+   "checks": {
+    "pa_xor_mask_4096": true,
+    "final_pa_xor": true,
+    "request_pa_is_xored": true,
+    "translation_to_request": true,
+    "downstream_memory": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M08-F0-W10-S01-R03",
+   "ModelID": "M08",
+   "ContextID": "R03",
+   "checks": {
+    "pa_xor_mask_4096": true,
+    "final_pa_xor": true,
+    "request_pa_is_xored": true,
+    "translation_to_request": true,
+    "downstream_memory": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M08-F0-W10-S01-R04",
+   "ModelID": "M08",
+   "ContextID": "R04",
+   "checks": {
+    "pa_xor_mask_4096": true,
+    "final_pa_xor": true,
+    "request_pa_is_xored": true,
+    "translation_to_request": true,
+    "downstream_memory": true
+   },
+   "failed": [],
+   "status": "PASS"
+  },
+  {
+   "SampleRunID": "M08-F0-W10-S01-R05",
+   "ModelID": "M08",
+   "ContextID": "R05",
+   "checks": {
+    "pa_xor_mask_4096": true,
+    "final_pa_xor": true,
+    "request_pa_is_xored": true,
+    "translation_to_request": true,
+    "downstream_memory": true
+   },
+   "failed": [],
+   "status": "PASS"
+  }
+ ]
+}

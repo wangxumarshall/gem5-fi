@@ -1,0 +1,11 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w14] install
+[mmu-w14] start
+W14_CHILD ctx=R05 pid=318 phase=fetch_xn_indirect alias_va=0x400d600000 prot=PROT_READ access=indirect_fetch
+W14_INFO ctx=R05 stage=target_computed target=0x400d600180 source=table index=1
+W14_INFO ctx=R05 stage=indirect_branch insn=br target=0x400d600180 lr=local_label
+W14_FAULT phase=fetch_xn_indirect signal=SIGSEGV
+W14_RESULT ctx=R05 signal=11 phase=fetch_xn_indirect observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d600180 fault_class=permission fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 expected=0x5a value_ok=0 msg=fault result=PASS
+[mmu-w14] rc=0

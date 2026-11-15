@@ -1,0 +1,233 @@
+[
+  {
+    "FeatureName": "FaultModelID",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.GroundTruth",
+    "SourceFields": "manifest.model",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "GROUND_TRUTH",
+    "LeakageRisk": "CRITICAL",
+    "AllowedInBlindView": "NO",
+    "Reason": "direct model identity"
+  },
+  {
+    "FeatureName": "FaultOrigin",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.GroundTruth",
+    "SourceFields": "feature_library.ModelMechanism",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "GROUND_TRUTH",
+    "LeakageRisk": "CRITICAL",
+    "AllowedInBlindView": "NO",
+    "Reason": "direct model mechanism"
+  },
+  {
+    "FeatureName": "InjectionLocation",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.GroundTruth",
+    "SourceFields": "feature_library.InjectionLocation",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "GROUND_TRUTH",
+    "LeakageRisk": "CRITICAL",
+    "AllowedInBlindView": "NO",
+    "Reason": "injector source/site"
+  },
+  {
+    "FeatureName": "TraceFaultSite",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.GroundTruth",
+    "SourceFields": "feature_library.InjectionLocation.TraceFaultSite",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "GROUND_TRUTH_DERIVED",
+    "LeakageRisk": "CRITICAL",
+    "AllowedInBlindView": "NO",
+    "Reason": "old UpstreamPathClass used this field; now forbidden"
+  },
+  {
+    "FeatureName": "FaultField",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.GroundTruth",
+    "SourceFields": "feature_library.TargetField",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "GROUND_TRUTH_DERIVED",
+    "LeakageRisk": "CRITICAL",
+    "AllowedInBlindView": "NO",
+    "Reason": "mutated field known only to the injector"
+  },
+  {
+    "FeatureName": "UpstreamPathClass_SIM (addendum v1)",
+    "SourceFile": "addendum/observable_features/build_observable_features.py",
+    "SourceFunction": "build_observable_features.main",
+    "SourceFields": "InjectionLocation.TraceFaultSite",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "HIGH",
+    "AllowedInBlindView": "NO",
+    "Reason": "legacy field used TraceFaultSite; replaced by ObservedPathClass_BLIND"
+  },
+  {
+    "FeatureName": "ObservedPathClass",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "non-injector event kinds only",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "derived from observed events; no GT argument in signature"
+  },
+  {
+    "FeatureName": "ObservedEventKinds",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "non-injector event kinds only",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "injector-only kinds are filtered out"
+  },
+  {
+    "FeatureName": "ObservedMaintenanceEvents",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "tlbi_match/tlbi_invalidate",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "real maintenance events, not injector labels"
+  },
+  {
+    "FeatureName": "ObservedPTW",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "ptw_start/pte_read",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "real walker events"
+  },
+  {
+    "FeatureName": "ObservedPartialEntry",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "partial_entry_insert",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "real walk-cache event"
+  },
+  {
+    "FeatureName": "ObservedPermissionResults",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "permission_eval result",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "real permission evaluation event"
+  },
+  {
+    "FeatureName": "ObservedSquash",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "squash",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "real pipeline event"
+  },
+  {
+    "FeatureName": "ObservedExceptionDelivery",
+    "SourceFile": "final_closure/scripts/blind_features.py",
+    "SourceFunction": "blind_features.derive_blind",
+    "SourceFields": "exception_delivery",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "POTENTIALLY_SOFTWARE_OBSERVABLE",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "architectural exception event; real hardware observability not proven"
+  },
+  {
+    "FeatureName": "GuestSignal",
+    "SourceFile": "final_closure/scripts/build_final_dataset.py",
+    "SourceFunction": "guest_from_verdict",
+    "SourceFields": "verdict.oracle.line.signal",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "software-visible process signal"
+  },
+  {
+    "FeatureName": "GuestValueMismatch",
+    "SourceFile": "final_closure/scripts/build_final_dataset.py",
+    "SourceFunction": "guest_from_verdict",
+    "SourceFields": "verdict.oracle.line observed/expected",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "requires an application-level oracle"
+  },
+  {
+    "FeatureName": "GuestUnexpectedSuccess",
+    "SourceFile": "final_closure/scripts/build_final_dataset.py",
+    "SourceFunction": "guest_from_verdict",
+    "SourceFields": "verdict.oracle.line signal/control signal",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "PRODUCTION_OBSERVABLE",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "YES",
+    "Reason": "software sees an access succeed without fault"
+  },
+  {
+    "FeatureName": "OpaqueSampleID",
+    "SourceFile": "MMU_Opaque_ID_Map.csv",
+    "SourceFunction": "build_final_dataset.main",
+    "SourceFields": "sorted index S001..S040",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "INDEX_ONLY",
+    "LeakageRisk": "NONE",
+    "AllowedInBlindView": "INDEX_ONLY",
+    "Reason": "external index; carries no model identity"
+  },
+  {
+    "FeatureName": "ChainEventKinds",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.SimulatorAssisted",
+    "SourceFields": "chain events",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "HIGH",
+    "AllowedInBlindView": "NO",
+    "Reason": "chain includes injector-only event kinds and is not blinded"
+  },
+  {
+    "FeatureName": "FaultStateBefore/After",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "build_final_dataset.SimulatorAssisted",
+    "SourceFields": "activation state",
+    "DerivedFromGroundTruth": true,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "HIGH",
+    "AllowedInBlindView": "NO",
+    "Reason": "activation state is injector-authored"
+  },
+  {
+    "FeatureName": "ConsumptionEvidenceEventID",
+    "SourceFile": "MMU_Final_Dataset.json",
+    "SourceFunction": "consumption_semantics.evaluate",
+    "SourceFields": "verdict consumption event",
+    "DerivedFromGroundTruth": false,
+    "ObservabilityClass": "SIMULATOR_INSTRUMENTATION_ONLY",
+    "LeakageRisk": "MEDIUM",
+    "AllowedInBlindView": "NO",
+    "Reason": "event-level consumption evidence is for simulator-assisted analysis; not a blind production input"
+  }
+]

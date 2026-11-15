@@ -1,0 +1,31 @@
+Global frequency set at 1000000000000 ticks per second
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/sim/kernel_workload.cc:46: info: kernel located at: /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/vmlinux
+src/base/loader/symtab.cc:95: warn: Cannot insert a new symbol table due to name collisions. Adding prefix to each symbol's name can resolve this issue.
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+[CHAOSPropagation] MMU fault model M08 armed: M01(va=0 asid=-1 vmid=-1 n=12) M02(va=0 old_pfn=0 xor=0x1) target(va=0x4001300000 asid=-1 vmid=-1 n=12 mode=Read instance= level=-1 seq=0 ordinal=1)
+src/base/vnc/vncserver.cc:163: warn: Sockets disabled, not accepting vnc client connections
+src/dev/serial/terminal.cc:174: warn: Sockets disabled, not accepting terminal connections
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+src/dev/arm/energy_ctrl.cc:252: warn: Existing EnergyCtrl, but no enabled DVFSHandler found.
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Nov 12 2026 10:51:32
+gem5 started Nov 13 2026 22:15:22
+gem5 executing on cathelper-k8s-worker2, pid 3391167
+command line: /home/sdc/gem5-fi-mmu-impl-v2/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M08-F0-W10-S01-R04/run /home/sdc/gem5-fi-mmu-impl-v2/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M08-F0-W10-S01-R04/disk.img --bootloader /home/sdc/gem5-fi-mmu-impl-v2/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609 --readfile /home/sdc/gem5-fi-mmu-impl-v2/runs/MMU_FORMAL_CAMPAIGN_20261113/attempt_A01/M08-F0-W10-S01-R04/rcS.scoped --chaos_propagation --prop_mmu_va_lo 0x4001000000 --prop_mmu_va_hi 0x4001500000 --prop_run_id M08-F0-W10-S01-R04 --prop_sample_run_id M08-F0-W10-S01-R04 --prop_mmu_trace --prop_write_log on --mmu_fault_model M08 --mmu_fault_enable true --mmu_target_va 0x4001300000 --mmu_target_n 12 --mmu_eligible_event_index 1 --mmu_m02_dram_lo 0x80000000 --mmu_m02_dram_hi 0x100000000 --mmu_target_mode Read --mmu_m08_pa_xor_mask 0x1000
+
+info: Standard input is not a terminal, disabling listeners.
+[lsu_b0_fs] shim: injecting --lsu_b0 (params applied inside arm_chaos_fs.py, pre-Simulator)
+[arm_chaos_fs] restoring from checkpoint: /home/sdc/gem5-fi-mmu-impl-v2/runs/mmu_bootF1/cpt.244799013609
+[arm_chaos_fs] LSU-B0 applied: DTLB=32 LQ=16 SQ=16
+[arm_chaos_fs] CHAOSPropagation attached (trace=prop_trace.csv.gz, run_id='M08-F0-W10-S01-R04', sample_run_id='M08-F0-W10-S01-R04', mmu_trace=True, va=[0x4001000000,0x4001500000), fault_model='M08')
+warn: Setting the full_system parameter via the Simulator constructor is deprecated and will be removed in future releases of gem5. The board determines if the simulation is full system or not via it's `is_fullsystem` method.
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'bti' unimplemented

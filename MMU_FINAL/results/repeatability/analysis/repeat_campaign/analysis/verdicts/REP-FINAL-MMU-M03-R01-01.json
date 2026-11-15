@@ -1,0 +1,18 @@
+{
+  "ActivationMatch": "MATCH",
+  "ContextID": "R01",
+  "FabricatedEventCount": 0,
+  "FormalOracleLine": "W11_RESULT ctx=R01 va=0x4004000000 pid_a=318 pid_b=319 pfn_a=0x83543 pfn_b=0x83542 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS",
+  "FormalTerminal": "SQUASHED",
+  "ModelID": "M03",
+  "OriginalSampleRunID": "M03-F0-W11-S01-R01",
+  "PropagationMatch": "MATCH",
+  "RepeatOracleLine": "W11_RESULT ctx=R01 va=0x4004000000 pid_a=318 pid_b=319 pfn_a=0x83543 pfn_b=0x83542 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS",
+  "RepeatRunID": "REP-FINAL-MMU-M03-R01-01",
+  "RepeatTerminal": "SQUASHED",
+  "SliceEvents": 10,
+  "SliceMissingEventIDs": [],
+  "TerminalMatch": "MATCH",
+  "TraceEvents": "535",
+  "TraceSHA256": "9912cab3eb0b0ebe01d9f2d5210e80613076b7b858d098f7be99556998c23661"
+}

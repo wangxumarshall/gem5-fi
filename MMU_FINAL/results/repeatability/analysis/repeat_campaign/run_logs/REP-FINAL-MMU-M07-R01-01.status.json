@@ -1,0 +1,12 @@
+{
+  "status": "COMPLETED",
+  "exit_code": 0,
+  "seconds": 1106.4,
+  "trace_events": 471,
+  "activation_kind": "mmu_fault_activate",
+  "activation_present": true,
+  "fault_tagged_events": 2,
+  "board_terminal_present": true,
+  "trace_sha256": "5bf02356cc0a8f333cbf78c63d672e9dfcf80347e295d4e0e70b06f233d9c352",
+  "terminal_sha256": "9573aad144d8d85bca7cfb9e683493e012f1a54b4f34db6be26c02c40920ed0f"
+}

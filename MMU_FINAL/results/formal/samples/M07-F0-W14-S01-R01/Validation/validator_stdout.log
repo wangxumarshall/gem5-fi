@@ -1,0 +1,17 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 344,
+  "consumption_event_id": 345,
+  "context": "R01",
+  "fault_id": "1",
+  "model": "M07",
+  "run_id": "M07-F0-W14-S01-R01",
+  "workload": "W14"
+}

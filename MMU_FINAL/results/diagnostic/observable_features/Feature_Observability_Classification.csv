@@ -1,0 +1,39 @@
+Feature,Category,Rationale,UsableAsDiagnosticInput,ProductionAvailability
+FaultModelID,FORBIDDEN_AS_INPUT,injector ground truth; directly names the model,NO,NO
+FaultOrigin,FORBIDDEN_AS_INPUT,injector ground truth / mutation site,NO,NO
+InjectionLocation,FORBIDDEN_AS_INPUT,source file/function/site known only to the injector,NO,NO
+FaultField,FORBIDDEN_AS_INPUT,mutated field known only to the injector,NO,NO
+TerminalState,LABEL_OR_SYMPTOM_ONLY,"frozen result label, not an origin feature",NO,NO
+OracleResult,LABEL_OR_SYMPTOM_ONLY,workload oracle label,NO,NO
+ManifestationType,LABEL_OR_SYMPTOM_ONLY,audit classification label,NO,NO
+TerminalSquash,LABEL_OR_SYMPTOM_ONLY,terminal result label; not an origin feature,NO,NO
+AccessMode,PRODUCTION_AVAILABLE,software knows the access it issued,YES,YES
+TargetVA,PRODUCTION_AVAILABLE,software knows the virtual address it accessed,YES,YES
+GuestSignal,PRODUCTION_AVAILABLE,a real process can receive SIGSEGV/SIGBUS,YES,YES
+GuestSICode,PRODUCTION_AVAILABLE,si_code is visible to a real process,YES,YES
+GuestFaultClass,POTENTIALLY_SOFTWARE_OBSERVABLE,fault class mapping to ARM ESR/FSC is plausible but unproven here,YES,POTENTIAL
+GuestObservedValue,POTENTIALLY_SOFTWARE_OBSERVABLE,requires an application-level expected-value oracle,YES,POTENTIAL
+GuestExpectedValue,POTENTIALLY_SOFTWARE_OBSERVABLE,oracle-dependent; not always available,YES,POTENTIAL
+GuestValueMismatch,PRODUCTION_AVAILABLE,"with an oracle, a wrong value is a production symptom",YES,YES
+GuestUnexpectedSuccess,PRODUCTION_AVAILABLE,an access that should fault but returns normally is visible,YES,YES
+ExceptionDelivered,POTENTIALLY_SOFTWARE_OBSERVABLE,architectural exception delivery can be software-visible; the trace event itself is simulator instrumentation,YES,POTENTIAL
+ExceptionClass,POTENTIALLY_SOFTWARE_OBSERVABLE,ESR/FSC-like class may be visible; exact hardware mapping UNKNOWN,YES,POTENTIAL
+ActivationEventKind,SIMULATOR_ONLY,injector trace event name; no production equivalent,NO,NO
+TLBInstance,UNKNOWN_PRODUCTION_OBSERVABILITY,DTLB/ITLB/L2/walk-cache internals are not proven software-visible,NO,UNKNOWN
+TLBEntryID,UNKNOWN_PRODUCTION_OBSERVABILITY,entry identity is simulator instrumentation,NO,UNKNOWN
+TLBEntryGeneration,UNKNOWN_PRODUCTION_OBSERVABILITY,generation/version is simulator instrumentation,NO,UNKNOWN
+WalkLevel,UNKNOWN_PRODUCTION_OBSERVABILITY,PTW level is not proven software-visible,NO,UNKNOWN
+UpstreamPathClass,SIMULATOR_ONLY,derived from trace event kinds; not a production signal,NO,NO
+EventKindSequence,SIMULATOR_ONLY,trace instrumentation sequence,NO,NO
+RefillPFNChanged,SIMULATOR_ONLY,PTW refill internals; production observability UNKNOWN,NO,NO
+DescriptorChanged,SIMULATOR_ONLY,PTE descriptor before/after is simulator instrumentation,NO,NO
+PermissionDecisionInverted,SIMULATOR_ONLY,internal permission decision; production observability UNKNOWN,NO,NO
+RequestPAChanged,SIMULATOR_ONLY,final request PA is simulator instrumentation,NO,NO
+NextTablePAChanged,SIMULATOR_ONLY,intermediate table pointer is simulator instrumentation,NO,NO
+ForeignASIDCandidate,SIMULATOR_ONLY,ASID comparator internals are not proven software-visible,NO,NO
+EntryLineagePresent,SIMULATOR_ONLY,TLB entry lineage is simulator instrumentation,NO,NO
+SquashObserved,SIMULATOR_ONLY,pipeline squash is simulator instrumentation,NO,NO
+FaultStateConsumed,SIMULATOR_ONLY,injector lifecycle event,NO,NO
+PerformanceCounters,UNKNOWN_PRODUCTION_OBSERVABILITY,not collected in this campaign; availability/attribution unproven,NO,UNKNOWN
+TLBEntryPFN,UNKNOWN_PRODUCTION_OBSERVABILITY,PFN values are not software-visible on real hardware in general,NO,UNKNOWN
+PTEBeforeAfter,UNKNOWN_PRODUCTION_OBSERVABILITY,requires privileged page-table inspection; not generally available,NO,UNKNOWN

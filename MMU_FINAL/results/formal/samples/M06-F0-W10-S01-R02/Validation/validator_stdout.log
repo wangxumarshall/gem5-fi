@@ -1,0 +1,17 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleResult": "PASS_EXPECTED_DETECTION",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "DETECTED_CONTAINED",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 8517,
+  "consumption_event_id": 8518,
+  "context": "R02",
+  "fault_id": "1",
+  "model": "M06",
+  "run_id": "M06-F0-W10-S01-R02",
+  "workload": "W10S"
+}
