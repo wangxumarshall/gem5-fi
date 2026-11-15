@@ -1847,21 +1847,24 @@ def evidence_for(index, model, context):
 
 
 def control_oracle_for(repo_root, model, workload, context):
-    """Locate the independent no-fault control line for this context."""
+    """Locate the independent no-fault control line for this context.
+
+    The frozen live controls live under runs/ in the original workspace.  A
+    fresh clone does not have runs/TEST-*; the hash-verified copies in
+    MMU_FINAL/results/formal/controls are the fallback.  The original path
+    wins when both exist, so the 0202 workspace keeps its historical
+    provenance.
+    """
     rel = CONTROL_ORACLE_CONTEXT_RUNS.get((model, context)) or \
         CONTROL_ORACLE_RUNS.get((model, workload))
     if not rel:
         return {"present": False, "detail": "no control-run mapping"}
-    run = os.path.join(repo_root, rel)
-    gold = os.path.join(run, "Run_Log", "golden_output.txt")
-    if not os.path.isfile(gold):
-        # Older/alternate layout: the per-run directory holds the terminal.
-        gold = os.path.join(run, "Run_Log", "observed_output.txt")
-    if not os.path.isfile(gold):
-        gold = os.path.join(run, "board.terminal")
-    if not os.path.isfile(gold):
-        return {"present": False,
-                "detail": "control run missing golden: %s" % _rel(repo_root, run)}
+
+    archived = os.path.join(
+        repo_root, "MMU_FINAL", "results", "formal", "controls",
+        os.path.basename(rel.rstrip("/")))
+    run_candidates = [os.path.join(repo_root, rel), archived]
+
     prefix = "%s_RESULT" % workload
     prefixes = [prefix]
     if workload == "W10":
@@ -1880,25 +1883,36 @@ def control_oracle_for(repo_root, model, workload, context):
                         if "W10S_RESULT" in ln), "")
         return hit
 
-    line = find_line(gold)
-    if not line:
-        # run_mmu_case's golden grep predates W10S; the guest terminal is the
-        # authoritative no-fault observation for those controls.
-        for cand in (os.path.join(run, "Run_Log", "board.terminal"),
-                     os.path.join(run, "run", "board.terminal")):
-            if os.path.isfile(cand):
-                line = find_line(cand)
-                if line:
-                    gold = cand
-                    break
-    if not line:
-        return {"present": False,
-                "detail": "%s has no %s line for %s" %
-                          (_rel(repo_root, gold), prefix, context)}
-    return {"present": True, "path": gold, "line": line,
-            "sha256": _sha256_file(gold),
-            "detail": "%s sha256=%s" % (_rel(repo_root, gold),
-                                        _sha256_file(gold)[:16])}
+    for run in run_candidates:
+        gold = os.path.join(run, "Run_Log", "golden_output.txt")
+        if not os.path.isfile(gold):
+            # Older/alternate layout: the per-run directory holds the terminal.
+            gold = os.path.join(run, "Run_Log", "observed_output.txt")
+        if not os.path.isfile(gold):
+            gold = os.path.join(run, "board.terminal")
+        if not os.path.isfile(gold):
+            continue
+        line = find_line(gold)
+        if not line:
+            # run_mmu_case's golden grep predates W10S; the guest terminal is
+            # the authoritative no-fault observation for those controls.
+            for cand in (os.path.join(run, "Run_Log", "board.terminal"),
+                         os.path.join(run, "run", "board.terminal")):
+                if os.path.isfile(cand):
+                    line = find_line(cand)
+                    if line:
+                        gold = cand
+                        break
+        if not line:
+            continue
+        return {"present": True, "path": gold, "line": line,
+                "sha256": _sha256_file(gold),
+                "detail": "%s sha256=%s" % (_rel(repo_root, gold),
+                                            _sha256_file(gold)[:16])}
+    return {"present": False,
+            "detail": "control oracle missing in %s and %s" %
+                      (_rel(repo_root, run_candidates[0]),
+                       _rel(repo_root, archived))}
 
 
 def check_hook(model, hooks):
