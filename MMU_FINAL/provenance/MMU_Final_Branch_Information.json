@@ -7,5 +7,8 @@
   "frozen_binary_sha256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
   "mmu_branch_count_before_publish": 0,
   "mmu_branch_count_after_publish": 1,
-  "pushed": false
+  "pushed": true,
+  "head_commit_at_publication": "efbc09791b18c66186ad7f1edcc9efd064fed1fa",
+  "published_url": "https://github.com/wangxumarshall/gem5-fi/tree/mmu-final-reproducible",
+  "note": "head_commit_at_publication is the commit that was pushed; later metadata-only commits may advance the branch head."
 }
