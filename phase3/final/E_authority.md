@@ -11,6 +11,26 @@ files as `git diff`, new files as `/dev/null` diffs).
 
 ---
 
+## Post-final correction (2026-11-12, evidence closure v2)
+
+This report documents the runner/preflight work as it stood before the final
+EPAN checkpoint. Two PFN statements below are historical and must not be read
+as the final authority:
+
+- The final scoped control `runs/TEST-F1-CTRL-W10-R02/Run_Log/golden_output.txt`
+  (SHA256 `66a42431eb599efc…`) records `target_pfn=0x834b2`,
+  `neighbor_pfn=0x834b3`, `sentinel=0x63`, `neighbor_sentinel=0x60`.
+- The final faulted trace `runs/TEST-F1-M02-R02/Trace/prop_evt.txt.gz`
+  `refill_pfn_corrupt` event 4424 records `old_pfn=0x834b2`,
+  `new_pfn=0x834b3`, `old_pa=0x834b2000`, `new_pa=0x834b3000`.
+- The earlier scoped control `TEST-ENV-CTRL-W10` (`0x834b6`) and the older
+  `--ctx all` control (`0x83480`) predate the final checkpoint and are
+  superseded. The frozen authority `07_Sample_Matrix` OracleMethod for
+  M02 R01–R05 now states `0x834b2->0x834b3`; see
+  `tools/mmu_apply_authority_corrections.py`.
+
+---
+
 ## 1. M02 `old_pfn` — removed the hardcoded `0x83480`
 
 ### 1.1 Root cause (measured)

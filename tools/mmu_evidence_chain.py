@@ -246,6 +246,18 @@ def chain_m03(events, context, target_va, mode, oracle_line):
     res["identity"]["result_entry"] = entry_identity(result)
     res["identity"]["result_pa"] = result.get("pa")
 
+    # Multiplicity audit: the candidate entry identity plus the injected PA
+    # must reach exactly one translation_result, and that transaction must
+    # own exactly one consumer request.  This prevents two different
+    # consumers from being collapsed into one evidence row.
+    result_matches = [e for e in events
+                      if kind(e) == "translation_result" and
+                      entry_identity(e) == cand and
+                      hx(e, "pa") == cand_pa]
+    res["identity"]["translation_result_match_count"] = len(result_matches)
+    if len(result_matches) != 1:
+        guards.append("translation_result_join_not_unique")
+
     sq = None
     if mode == "Execute":
         req = pick(events, ["lsu_request"], after=result["event_id"],
@@ -257,6 +269,13 @@ def chain_m03(events, context, target_va, mode, oracle_line):
                     "translation_result", "lsu_request"]
         if req is None:
             res["missing_kinds"] = ["lsu_request"]
+        req_matches = [e for e in events if kind(e) == "lsu_request" and
+                       tid(e) == tid(result) and e.get("mode") == "Execute"
+                       and hx(e, "pa") == cand_pa]
+        res["identity"]["execute_request_match_count"] = len(req_matches)
+        res["identity"]["selected_translation_id"] = tid(result)
+        if len(req_matches) != 1:
+            guards.append("execute_request_join_not_unique")
     else:
         req = None
         sq = pick(events, ["squash"], after=result["event_id"],
@@ -375,6 +394,17 @@ def chain_m04(events, context, target_va, mode, oracle_line):
     req = pick(events, ["lsu_request"], after=consumer["event_id"],
                pred=lambda e: hx(e, "pa") == new_pa and
                (e.get("mode") == "Execute" if mode == "Execute" else True))
+    res["identity"]["translation_result_match_count"] = len(consumers)
+    req_matches = [e for e in events if kind(e) == "lsu_request" and
+                   tid(e) == tid(consumer) and hx(e, "pa") == new_pa and
+                   (e.get("mode") == "Execute" if mode == "Execute" else
+                    True)]
+    res["identity"]["execute_request_match_count"] = len(req_matches)
+    res["identity"]["selected_translation_id"] = tid(consumer)
+    if len(consumers) != 1:
+        guards.append("translation_result_join_not_unique")
+    if len(req_matches) != 1:
+        guards.append("execute_request_join_not_unique")
     res["consumption"] = _ev_summary(req or consumer)
     res["consumption_events"] = [act["event_id"], lineage["event_id"]
                                  if lineage else None,
@@ -606,27 +636,53 @@ def chain_m07(events, context, target_va, mode, oracle_line):
         # the permission evaluation that produced it by a co-temporal key
         # match: same tick AND same VA AND same mode/stage/regime/security
         # state.  Then use that transaction id for the result/request.
-        pe = pick(events, ["permission_eval"],
-                  after=-1,
-                  pred=lambda e: e["event_id"] < act["event_id"] and
-                  e.get("tick") == act.get("tick") and
-                  e.get("va") == act.get("va") and
-                  e.get("mode") == act.get("mode") and
-                  e.get("stage", "") == act.get("stage", "") and
-                  e.get("regime", "") == act.get("regime", "") and
-                  e.get("security_state", "") == act.get("security_state", ""))
+        #
+        # A first match is only a valid join if it is the ONLY match.  Count
+        # the complete candidate set on the raw trace; an ambiguous key is a
+        # guard failure, never resolved by event order.
+        pe_pool = [e for e in events
+                   if kind(e) == "permission_eval" and
+                   e["event_id"] < act["event_id"] and
+                   e.get("tick") == act.get("tick") and
+                   e.get("va") == act.get("va")]
+        exact = [e for e in pe_pool
+                 if e.get("mode") == act.get("mode") and
+                 e.get("stage", "") == act.get("stage", "") and
+                 e.get("regime", "") == act.get("regime", "") and
+                 e.get("security_state", "") == act.get("security_state", "")]
+        pe = exact[0] if exact else None
+        res["identity"]["permission_eval_candidate_count"] = len(pe_pool)
+        res["identity"]["exact_key_match_count"] = len(exact)
+        res["identity"]["exact_key_deny_match_count"] = len(
+            [e for e in exact if e.get("permission_result") == "deny"])
         if pe is None:
             guards.append("cotemporal_permission_eval_not_found")
             res["guards"] = guards
             return res
+        if len(exact) != 1:
+            guards.append("cotemporal_permission_eval_ambiguous")
         t = tid(pe)
         basis = "COTEMPORAL_PERMISSION_EVAL_KEY_MATCH"
         res["identity"]["permission_eval_event"] = pe["event_id"]
+        res["identity"]["selected_permission_eval_event_id"] = \
+            pe["event_id"]
         res["identity"]["permission_eval_result"] = pe.get("permission_result")
         res["identity"]["permission_eval_tick"] = pe.get("tick")
         if pe.get("permission_result") != "deny":
             guards.append("permission_eval_pre_inversion_not_deny")
     res["identity"]["translation_id"] = t
+    res["identity"]["selected_translation_id"] = t
+    result_matches = [e for e in events if kind(e) == "translation_result" and
+                      tid(e) == t]
+    req_matches = [e for e in events if kind(e) == "lsu_request" and
+                   tid(e) == t and
+                   e.get("mode") == (mode or e.get("mode"))]
+    res["identity"]["translation_result_match_count"] = len(result_matches)
+    res["identity"]["execute_request_match_count"] = len(req_matches)
+    if len(result_matches) != 1:
+        guards.append("translation_result_join_not_unique")
+    if len(req_matches) != 1:
+        guards.append("execute_request_join_not_unique")
     res["activation_basis"] = basis
     res["join_note"] = (
         "The activation row carries translation_id=0 on the fetch path because "
