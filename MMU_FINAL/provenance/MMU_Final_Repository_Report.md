@@ -100,8 +100,24 @@ Items 1–5 are **not executed** in this round.
    statistical distribution.
 6. The simulator models are abstractions, not bit-exact physical ARM claims.
 
-## 6. Status
+## 6. Independent reproduction
 
-`MMU_FINAL_CONSOLIDATION_READY` once the independent build and eight-model
-smoke test complete; permanent deletions remain **pending researcher
-approval** and are not executed.
+| Check | Result |
+|---|---|
+| Fresh GitHub clone | PASS (commit `100f9ce3`, no path/symlink to the old workspace) |
+| Independent clean build | PASS (`16a954c7...`, 8/8 hooks, gcc 10.3.1, `-j16`) |
+| Archive check in clone | PASS (1514 files) |
+| 40 describe plans with archived controls | PASS 40/40 (rebuilt-binary waiver recorded) |
+| 8-model smoke test | **PASS 8/8**, terminals match the frozen matrix |
+
+Details: `MMU_Reproduction_Validation_Report.md` and
+`MMU_8_Model_Smoke_Test_Results.csv`.
+
+## 7. Status
+
+`MMU_FINAL_CONSOLIDATION_READY`
+
+The code, results, archive and independent reproduction gates pass. The only
+remaining action is the researcher's approval of the permanent-deletion
+white-list (`MMU_Server_Cleanup_Plan.csv`). No deletion has been executed, so
+this is **not** `MMU_FINAL_CLEANUP_COMPLETE`.

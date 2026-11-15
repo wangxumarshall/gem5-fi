@@ -1,2 +1,2 @@
 BranchName,HEAD,LastCommitDate,RelationToMMU,UniqueUnarchivedCommits,ReferencedByOtherProject,CoveredByFinalBranch,Action,Status
-<NONE>,-,-,No MMU-specific branch exists on GitHub,0,no,-,NO_DELETION,VERIFIED: remote MMU branch count = 0 before publication; mmu-final-reproducible will be the only one after publication
+<NONE>, -, -, "No MMU-specific branch existed on GitHub before publication", 0, no, -, NO_DELETION, "VERIFIED 2026-11-15: git ls-remote shows exactly one MMU branch after publication (mmu-final-reproducible); nothing to delete"

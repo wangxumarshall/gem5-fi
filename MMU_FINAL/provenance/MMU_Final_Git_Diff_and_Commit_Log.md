@@ -3,8 +3,17 @@
 Base freeze commit: 872953c2
 Source closure: 60f1a8760410288128061d85582e5395b24c0106
 
-## Commits from fsu to the final branch base
+## Commits from fsu to the final branch head
 ```
+100f9ce3 [MMU][repro] add explicit rebuilt-binary waiver for independent replication
+6a5dd8ca [MMU][repro] use archived control oracles when runs/ is absent
+b68b8cf9 [MMU][report] add archive integrity and consolidation reports
+0cf24a65 [MMU][provenance] record publication of mmu-final-reproducible
+efbc0979 [MMU][audit] add 40/10 integrity tables and cleanup inventory
+d919c24f [MMU][provenance] record final branch head and source closure
+10663849 [MMU][final] bundle authoritative results archive and reproduction entry points
+d520a316 [MMU][evidence] record post-freeze PFN correction and strict join multiplicity guards
+5c305923 [MMU][repro] derive repo root from the clone instead of /home/sdc/gem5-fi-mmu-impl-v2
 872953c2 [MMU][audit] MMU_FINAL_RUNNER_AUDIT=PASS for all 40 describe samples
 a9aa7005 [MMU][runner] gate READY on formal parameter parity
 b7d8255f [MMU][runner] pass the workload-owned M05 decoy VA explicitly
@@ -34,35 +43,35 @@ f24b6b77 [MMU][freeze] frozen authority, evidence, preflight and ready package
 
 ## Diffstat of the MMU closure vs fsu
 ```
- workloads/mmu/W12/mmu_w12                          |   Bin 0 -> 640712 bytes
- workloads/mmu/W12/mmu_w12.c                        |   272 +
- workloads/mmu/W13/mmu_w13                          |   Bin 0 -> 642208 bytes
- workloads/mmu/W13/mmu_w13.c                        |   589 +
- workloads/mmu/W14/install_rcS.sh                   |    57 +
- workloads/mmu/W14/mmu_w14                          |   Bin 0 -> 641832 bytes
- workloads/mmu/W14/mmu_w14.c                        |   637 +
- workloads/mmu/W9/mmu_w9                            |   Bin 0 -> 639504 bytes
- workloads/mmu/W9/mmu_w9.c                          |   221 +
- workloads/mmu/build_all.sh                         |    23 +
- workloads/mmu/install/mmu_install                  |   Bin 0 -> 1989400 bytes
- workloads/mmu/install/mmu_install.c                |   111 +
- workloads/mmu/install/mmu_install.prev.1794451661  |   Bin 0 -> 1989368 bytes
- workloads/mmu/install/w10_blob.o                   |   Bin 0 -> 709720 bytes
- workloads/mmu/install/w9_blob.o                    |   Bin 0 -> 640112 bytes
- workloads/mmu_rev/W10/Binary/mmu_w10               |   Bin 0 -> 709072 bytes
- workloads/mmu_rev/W10/mmu_w10.c                    |   359 +
- workloads/mmu_rev/W9/Binary/mmu_w9                 |   Bin 0 -> 639504 bytes
- workloads/mmu_rev/W9/mmu_w9.c                      |   235 +
- workloads/mmu_rev/install/W10/mmu_w10              |   Bin 0 -> 709072 bytes
- workloads/mmu_rev/install/W9/mmu_w9                |   Bin 0 -> 639504 bytes
- workloads/mmu_rev/install/mmu_install_rev          |   Bin 0 -> 1989368 bytes
- workloads/mmu_rev/install/w10_blob.o               |   Bin 0 -> 709688 bytes
- workloads/mmu_rev/install/w9_blob.o                |   Bin 0 -> 640112 bytes
- 586 files changed, 333501 insertions(+), 18 deletions(-)
+ workloads/mmu/W12/mmu_w12                          |    Bin 0 -> 640712 bytes
+ workloads/mmu/W12/mmu_w12.c                        |    272 +
+ workloads/mmu/W13/mmu_w13                          |    Bin 0 -> 642208 bytes
+ workloads/mmu/W13/mmu_w13.c                        |    589 +
+ workloads/mmu/W14/install_rcS.sh                   |     57 +
+ workloads/mmu/W14/mmu_w14                          |    Bin 0 -> 641832 bytes
+ workloads/mmu/W14/mmu_w14.c                        |    637 +
+ workloads/mmu/W9/mmu_w9                            |    Bin 0 -> 639504 bytes
+ workloads/mmu/W9/mmu_w9.c                          |    221 +
+ workloads/mmu/build_all.sh                         |     23 +
+ workloads/mmu/install/mmu_install                  |    Bin 0 -> 1989400 bytes
+ workloads/mmu/install/mmu_install.c                |    111 +
+ workloads/mmu/install/mmu_install.prev.1794451661  |    Bin 0 -> 1989368 bytes
+ workloads/mmu/install/w10_blob.o                   |    Bin 0 -> 709720 bytes
+ workloads/mmu/install/w9_blob.o                    |    Bin 0 -> 640112 bytes
+ workloads/mmu_rev/W10/Binary/mmu_w10               |    Bin 0 -> 709072 bytes
+ workloads/mmu_rev/W10/mmu_w10.c                    |    359 +
+ workloads/mmu_rev/W9/Binary/mmu_w9                 |    Bin 0 -> 639504 bytes
+ workloads/mmu_rev/W9/mmu_w9.c                      |    235 +
+ workloads/mmu_rev/install/W10/mmu_w10              |    Bin 0 -> 709072 bytes
+ workloads/mmu_rev/install/W9/mmu_w9                |    Bin 0 -> 639504 bytes
+ workloads/mmu_rev/install/mmu_install_rev          |    Bin 0 -> 1989368 bytes
+ workloads/mmu_rev/install/w10_blob.o               |    Bin 0 -> 709688 bytes
+ workloads/mmu_rev/install/w9_blob.o                |    Bin 0 -> 640112 bytes
+ 2147 files changed, 2487580 insertions(+), 18 deletions(-)
 ```
 
 ## Source diff across the freeze (must be empty)
 ```
-$ git diff --stat 60f1a876..872953c2 -- CHAOS/gem5/src
+$ git diff --stat 60f1a876..HEAD -- CHAOS/gem5/src
 (empty output = identical binary source)
 ```
