@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/wangxumarshall/gem5-fi",
+  "branch": "mmu-final-reproducible",
+  "head_commit": "1066384969927c8c8821c236d1fd7ace198b60ab",
+  "base_freeze_commit": "872953c2",
+  "source_closure_commit": "60f1a8760410288128061d85582e5395b24c0106",
+  "frozen_binary_sha256": "b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185",
+  "mmu_branch_count_before_publish": 0,
+  "mmu_branch_count_after_publish": 1,
+  "pushed": false
+}

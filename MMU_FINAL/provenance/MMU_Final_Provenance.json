@@ -124,5 +124,7 @@
     "manifest": "MMU_FINAL/results/MMU_Final_Results_SHA256.txt",
     "integrity": "PASS"
   },
-  "generated_utc": "2026-11-15T12:08:02Z"
+  "generated_utc": "2026-11-15T12:08:02Z",
+  "final_branch_commit": "1066384969927c8c8821c236d1fd7ace198b60ab",
+  "final_branch_commit_note": "Commit that contains MMU_FINAL/ and the path-portability fix; results were produced by the frozen binary described above."
 }
