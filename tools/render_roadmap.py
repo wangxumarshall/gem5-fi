@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Render the long-term roadmap ledger to SVG/PNG and a Markdown summary.
 
-Source of truth: docs/roadmap/roadmap.yaml.  Edit the ledger, then run
+Source of truth: the roadmap ledger lives outside this repository, in the
+sibling documentation archive (``../sdc-mhw-docs/docs/roadmap/roadmap.yaml``).
+Override with ``SDCFUZZ_DOCS_ROOT`` if the archive is somewhere else.  Edit the
+ledger, then run
 
     python3 tools/render_roadmap.py
-    inkscape docs/roadmap/roadmap.svg --export-type=png \
-        --export-filename=docs/roadmap/roadmap.png
+    inkscape ../sdc-mhw-docs/docs/roadmap/roadmap.svg --export-type=png \
+        --export-filename=../sdc-mhw-docs/docs/roadmap/roadmap.png
 
 Status colours distinguish "verified locally", "external evidence",
 "partial", "not started" and "environment-gated" milestones so an incomplete
@@ -13,6 +16,8 @@ item can never be mistaken for a finished one.
 """
 
 import datetime as dt
+import os
+import sys
 import textwrap
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -20,9 +25,22 @@ from xml.sax.saxutils import escape
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-LEDGER = ROOT / "docs/roadmap/roadmap.yaml"
-SVG = ROOT / "docs/roadmap/roadmap.svg"
-MD = ROOT / "docs/roadmap/ROADMAP.md"
+DOCS = Path(os.environ.get("SDCFUZZ_DOCS_ROOT",
+                           ROOT.parent / "sdc-mhw-docs" / "docs")).resolve()
+LEDGER = DOCS / "roadmap/roadmap.yaml"
+SVG = DOCS / "roadmap/roadmap.svg"
+MD = DOCS / "roadmap/ROADMAP.md"
+
+
+def display(path: Path) -> str:
+    """Path label for messages and the SVG footer (documented, not absolute)."""
+    for base in (DOCS.parent, ROOT):
+        try:
+            rel = path.relative_to(base)
+        except ValueError:
+            continue
+        return f"{base.name}/{rel}" if base == DOCS.parent else str(rel)
+    return str(path)
 
 WIDTH = 1600
 MARGIN = 40
@@ -157,6 +175,10 @@ def bar_svg(x, y, width, height, milestones, radius=8):
 
 
 def render():
+    if not LEDGER.exists():
+        sys.exit(f"roadmap ledger not found: {LEDGER}\n"
+                 "docs live outside this repository; set SDCFUZZ_DOCS_ROOT "
+                 "to the documentation archive (…/sdc-mhw-docs/docs).")
     ledger = yaml.safe_load(LEDGER.read_text())
     tracks = ledger["tracks"]
     all_milestones = [m for track in tracks for phase in track["phases"]
@@ -225,7 +247,7 @@ def render():
     footer = f"""  <line x1="{MARGIN}" y1="{height - 46}" x2="{WIDTH - MARGIN}"
         y2="{height - 46}" stroke="{LINE}" stroke-width="1"/>
   <text x="{MARGIN}" y="{height - 24}" font-size="11.5" font-family="{FONT}"
-        fill="{MUTED}">台账：{LEDGER.relative_to(ROOT)} · 更新 {updated} · 重生成：
+        fill="{MUTED}">台账：{display(LEDGER)} · 更新 {updated} · 重生成：
         python3 tools/render_roadmap.py</text>
   <text x="{WIDTH - MARGIN}" y="{height - 24}" font-size="11.5"
         font-family="{FONT}" fill="{MUTED}" text-anchor="end">生成于
@@ -254,8 +276,8 @@ def render():
     SVG.write_text(svg)
     write_markdown(ledger, tracks, all_milestones, overall_counts,
                    overall_progress)
-    print(f"svg: {SVG.relative_to(ROOT)}  ({WIDTH}x{height})")
-    print(f"md:  {MD.relative_to(ROOT)}")
+    print(f"svg: {display(SVG)}  ({WIDTH}x{height})")
+    print(f"md:  {display(MD)}")
     return svg
 
 
@@ -293,13 +315,13 @@ def write_markdown(ledger, tracks, all_milestones, overall_counts,
             lines.append("")
     lines += [
         "## 维护方式", "",
-        "1. 修改 `docs/roadmap/roadmap.yaml`（状态取值见文件头注释）。",
+        "1. 修改 `~/sdc-mhw-docs/docs/roadmap/roadmap.yaml`（状态取值见文件头注释）。",
         "2. 重新生成：`python3 tools/render_roadmap.py`。",
         "3. 需要 PNG 时：",
         "",
         "```bash",
-        "inkscape docs/roadmap/roadmap.svg --export-type=png \\",
-        "  --export-filename=docs/roadmap/roadmap.png",
+        "inkscape ~/sdc-mhw-docs/docs/roadmap/roadmap.svg --export-type=png \\",
+        "  --export-filename=~/sdc-mhw-docs/docs/roadmap/roadmap.png",
         "```",
         "",
     ]
