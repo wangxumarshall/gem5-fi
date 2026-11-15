@@ -9,7 +9,8 @@ Server: 0202 (openEuler 22.03 LTS, aarch64)
 |---|---|
 | Repository | https://github.com/wangxumarshall/gem5-fi |
 | Branch | `mmu-final-reproducible` |
-| Published head | `efbc0979` (subsequent metadata commits may advance it) |
+| Validated commit | `100f9ce3` (independent clone/build/smoke) |
+| Report head | `b5eb0b61` (later metadata commits may advance it) |
 | Base freeze commit | `872953c2` |
 | Source closure | `60f1a8760410288128061d85582e5395b24c0106` |
 | Frozen binary SHA256 | `b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185` |

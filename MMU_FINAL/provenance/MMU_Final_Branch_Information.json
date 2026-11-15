@@ -10,5 +10,9 @@
   "pushed": true,
   "head_commit_at_publication": "efbc09791b18c66186ad7f1edcc9efd064fed1fa",
   "published_url": "https://github.com/wangxumarshall/gem5-fi/tree/mmu-final-reproducible",
-  "note": "head_commit_at_publication is the commit that was pushed; later metadata-only commits may advance the branch head."
+  "note": "head_commit_at_publication is the commit that was pushed; later metadata-only commits may advance the branch head.",
+  "validated_commit": "100f9ce3367bf02112a01494ce6f511a57bcc571",
+  "final_head_at_report": "b5eb0b61077bba4fc2066890863a82b51542f814",
+  "mmu_branch_count_verified": 1,
+  "remote_verification": "git ls-remote shows refs/heads/mmu-final-reproducible only"
 }
