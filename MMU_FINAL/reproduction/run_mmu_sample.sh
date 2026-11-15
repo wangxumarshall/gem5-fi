@@ -35,6 +35,11 @@ esac
 mmu_info "sample:       $SID"
 mmu_info "output root:  $OUT_ROOT"
 mmu_info "gem5:         $MMU_GEM5"
+WAIVER=()
+if [ "${MMU_ALLOW_REBUILT_BINARY:-0}" = "1" ]; then
+    WAIVER=(--allow-rebuilt-binary)
+    mmu_info "binary waiver: enabled (independent rebuild; source/workload must still match)"
+fi
 mmu_info "authority:    v3.0.2"
 python3 "$MMU_REPO_ROOT/tools/mmu_formal_runner.py" \
     --repo-root "$MMU_REPO_ROOT" \
@@ -42,4 +47,5 @@ python3 "$MMU_REPO_ROOT/tools/mmu_formal_runner.py" \
     --excel "$AUTH_EXCEL" \
     --csv "$AUTH_CSV" \
     --param-authority "$AUTH_JSON" \
+    "${WAIVER[@]}" \
     --sample "$SID"

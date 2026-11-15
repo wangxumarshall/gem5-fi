@@ -208,6 +208,20 @@ automatic failure**:
 5. Only then report semantic reproducibility. Never replace fault semantics
    with "the build succeeded".
 
+When the rebuilt binary differs, enable the explicit waiver for an
+independent replication:
+
+```bash
+export MMU_ALLOW_REBUILT_BINARY=1
+MMU_FINAL/reproduction/preflight_mmu.sh
+MMU_FINAL/reproduction/run_mmu_sample.sh M01-F0-W9-S01-R01 /data/rebuilt-smoke
+```
+
+The waiver is recorded in the plan/manifest as
+`global.gem5_sha256_waived` with both hashes. It is **not** a silent pass:
+source hashes and workload hashes must still match the frozen values, and the
+original 40/10 campaign was produced without any waiver.
+
 The frozen artifact remains the authority for the original 40/10 results.
 
 ---

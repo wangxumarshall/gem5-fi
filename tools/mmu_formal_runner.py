@@ -401,9 +401,18 @@ def evaluate_parameter_parity(plan, rec, param_authority):
                   if str(a).startswith("--") and "seed" in str(a).lower()]
     _parity_check(checks, "global.no_seed_flag", not seed_flags,
                   "seed flags=%s" % seed_flags)
-    _parity_check(checks, "global.gem5_sha256",
-                  plan.get("gem5_sha256") == FROZEN_GEM5_SHA256,
-                  plan.get("gem5_sha256", ""))
+    # The original formal campaign requires the frozen binary byte-for-byte.
+    # An explicitly requested independent rebuild may differ (compiler,
+    # flags, paths, timestamps); that waiver is recorded, never silent, and
+    # still requires the source/workload hashes below to match exactly.
+    if plan.get("allow_rebuilt_binary"):
+        _parity_check(checks, "global.gem5_sha256_waived", True,
+                      "rebuilt=%s frozen=%s" %
+                      (plan.get("gem5_sha256", ""), FROZEN_GEM5_SHA256))
+    else:
+        _parity_check(checks, "global.gem5_sha256",
+                      plan.get("gem5_sha256") == FROZEN_GEM5_SHA256,
+                      plan.get("gem5_sha256", ""))
     got_src = plan.get("source_sha256") or {}
     src_bad = {rel: got_src.get(rel) for rel, want in
                FROZEN_SOURCE_SHA256.items() if got_src.get(rel) != want}
@@ -533,7 +542,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
                excel_path=None, csv_path=None, m04_decoy_pfn="0",
                m05_decoy_table_base="0", control_run=None,
                trace_wait_sec=120, w10_control_golden=None,
-               param_authority_path=None, m05_decoy_va=None):
+               param_authority_path=None, m05_decoy_va=None,
+               allow_rebuilt_binary=False):
     """Build a fully-resolved run plan (no side effects, no gem5)."""
     excel, samples, ctx, hooks, workloads, run_script_defaults, \
         config_text = pf.build_environment(repo_root, excel_path, csv_path)
@@ -962,6 +972,8 @@ def build_plan(repo_root, out_root, *, sample=None, pilot_id=None, model=None,
         "rcs_scoped_preview": scope_line,
         "gem5": gem5,
         "gem5_sha256": gem5_sha256,
+        "allow_rebuilt_binary": bool(allow_rebuilt_binary),
+        "gem5_sha256_frozen": FROZEN_GEM5_SHA256,
         "source_sha256": source_sha256,
         "workload_binary": workload_binary,
         "workload_sha256": workload_sha256,
@@ -1346,6 +1358,11 @@ def main(argv=None):
                     help="v3.0.2 parameter authority JSON (default: "
                          "MMU_Parameter_Authority_v3.0.2.json next to the "
                          "authoritative Excel)")
+    ap.add_argument("--allow-rebuilt-binary", action="store_true",
+                    help="independent-reproduction only: accept a rebuilt "
+                         "gem5 whose SHA256 differs from the frozen artifact. "
+                         "Source and workload hashes must still match, and the "
+                         "mismatch is recorded in the plan/manifest.")
     ap.add_argument("--control-run", default=None,
                     help="explicit independent control-run directory/file; "
                          "its SHA256 is recorded in the manifest (default: "
@@ -1437,7 +1454,8 @@ def main(argv=None):
             trace_wait_sec=args.trace_wait_sec,
             w10_control_golden=args.w10_control_golden,
             param_authority_path=args.param_authority,
-            m05_decoy_va=args.m05_decoy_va)
+            m05_decoy_va=args.m05_decoy_va,
+            allow_rebuilt_binary=args.allow_rebuilt_binary)
     except RunRefused as exc:
         print(json.dumps({
             "run_kind": "FORMAL" if args.sample else "PILOT",
