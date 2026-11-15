@@ -105,7 +105,11 @@ except ImportError:  # pragma: no cover - environment check
 # Authoritative inputs
 # ---------------------------------------------------------------------------
 
-DESIGN_DIR = "/home/sdc/mmu_phase1_work/design/MMU_Final_Design_Package"
+# Legacy design-package location used only as a fallback.  The tracked
+# phase3/freeze/authority copy is the default input; set MMU_DESIGN_DIR to
+# point at another design package when one is available.
+DESIGN_DIR = os.environ.get(
+    "MMU_DESIGN_DIR", "/home/sdc/mmu_phase1_work/design/MMU_Final_Design_Package")
 REQUESTED_XLSX = os.path.join(
     DESIGN_DIR, "gem5-fi-MMU-Final-Experiment-Plan.xlsx")
 # The package actually ships the "Paper" name.  Both are accepted; the tools

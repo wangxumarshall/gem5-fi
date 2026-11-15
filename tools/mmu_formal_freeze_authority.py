@@ -32,7 +32,8 @@ from collections import Counter, OrderedDict
 import openpyxl
 import yaml
 
-DESIGN_DIR = "/home/sdc/mmu_phase1_work/design/MMU_Final_Design_Package"
+DESIGN_DIR = os.environ.get(
+    "MMU_DESIGN_DIR", "/home/sdc/mmu_phase1_work/design/MMU_Final_Design_Package")
 SOURCE_XLSX = os.path.join(
     DESIGN_DIR, "gem5-fi-MMU-Final-Paper-Experiment-Plan.xlsx")
 

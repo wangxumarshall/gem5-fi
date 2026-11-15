@@ -28,7 +28,7 @@
 #                    runs).  See tools/mmu_collect_w10_pfn.py.
 set -euo pipefail
 
-WS=/home/sdc/gem5-fi-mmu-impl-v2
+WS="${MMU_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 GEM5="$WS/CHAOS/gem5/build/ARM/gem5.opt"
 OUT="$1"; TESTID="$2"; WL="$3"; FAULT="$4"; TARGET="${5:-}"
 TRACE="${6:-on}"
