@@ -84,7 +84,26 @@ namespace gem5
             && is_load && !(pkt->req && pkt->req->isInstFetch());
         if (!eligible) return false;
         // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never corrupt.
-        if (count_only) { ++eligible_count; return false; }
+        // [LSU][WHEN-V2] one identity line per eligible response.
+        if (count_only) {
+            ++eligible_count;
+            if (log_stream && log_stream->stream()) {
+                const Addr pc = inst ? inst->pcState().instAddr() : 0;
+                const Addr va = (pkt->req && pkt->req->hasVaddr())
+                    ? pkt->req->getVaddr() : 0;
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=LP01;ordinal=" << eligible_count
+                    << ";dyn_inst_seq=" << (inst ? inst->seqNum : 0)
+                    << ";pc=0x" << std::hex << pc
+                    << ";va=0x" << va
+                    << ";pa=0x" << pkt->getAddr() << std::dec
+                    << ";size=" << pkt->getSize()
+                    << ";lq_idx=" << (inst ? (long long)inst->lqIdx : -1)
+                    << ";lq_gen="
+                    << (inst ? inst->lqEntryGeneration : 0) << std::endl;
+            }
+            return false;
+        }
         if (events_to_skip > 0) {
             --events_to_skip;
             return false;

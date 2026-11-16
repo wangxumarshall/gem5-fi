@@ -248,6 +248,9 @@ p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
 p.add_argument("--chaos_lsqfwd", action="store_true")
+p.add_argument("--chaos_lsqfwd_count_only", action="store_true",
+               help="[WHEN-V2] CHAOSLSQFwd census-only: log one "
+                    "CHAOS_ELIGIBLE line per eligible event, never inject")
 p.add_argument("--lsq_byte_offset", type=int, default=-1)
 # §2.4 structured fault modes (synced from arm_chaos.py — these were MISSING
 # here while the mount below read them, so any runner.py invocation passing
@@ -922,6 +925,7 @@ if args.chaos_lsqfwd:
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
         rngSeed=args.rng_seed,
+        countOnly=args.chaos_lsqfwd_count_only,
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq

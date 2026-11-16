@@ -321,6 +321,8 @@ namespace gem5
     {
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
+        // [LSU][WHEN-V2] census controls are observation-only on every path.
+        if (count_only) return;
         // fwd_source_sub injects at the DECISION point (maybeSubstituteSource,
         // called before the memcpy); this post-forward corrupt hook must NOT
         // also fire in that mode (double-injection bug found in Phase 4.2
@@ -330,6 +332,12 @@ namespace gem5
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::Fw05OlderSrc) return;
+        // SQ01's frozen target is the SQ entry data (lsq_write_sq_entry), not
+        // forwarded load bytes.  The legacy post-forward hook must not consume
+        // the shared F0 trigger either: otherwise it pollutes the eligible
+        // ordinal stream and the selected store ordinal no longer matches the
+        // count-only census.
+        if (struct_mode == StructMode::Sq01Bit3) return;
         if (struct_mode == StructMode::Sq03CanWB) return;
         // SP05 (v3.2.9): the completion hook owns the shared one-shot budget;
         // the legacy forwarding-corruption hook must stay inert or it would
@@ -550,8 +558,17 @@ namespace gem5
         if (!chaos_sp05::isSelectable(size, is_prefetch))
             return false;
         ++eligible_count;
-        if (count_only)
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SP05;ordinal=" << eligible_count
+                    << ";store_seq=" << store_seq
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << sq_gen
+                    << ";size=" << size << std::endl;
+            }
             return false;
+        }
         if (!chaos_sp05::shouldSelect(eligible_count, sp05_event_ordinal))
             return false;
         sp05_selected = true;
@@ -810,8 +827,16 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         ++eligible_count;
-        if (count_only)
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SQ03;ordinal=" << eligible_count
+                    << ";store_seq=" << store_seq
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << sq_gen << std::endl;
+            }
             return false;
+        }
         if (f6_event_ordinal != 0 && eligible_count != f6_event_ordinal)
             return false;
         if (!chaos_sq03::shouldSetCanWB(store_seq, store_seq,
@@ -881,8 +906,21 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
 
         ++eligible_count;
-        if (count_only)
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=FW05;ordinal=" << eligible_count
+                    << ";load_seq=" << load_seq
+                    << ";load_pc=0x" << std::hex << load_pc
+                    << ";addr=0x" << vaddr << std::dec
+                    << ";size=" << copy_size
+                    << ";true_seq=" << true_seq
+                    << ";alt_seq=" << alt_seq
+                    << ";lq_idx=" << lq_idx
+                    << ";sq_idx=" << sq_idx << std::endl;
+            }
             return false;
+        }
         if (fw05_event_ordinal != 0 && eligible_count != fw05_event_ordinal)
             return false;
         // An explicit ordinal is the sampler; the legacy geometric skip is
@@ -1013,6 +1051,23 @@ namespace gem5
             return false;
         if (struct_mode != StructMode::Sq01Bit3 || !data || size == 0)
             return false;
+        // [LSU][WHEN-V2] census-only observation: count every eligible store
+        // in the same store stream the fault run's trigger counts, log one
+        // identity line, and never touch the trigger's fire state.
+        if (count_only) {
+            ++eligible_count;
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SQ01;ordinal="
+                    << eligible_count
+                    << ";dyn_inst_seq=" << dyn_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size
+                    << ";sq_idx=" << store_idx
+                    << ";sq_gen=" << generation << std::endl;
+            }
+            return false;
+        }
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
             if (!lsuTrigger->onEligible())
@@ -1059,6 +1114,24 @@ namespace gem5
             lsuTrigger->onAttempt();
         if (!chaos_da04::eligible(size, be))
             return false;
+        // [LSU][WHEN-V2] census-only observation (no mask change, no trigger
+        // fire-state consumption).
+        if (count_only) {
+            ++eligible_count;
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=DA04;ordinal="
+                    << eligible_count
+                    << ";dyn_inst_seq=" << dyn_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << generation
+                    << ";be=0x" << std::hex << chaos_da04::maskOf(be)
+                    << std::dec << std::endl;
+            }
+            return false;
+        }
         if (lsuTrigger) {
             if (!lsuTrigger->onEligible())
                 return false;
@@ -1100,6 +1173,18 @@ namespace gem5
     {
         if (struct_mode != StructMode::F6Fw02) return false;
         ++f6_observed;
+        // [LSU][WHEN-V2] census-only observation of the full-coverage pair.
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=FW02;ordinal=" << f6_observed
+                    << ";load_seq=" << load_seq
+                    << ";store_seq=" << store_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size << std::endl;
+            }
+            return false;
+        }
         // A mounted injector with probability 0.0 is the matched no-fault
         // control: observe the pair (the funnel/summary still counts it) but
         // never suppress the forwarding. Without this gate the decision never

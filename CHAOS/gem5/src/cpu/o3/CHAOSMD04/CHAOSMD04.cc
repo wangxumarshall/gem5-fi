@@ -105,8 +105,24 @@ CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
 
     ++eligible_count;
     last_eligible_ordinal = eligible_count;
-    if (count_only)
+    if (count_only) {
+        if (log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_ELIGIBLE: model=MD04;ordinal=" << eligible_count
+                << ";load_seq=" << ld_inst->seqNum
+                << ";store_seq=" << store_inst->seqNum
+                << ";addr=0x" << std::hex << ld_inst->effAddr
+                << ";store_addr=0x" << store_inst->effAddr
+                << ";load_pc=0x" << ld_inst->pcState().instAddr()
+                << ";store_pc=0x" << store_inst->pcState().instAddr()
+                << std::dec
+                << ";size=" << ld_inst->effSize
+                << ";store_size=" << store_inst->effSize
+                << ";lq_idx=" << (long long)ld_inst->lqIdx
+                << ";sq_idx=" << (long long)store_inst->sqIdx << std::endl;
+        }
         return false;
+    }
     if (!chaos_md04::shouldInject(eligible_count, event_ordinal,
                                   faults_injected_count, max_faults))
         return false;
