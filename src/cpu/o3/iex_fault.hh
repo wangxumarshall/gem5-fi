@@ -29,6 +29,7 @@ namespace iex
 void noteExecuteBegin(o3::DynInst *inst);
 void noteExecuteEnd(o3::DynInst *inst);
 void noteInitiateAcc(o3::DynInst *inst);
+void noteRobInsert(o3::DynInst *inst);
 void noteCompleteAcc(o3::DynInst *inst);
 void noteRegWrite(o3::DynInst *inst, int idx, uint64_t val, uint64_t old);
 void noteWriteback(o3::DynInst *inst, int dependents);

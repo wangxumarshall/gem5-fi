@@ -21,6 +21,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "base/logging.hh"
 #include "base/types.hh"
@@ -100,6 +101,35 @@ struct State
     uint64_t last_squash_seq = ~0ULL;
     Tick last_squash_tick = 0;
     std::string last_squash_reason;
+
+    /* --- When-v2 timing selection / state observation --- */
+    std::string timing_id;
+    std::string selector_mode = "FIRST";
+    uint64_t select_ordinal = 0;
+    uint64_t calibrated_n = 0;
+    bool timing_selected_once = false;
+    bool timing_satisfied = false;
+    bool selected_event = false;
+    uint64_t timing_selected_ordinal = 0;
+    uint64_t timing_selected_seq = 0;
+    std::string selection_reason;
+    std::string timing_state_json;
+    uint64_t iter_pc = 0;
+    uint64_t iter_init = 0;
+    uint64_t iter_last_value = 0;
+    bool iter_have_last = false;
+    uint64_t older_branch_pc_filter = 0;
+    uint64_t head_pc_filter = 0;
+    struct BranchRec
+    {
+        uint64_t pc = 0;
+        uint64_t pred_npc = 0;
+        bool pred_taken = false;
+        bool unresolved = true;
+        Tick entered = 0;
+        Tick resolved_tick = 0;
+    };
+    std::unordered_map<uint64_t, BranchRec> branches;
 };
 
 State &state();
@@ -140,6 +170,28 @@ initState(State &s)
         v = getenv("IEX_ROI_END");
         if (v && *v)
             s.roi_end = std::strtoull(v, nullptr, 0);
+        s.timing_id = getenv("IEX_TIMING_ID") ? getenv("IEX_TIMING_ID") : "";
+        v = getenv("IEX_SELECTOR_MODE");
+        if (v && *v)
+            s.selector_mode = v;
+        v = getenv("IEX_SELECT_ORDINAL");
+        if (v && *v)
+            s.select_ordinal = std::strtoull(v, nullptr, 0);
+        v = getenv("IEX_CALIBRATED_N");
+        if (v && *v)
+            s.calibrated_n = std::strtoull(v, nullptr, 0);
+        v = getenv("IEX_ITER_PC");
+        if (v && *v)
+            s.iter_pc = std::strtoull(v, nullptr, 0);
+        v = getenv("IEX_ITER_INIT");
+        if (v && *v)
+            s.iter_init = std::strtoull(v, nullptr, 0);
+        v = getenv("IEX_OLDER_BRANCH_PC");
+        if (v && *v)
+            s.older_branch_pc_filter = std::strtoull(v, nullptr, 0);
+        v = getenv("IEX_HEAD_PC");
+        if (v && *v)
+            s.head_pc_filter = std::strtoull(v, nullptr, 0);
 
         const char *path = getenv("IEX_TRACE_FILE");
         if (path && *path) {
@@ -171,7 +223,16 @@ initState(State &s)
                     "\"eligible_events\":%" PRIu64 ","
                     "\"applied_events\":%" PRIu64 ","
                     "\"injection_applied\":%d,\"target_seq\":%" PRIu64 ","
-                    "\"target_seen\":%d,\"trace_complete\":1}\n",
+                    "\"target_seen\":%d,"
+                    "\"timing_id\":\"%s\",\"selector_mode\":\"%s\","
+                    "\"calibrated_n\":%" PRIu64 ","
+                    "\"select_ordinal\":%" PRIu64 ","
+                    "\"timing_satisfied\":%d,"
+                    "\"timing_selected_ordinal\":%" PRIu64 ","
+                    "\"timing_selected_seq\":%" PRIu64 ","
+                    "\"timing_selection_reason\":\"%s\","
+                    "\"timing_condition_status\":\"%s\","
+                    "\"trace_complete\":1}\n",
                     static_cast<uint64_t>(curTick()), s.next_event_id++,
                     s.fault_config.c_str(), s.run_id.c_str(),
                     s.sample_id.c_str(), s.pair_id.c_str(),
@@ -180,7 +241,14 @@ initState(State &s)
                     s.committed_count, s.squashed_count, s.unknown_count,
                     s.eligible_count, s.applied_count,
                     s.injection_applied ? 1 : 0, s.target_seq,
-                    s.target_seen ? 1 : 0);
+                    s.target_seen ? 1 : 0,
+                    s.timing_id.c_str(), s.selector_mode.c_str(),
+                    s.calibrated_n, s.select_ordinal,
+                    s.timing_satisfied ? 1 : 0,
+                    s.timing_selected_ordinal, s.timing_selected_seq,
+                    s.selection_reason.c_str(),
+                    s.selector_mode == "CENSUS" ? "CENSUS" :
+                    (s.timing_satisfied ? "SATISFIED" : "CONDITION_UNMET"));
                 std::fflush(s.out);
                 std::fclose(s.out);
                 s.out = nullptr;
@@ -205,6 +273,11 @@ initState(State &s)
                 "\"consumer_pc\":\"0x%016" PRIx64 "\","
                 "\"roi_start\":\"0x%016" PRIx64 "\","
                 "\"roi_end\":\"0x%016" PRIx64 "\","
+                "\"timing_id\":\"%s\",\"selector_mode\":\"%s\","
+                "\"select_ordinal\":%" PRIu64 ","
+                "\"calibrated_n\":%" PRIu64 ","
+                "\"iter_pc\":\"0x%016" PRIx64 "\","
+                "\"iter_init\":%" PRIu64 ","
                 "\"trace_schema\":\"iex-trace-v1\"}\n",
                 static_cast<uint64_t>(curTick()), s.fault_config.c_str(),
                 s.run_id.c_str(), s.sample_id.c_str(), s.pair_id.c_str(),
@@ -212,7 +285,9 @@ initState(State &s)
                 s.fault_config.c_str(), s.oracle_id.c_str(),
                 s.seed.c_str(), s.gem5_commit.c_str(),
                 s.fault_enabled ? 1 : 0, s.target_pc, s.consumer_pc,
-                s.roi_start, s.roi_end);
+                s.roi_start, s.roi_end, s.timing_id.c_str(),
+                s.selector_mode.c_str(), s.select_ordinal, s.calibrated_n,
+                s.iter_pc, s.iter_init);
             std::fflush(s.out);
         }
     }
@@ -303,16 +378,26 @@ emitFull(State &s, const char *event, const std::string &body,
                   "\"dynamic_instruction_id\":%" PRIu64 ","
                   "\"run_id\":\"%s\",\"sample_id\":\"%s\","
                   "\"pair_id\":\"%s\",\"model\":\"%s\","
-                  "\"context\":\"%s\",\"fault_enabled\":%d",
+                  "\"context\":\"%s\",\"fault_enabled\":%d,"
+                  "\"timing_id\":\"%s\",\"selector_mode\":\"%s\","
+                  "\"select_ordinal\":%" PRIu64 ","
+                  "\"calibrated_n\":%" PRIu64,
                   event, static_cast<uint64_t>(curTick()), eid,
                   parentList(parents).c_str(),
                   jstr(s.fault_config).c_str(), seq,
                   jstr(s.run_id).c_str(), jstr(s.sample_id).c_str(),
                   jstr(s.pair_id).c_str(), jstr(s.model).c_str(),
-                  jstr(s.context).c_str(), s.fault_enabled ? 1 : 0);
+                  jstr(s.context).c_str(), s.fault_enabled ? 1 : 0,
+                  jstr(s.timing_id).c_str(), jstr(s.selector_mode).c_str(),
+                  s.select_ordinal, s.calibrated_n);
     std::string line(head);
     line += ",";
-    line += body;
+    std::string full_body = body;
+    if (std::strcmp(event, "candidate") == 0 ||
+        std::strcmp(event, "inject") == 0 ||
+        std::strcmp(event, "eligible_control") == 0)
+        full_body += s.timing_state_json;
+    line += full_body;
     line += "}\n";
     std::fwrite(line.data(), 1, line.size(), s.out);
     std::fflush(s.out);
@@ -377,9 +462,142 @@ hasFault(const o3::DynInst *d)
     return d->getFault() != NoFault;
 }
 
-/* Called by every model site once the target PC matched.  Records the
- * dynamic-instruction identity and returns whether this is the first
- * eligible event. */
+struct TimingSnapshot
+{
+    uint64_t rob_entries = 0;
+    uint64_t head_seq = 0;
+    uint64_t head_pc = 0;
+    std::string head_opcode;
+    bool head_present = false;
+    bool head_executed = false;
+    bool head_completed = false;
+    bool head_ready = false;
+    bool head_mem = false;
+    bool head_load = false;
+    bool head_store = false;
+    bool head_blocked = false;
+    std::string head_block_reason = "head_absent";
+    uint64_t iq_count = 0;
+    bool target_ready = false;
+    bool target_issued = false;
+    unsigned op_class = 0;
+    uint64_t older_branch_count = 0;
+    uint64_t older_branch_seq = 0;
+    uint64_t older_branch_pc = 0;
+    uint64_t iteration = 0;
+    std::string iteration_basis = "eligible_ordinal";
+};
+
+static TimingSnapshot
+takeSnapshot(State &s, o3::DynInst *d)
+{
+    TimingSnapshot t;
+    if (!d)
+        return t;
+    t.target_ready = d->readyToIssue();
+    t.target_issued = d->isIssued();
+    t.op_class = static_cast<unsigned>(d->opClass());
+
+    if (s.iter_have_last && s.iter_init >= s.iter_last_value)
+        t.iteration = s.iter_init - s.iter_last_value + 1;
+    else
+        t.iteration = s.eligible_count;
+    if (s.iter_have_last)
+        t.iteration_basis = "loop_counter";
+
+    o3::CPU *o3cpu = dynamic_cast<o3::CPU *>(d->cpu);
+    if (o3cpu) {
+        o3::ROB &rob = o3cpu->o3ROB();
+        t.rob_entries = rob.getThreadEntries(d->threadNumber);
+        if (!rob.isEmpty(d->threadNumber)) {
+            const o3::DynInstPtr &head = rob.readHeadInst(d->threadNumber);
+            if (head) {
+                t.head_present = true;
+                t.head_seq = head->seqNum;
+                t.head_pc = head->pcState().instAddr();
+                t.head_opcode = head->staticInst->getName();
+                t.head_executed = head->isExecuted();
+                t.head_completed = head->isCompleted();
+                t.head_ready = head->readyToCommit();
+                t.head_mem = head->isMemRef();
+                t.head_load = head->isLoad();
+                t.head_store = head->isStore();
+                if (head->isSquashed())
+                    t.head_block_reason = "head_squashed";
+                else if (!head->isExecuted())
+                    t.head_block_reason = "head_not_executed";
+                else if (!head->isCompleted())
+                    t.head_block_reason = head->isLoad() ?
+                        "long_latency_load_pending" : "head_not_completed";
+                else if (!head->readyToCommit())
+                    t.head_block_reason = "head_not_ready";
+                else
+                    t.head_block_reason = "head_ready";
+            }
+        }
+        t.iq_count = o3cpu->o3IEW().instQueue.getCount(d->threadNumber);
+    }
+
+    for (const auto &kv : s.branches) {
+        if (s.older_branch_pc_filter &&
+            kv.second.pc != s.older_branch_pc_filter)
+            continue;
+        if (kv.first < d->seqNum && kv.second.unresolved) {
+            ++t.older_branch_count;
+            if (!t.older_branch_seq || kv.first < t.older_branch_seq) {
+                t.older_branch_seq = kv.first;
+                t.older_branch_pc = kv.second.pc;
+            }
+        }
+    }
+    t.head_blocked = t.head_present && t.head_seq < d->seqNum &&
+                     !t.head_ready;
+    return t;
+}
+
+static std::string
+timingStateJson(State &s, const TimingSnapshot &t, bool selected, bool cond,
+                const std::string &reason)
+{
+    char b[4096];
+    std::snprintf(
+        b, sizeof(b),
+        ",\"candidate_ordinal\":%" PRIu64 ",\"iteration\":%" PRIu64 ","
+        "\"iteration_basis\":\"%s\",\"selected\":%d,"
+        "\"condition_true\":%d,\"selection_reason\":\"%s\","
+        "\"timing_satisfied_so_far\":%d,"
+        "\"rob_entries\":%" PRIu64 ",\"rob_head_present\":%d,"
+        "\"rob_head_seq\":%" PRIu64 ",\"rob_head_pc\":\"0x%016" PRIx64 "\","
+        "\"rob_head_opcode\":\"%s\",\"rob_head_executed\":%d,"
+        "\"rob_head_completed\":%d,\"rob_head_ready\":%d,"
+        "\"rob_head_mem\":%d,\"rob_head_load\":%d,"
+        "\"rob_head_store\":%d,\"head_blocked\":%d,"
+        "\"head_block_reason\":\"%s\",\"iq_count\":%" PRIu64 ","
+        "\"target_ready\":%d,\"target_issued\":%d,"
+        "\"fu_class\":\"opClass\",\"op_class\":%u,"
+        "\"older_unresolved_branch_count\":%" PRIu64 ","
+        "\"older_unresolved_branch_seq\":%" PRIu64 ","
+        "\"older_unresolved_branch_pc\":\"0x%016" PRIx64 "\","
+        "\"speculative\":%d",
+        s.eligible_count, t.iteration, t.iteration_basis.c_str(),
+        selected ? 1 : 0, cond ? 1 : 0, reason.c_str(),
+        s.timing_satisfied ? 1 : 0,
+        t.rob_entries, t.head_present ? 1 : 0, t.head_seq, t.head_pc,
+        jstr(t.head_opcode).c_str(), t.head_executed ? 1 : 0,
+        t.head_completed ? 1 : 0, t.head_ready ? 1 : 0,
+        t.head_mem ? 1 : 0, t.head_load ? 1 : 0, t.head_store ? 1 : 0,
+        t.head_blocked ? 1 : 0, t.head_block_reason.c_str(), t.iq_count,
+        t.target_ready ? 1 : 0, t.target_issued ? 1 : 0, t.op_class,
+        t.older_branch_count, t.older_branch_seq, t.older_branch_pc,
+        t.older_branch_count ? 1 : 0);
+    return std::string(b);
+}
+
+/* Called by every model site once the target PC matched.  The v1 model
+ * guard has already passed; this function selects the When-v2 timing
+ * instance and returns true only for the selected event.  Fault vs
+ * Control is still the only functional difference (apply = selected &&
+ * fault_enabled). */
 static bool
 select(State &s, uint64_t pc)
 {
@@ -389,8 +607,54 @@ select(State &s, uint64_t pc)
             s.target_seq = s.current->seqNum;
     }
     ++s.eligible_count;
+
+    TimingSnapshot snap = takeSnapshot(s, s.current);
+    bool cond = false;
+    bool selected = false;
+    std::string reason;
+
+    if (s.selector_mode == "CENSUS") {
+        reason = "census";
+    } else if (s.selector_mode == "ORDINAL") {
+        cond = s.select_ordinal != 0 && s.eligible_count == s.select_ordinal;
+        selected = cond;
+        reason = cond ? "ordinal_match" : "ordinal_not_match";
+    } else if (s.selector_mode == "STATE_BRANCH") {
+        cond = snap.older_branch_count > 0;
+        selected = cond && !s.timing_selected_once;
+        reason = selected ? "older_branch_unresolved" :
+            (cond ? "already_selected" : "no_older_unresolved_branch");
+    } else if (s.selector_mode == "STATE_ROB") {
+        cond = snap.head_blocked && snap.head_mem && !snap.head_completed &&
+               (!s.head_pc_filter || snap.head_pc == s.head_pc_filter);
+        selected = cond && !s.timing_selected_once;
+        reason = selected ? "older_head_blocked" :
+            (cond ? "already_selected" : "no_older_head_block");
+    } else { // FIRST (v1-compatible)
+        cond = true;
+        selected = !s.timing_selected_once;
+        reason = selected ? "first_eligible" : "already_selected";
+    }
+
+    s.selected_event = selected;
+    s.selection_reason = reason;
+    s.timing_state_json = timingStateJson(s, snap, selected, cond, reason);
+    if (selected) {
+        s.timing_selected_once = true;
+        s.timing_satisfied = true;
+        s.timing_selected_ordinal = s.eligible_count;
+        s.timing_selected_seq = s.current ? s.current->seqNum : 0;
+    }
     (void)pc;
-    return s.eligible_count == 1;
+    return selected;
+}
+
+static const char *
+eventName(const State &s, bool apply)
+{
+    if (apply)
+        return "inject";
+    return s.selected_event ? "eligible_control" : "candidate";
 }
 
 static void
@@ -546,9 +810,41 @@ void
 noteExecuteEnd(o3::DynInst *d)
 {
     State &s = state();
+    if (d && d->isCondCtrl()) {
+        auto it = s.branches.find(d->seqNum);
+        if (it != s.branches.end()) {
+            it->second.unresolved = false;
+            it->second.resolved_tick = curTick();
+        }
+    }
     endObserved(s, d);
     if (s.current == d)
         s.current = nullptr;
+}
+
+void
+noteRobInsert(o3::DynInst *d)
+{
+    State &s = state();
+    if (!d || !d->isCondCtrl())
+        return;
+    State::BranchRec &b = s.branches[d->seqNum];
+    b.pc = d->pcState().instAddr();
+    b.pred_npc = d->readPredTarg().instAddr();
+    b.pred_taken = d->readPredTaken();
+    b.unresolved = true;
+    b.entered = curTick();
+    if (s.observing) {
+        char bdy[512];
+        std::snprintf(
+            bdy, sizeof(bdy),
+            "\"seq\":%" PRIu64 ",\"pc\":\"0x%016" PRIx64 "\","
+            "\"tid\":%d,\"predicted_npc\":\"0x%016" PRIx64 "\","
+            "\"predicted_taken\":%d,\"unresolved\":1",
+            d->seqNum, b.pc, d->threadNumber, b.pred_npc,
+            b.pred_taken ? 1 : 0);
+        emitFull(s, "branch_enter_rob", bdy, d->seqNum);
+    }
 }
 
 void
@@ -604,6 +900,11 @@ noteRegWrite(o3::DynInst *d, int idx, uint64_t val, uint64_t old)
     rr.generation = s.generation;
     rr.value = val;
     rr.tick = curTick();
+    if (s.iter_pc && it->second.pc == s.iter_pc && idx == 0 &&
+        r->classValue() == IntRegClass) {
+        s.iter_last_value = val;
+        s.iter_have_last = true;
+    }
 
     char bdy[1024];
     std::snprintf(
@@ -672,6 +973,12 @@ noteSquash(ThreadID tid, uint64_t branch_seq, uint64_t squashed_seq,
            const char *reason, unsigned rob_entries)
 {
     State &s = state();
+    for (auto it = s.branches.begin(); it != s.branches.end();) {
+        if (it->first > squashed_seq && it->second.unresolved)
+            it = s.branches.erase(it);
+        else
+            ++it;
+    }
     if (!s.observing || !s.roi_open)
         return;
     uint64_t first = 0, last = 0, count = 0;
@@ -756,9 +1063,9 @@ m001_add(uint64_t pc, uint64_t a, uint64_t b, uint64_t normal)
         logIneligible(s, pc, "no_carry32", a, b);
         return normal;
     }
-    bool first = select(s, pc);
+    bool selected = select(s, pc);
     uint64_t faulty = normal - 0x100000000ULL;
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -781,7 +1088,7 @@ m001_add(uint64_t pc, uint64_t a, uint64_t b, uint64_t normal)
             (a & 0xffffffffULL) + (b & 0xffffffffULL), normal, faulty,
             ((normal & 0xffffffffULL) == (faulty & 0xffffffffULL)) ? 1 : 0,
             normal - faulty);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply ? faulty : normal;
@@ -803,8 +1110,8 @@ m002_lslv_amt(uint64_t pc, uint64_t a, uint64_t b, uint64_t width)
                       a, b);
         return b;
     }
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -825,7 +1132,7 @@ m002_lslv_amt(uint64_t pc, uint64_t a, uint64_t b, uint64_t width)
             s.current ? s.current->threadNumber : 0,
             s.eligible_count, apply ? 1 : 0, a, b, width, eff, alt, rn,
             rf);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply ? alt : b;
@@ -842,8 +1149,8 @@ m003_l214(uint64_t pc, uint64_t op1h, uint64_t op1l, uint64_t op2h,
         logIneligible(s, pc, "c214_not_one", mid1, mid2);
         return result;
     }
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -866,7 +1173,7 @@ m003_l214(uint64_t pc, uint64_t op1h, uint64_t op1l, uint64_t op2h,
             s.current ? s.current->threadNumber : 0,
             s.eligible_count, apply ? 1 : 0, op1l, op1h, op2l, op2h, mid1,
             mid2, low_product_hi, result, apply ? 0ULL : result);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply ? 0 : result;
@@ -931,8 +1238,8 @@ m004_force_zero(uint64_t pc, uint64_t a, uint64_t b)
                       a, b);
         return false;
     }
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -949,7 +1256,7 @@ m004_force_zero(uint64_t pc, uint64_t a, uint64_t b)
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
             s.eligible_count, apply ? 1 : 0, a, b, apply ? 1 : 0);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply;
@@ -979,8 +1286,8 @@ m005_bcond(uint64_t pc, bool taken, uint64_t nz, uint64_t c, uint64_t v,
     State &s = state();
     if (s.model != "IEX-M005" || pc != s.target_pc)
         return taken;
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     bool actual = apply ? !taken : taken;
     if (apply) {
         s.injection_applied = true;
@@ -1015,7 +1322,7 @@ m005_bcond(uint64_t pc, bool taken, uint64_t nz, uint64_t c, uint64_t v,
             actual ? target_npc : fallthrough_npc,
             pred == (taken ? target_npc : fallthrough_npc) ? 1 : 0,
             pred == (actual ? target_npc : fallthrough_npc) ? 1 : 0);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return actual;
@@ -1027,8 +1334,8 @@ m006_iz(uint64_t pc, uint64_t res_temp, uint64_t iz, uint64_t in)
     State &s = state();
     if (s.model != "IEX-M006" || pc != s.target_pc)
         return iz;
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -1046,7 +1353,7 @@ m006_iz(uint64_t pc, uint64_t res_temp, uint64_t iz, uint64_t in)
             s.current ? s.current->threadNumber : 0,
             s.eligible_count, apply ? 1 : 0, res_temp, in, iz,
             apply ? (iz ^ 1) : iz);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply ? (iz ^ 1) : iz;
@@ -1134,8 +1441,8 @@ m007_clz(uint64_t pc, uint64_t a, uint64_t width)
                                  : (31 - __builtin_clz((uint32_t)a));
     uint64_t golden = width - 1 - msb;
     uint64_t faulty = golden + 1;
-    bool first = select(s, pc);
-    bool apply = first && s.fault_enabled && !s.injection_applied;
+    bool selected = select(s, pc);
+    bool apply = selected && s.fault_enabled && !s.injection_applied;
     if (apply) {
         s.injection_applied = true;
         ++s.applied_count;
@@ -1153,7 +1460,7 @@ m007_clz(uint64_t pc, uint64_t a, uint64_t width)
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
             s.eligible_count, apply ? 1 : 0, a, width, msb, golden, faulty);
-        emitFull(s, apply ? "inject" : "eligible_control", bdy,
+        emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
     return apply ? faulty : golden;

@@ -1369,6 +1369,7 @@ Commit::getInsts()
                     tid, inst->seqNum, inst->pcState());
 
             rob->insertInst(inst);
+            iex::noteRobInsert(inst.get());
 
             assert(rob->getThreadEntries(tid) <= rob->getMaxEntries(tid));
 
