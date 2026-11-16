@@ -1,0 +1,14 @@
+# -*- mode:python -*-
+# CHAOSPropagation — [LSU][OBS-L3] real L3 propagation-chain tracer for LSU
+# non-PRF faults. Discovered by src/SConscript's os.walk. O3-only: setter-
+# attaches to BOTH cpu->chaosPropagation (LSQ-side hooks in lsq.cc /
+# lsq_unit.cc) and cpu->o3Commit().chaosPropagation (commit.cc commitHead,
+# the W2.1/W2.4 anchor) at startup(); CHAOSCache reaches it through the
+# static instance(). Observation-only — no state writes, no events.
+
+Import('*')
+
+SimObject('CHAOSPropagation.py', sim_objects=['CHAOSPropagation'], enums=[])
+Source('CHAOSPropagation.cc')
+
+DebugFlag('CHAOSPropagation')

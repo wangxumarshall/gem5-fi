@@ -1,0 +1,12 @@
+# -*- mode:python -*-
+# CHAOSRenameMap — O3 rename-map fault injector (§2.2, S1 P0).
+# Discovered automatically by src/SConscript's os.walk. O3-only: it hooks
+# cpu/o3/rename_map.hh::UnifiedRenameMap::setEntry and reaches o3::CPU via
+# dynamic_cast (must be an O3CPU). Self-attaches at startup().
+
+Import('*')
+
+SimObject('CHAOSRenameMap.py', sim_objects=['CHAOSRenameMap'], enums=[])
+Source('CHAOSRenameMap.cc')
+
+DebugFlag('CHAOSRenameMap')

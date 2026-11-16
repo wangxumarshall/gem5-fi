@@ -1,0 +1,159 @@
+#ifndef __MEM_CACHE_CHAOSCACHE_CHAOSCACHE_HH__
+#define __MEM_CACHE_CHAOSCACHE_CHAOSCACHE_HH__
+
+#include <random>
+
+#include "mem/cache/cache.hh"
+#include "cpu/o3/chaos_l0.hh"           // LSU W3 L0
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 trigger
+#include "params/CHAOSCache.hh"
+#include "sim/sim_object.hh"
+
+#include "mem/cache/cache.hh"
+#include "cpu/o3/chaos_l0.hh"           // LSU W3 L0
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 trigger
+#include "params/CHAOSCache.hh"
+#include <bitset>
+#include <string>
+#include <iostream>
+#include <random>
+#include <stdexcept>
+#include "base/output.hh"
+#include <map>
+
+namespace gem5
+{
+
+class CHAOSCache : public SimObject
+{
+  public:
+    CHAOSCache(const CHAOSCacheParams& params);
+    virtual ~CHAOSCache() {}
+
+    /** v1.2 Phase 14 (plan item 2): victim/writeback-path fault. Called by
+     *  BaseCache::writebackBlk AFTER the packet data is set — XORs a byte
+     * of the IN-FLIGHT writeback payload (the cache array stays clean).
+     *  Returns true if corrupted. Nullptr-safe. */
+    bool maybeCorruptVictim(PacketPtr pkt);
+
+  private:
+    enum class FaultType {
+      BitFlip,
+      StuckAtZero,
+      StuckAtOne,
+      Random
+    };
+
+    struct PermanentFault {
+      FaultType fault_type;
+      uint64_t mask;
+      bool update;
+    };
+
+    Cache* targetCache;
+    double probability;
+    int bits_to_change;
+    int corruption_size;
+    uint64_t first_clock, last_clock;
+    FaultType fault_type_enum;
+    unsigned char fault_mask;
+    int tick_to_clock_ratio;
+    float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
+    int cycles_permament_fault_check;
+    bool write_log;
+
+    // Directed-injection target (report §六.3 'fixed-to' runs): when
+    // non-default, the injector pins the fault to a SPECIFIC cache block
+    // (by its address) and/or byte offset, instead of random sampling.
+    // Used to land a fault on a live-data byte (L1D) or an executed
+    // instruction byte (L1I) — the random sampler mostly misses them.
+    // target_block_addr == 0 (MaxAddr sentinel) = random block (orig).
+    // target_byte_offset < 0 = random byte (orig).
+    Addr target_block_addr;
+    int target_byte_offset;
+    bool paired_sector;  // §7.7 128B fault-domain proxy (fault both 64B sectors)
+    // §2.7/§2.11 field-level fault: data (default) / valid / dirty / coh.
+    std::string target_field;
+    std::string l1i_semantic_field;
+
+    // §1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY).
+    // Post-injection, applyProtection() decides the observable outcome keyed
+    // on popcount(mask): Corrected (undo), DetectedContained (invalidate),
+    // Latent (poison-log, classic cache has no poison bit), SilentEscape
+    // (leave, >=3-bit / sed >=2-bit), Raw (none default = leave). Default
+    // "none" = zero regression vs prior behavior.
+    std::string protection_model;
+    enum class ProtectionOutcome { Raw, Corrected, DetectedContained, Latent, SilentEscape };
+    static ProtectionOutcome stringToProtectionModel(const std::string &s);
+
+    EventFunctionWrapper attackEvent, periodicCheck;
+    Tick first_tick, last_tick, ticks_permament_fault_check;
+    std::map<std::pair<Addr, int>, PermanentFault> permanent_faults;
+    std::geometric_distribution<unsigned> inter_fault_cycles_dist;
+    std::discrete_distribution<int> random_fault_distribution;
+    
+    std::mt19937 rng;
+    std::random_device rd;
+    uint64_t rng_seed;  // 0 = random_device (orig, non-reproducible); else fixed
+    uint64_t max_faults;            // G6: 0 = unlimited; else cap
+    uint64_t faults_injected_count; // G5: running count
+
+    // LSU W6/W10: event-normalized trigger + L0 funnel
+    ChaOSLsuTrigger *lsuTrigger = nullptr;
+    ChaOSL0Funnel l0_funnel;
+    // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
+    // probability != 0, and the [OBS-L3] funnel helper reads it on every
+    // injection — the default-init makes that read defined (defensive; the
+    // write_log uses inside injectFault keep their existing guards).
+    OutputStream *log_stream = nullptr;
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault mode.
+    bool victim_fault = false;
+
+    // [LSU][OBS-L3] real funnel counters for the legacy attack path
+    // (attempted = attack-event firings, eligible = firings that found
+    // >=1 valid block, injected = the existing faults_injected_count) +
+    // the funnel-row helper: one prop-trace funnel node (abort-survivable,
+    // per-node gzflush) + one best-effort FUNNEL line in the injection log
+    // (the log is a simout stream and is LOST on abort; the prop-trace node
+    // is the durable copy — central requirement: abort samples must carry
+    // attempted/eligible).
+    uint64_t attack_attempts = 0;
+    uint64_t attack_eligible = 0;
+    void noteFunnelAtInjection();
+    
+    static FaultType stringToFaultType(const std::string &s);
+    const char* faultTypeToString(CHAOSCache::FaultType f);
+    static ProtectionOutcome stringToProtectionModelPub(const std::string &s);
+    const char* protectionOutcomeToString(CHAOSCache::ProtectionOutcome o);
+    // §1.2 post-injection protection handling. Called right after the byte
+    // mutation (data[byteOffset] ^= mask etc.). `blk` is the faulted block
+    // (for invalidate on sed/secded 2-bit); `byteOffset`+`mask` define the
+    // injection (popcount(mask) = bits flipped). `orig_byte` is the pre-fault
+    // byte (for undo = Corrected). Returns the outcome; logs to fault log.
+    ProtectionOutcome applyProtection(CacheBlk *blk, int byteOffset,
+                                      uint8_t mask, uint8_t orig_byte,
+                                      FaultType ft, bool is_paired = false);
+    void scheduleAttack(Tick tick);
+    void scheduleCheckPermanentFault(Tick time);
+    BaseTags* getTags() const;
+    uint8_t generateRandomMask(std::mt19937 &rng, int bits_to_change, unsigned size);
+    void injectFault();
+    void checkPermanent();
+
+    struct CHAOSCacheStats : public statistics::Group
+    {
+      statistics::Scalar numFaultsInjected;
+      statistics::Scalar numBitFlips;
+      statistics::Scalar numStuckAtZero;
+      statistics::Scalar numStuckAtOne;
+      statistics::Scalar numPermanentFaults;
+      
+      CHAOSCacheStats(statistics::Group *parent);
+    };
+
+    std::unique_ptr<CHAOSCacheStats> stats;
+};
+
+} // namespace gem5
+
+#endif // __MEM_CACHE_CHAOSCACHE_CHAOSCACHE_HH__

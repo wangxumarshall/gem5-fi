@@ -1,0 +1,739 @@
+#include "mem/cache/CHAOSCache/CHAOSCache.hh"
+
+#include <random>
+#include <vector>
+
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 registration
+#include "debug/CHAOSCache.hh"
+#include "mem/cache/base.hh"
+#include "mem/cache/cache_blk.hh"
+#include "mem/cache/tags/base.hh"
+
+namespace gem5
+{
+    CHAOSCache::CHAOSCache(const CHAOSCacheParams& p) :
+        SimObject(p),
+        targetCache(p.target_cache),
+        probability(p.probability),
+        bits_to_change(p.bitsToChange),
+        corruption_size(p.corruptionSize),
+        first_clock(p.firstClock),
+        last_clock(p.lastClock),
+        fault_type_enum(stringToFaultType(p.faultType)),
+        fault_mask(static_cast<unsigned char>(std::stoi(p.faultMask, nullptr, 2))),
+        tick_to_clock_ratio(p.tickToClockRatio),
+        bit_flip_prob(p.bitFlipProb),
+        stuck_at_zero_prob(p.stuckAtZeroProb),
+        stuck_at_one_prob(p.stuckAtOneProb),
+        cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
+        write_log(p.writeLog),
+        target_block_addr(p.targetBlockAddr),
+        target_byte_offset(p.targetByteOffset),
+        paired_sector(p.pairedSector),
+        target_field(p.targetField),
+        victim_fault(p.victimFault),
+        l1i_semantic_field(p.l1iSemanticField),
+        protection_model(p.protectionModel),
+        rng_seed(p.rngSeed),
+        max_faults(p.maxFaults),
+        faults_injected_count(0),
+        attackEvent([this] { this->injectFault(); }, name()),
+        periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
+        stats(nullptr)
+    {
+        // v1.2 Phase 14: register the victim hook with BaseCache so
+        // writebackBlk can consult us (victim-path faults).
+        if (victim_fault) {
+            BaseCache::chaosVictimHook = this;
+        }
+        // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
+        // exit — aborts keep the last per-attack injection-time node, which
+        // is exactly why the per-attack rows exist).
+        registerExitCallback([this]() { noteFunnelAtInjection(); });
+        if (probability != 0.0) {
+            log_stream = simout.create("cache_injections.log", false, true);
+            if (!log_stream || !log_stream->stream()) {
+                panic("CHAOSCache: Could not open log file");
+            }
+
+            if (bits_to_change == -1){
+                std::uniform_int_distribution<int> dist(1, 8);
+                bits_to_change = dist(rng);
+            }
+
+            stats = std::make_unique<CHAOSCacheStats>(this);
+
+            first_tick = first_clock * tick_to_clock_ratio;
+            last_tick = last_clock * tick_to_clock_ratio;
+            ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
+
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
+            inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
+
+            scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
+
+            if ((bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob) != 1.0){
+                warn("Sum of probabilities is not 1, assuming 0.9 for bitFlipProb, 0.05 for stuckAtZeroProb and 0.05 for stuckAtOneProb.\n");
+                bit_flip_prob = 0.9;
+                stuck_at_zero_prob = 0.05;
+                stuck_at_one_prob = 0.05;
+            }
+
+            std::vector<double> weights = {bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob};
+            random_fault_distribution = std::discrete_distribution<int>(weights.begin(), weights.end());
+
+            scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
+        }
+    }
+
+    CHAOSCache::CHAOSCacheStats::CHAOSCacheStats(statistics::Group *parent)
+    : statistics::Group(parent),
+      ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
+               "Total number of faults injected"),
+      ADD_STAT(numBitFlips, statistics::units::Count::get(),
+               "Number of bit flip faults injected"),
+      ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
+               "Number of stuck-at-0 faults injected"),
+      ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
+               "Number of stuck-at-1 faults injected"),
+      ADD_STAT(numPermanentFaults, statistics::units::Count::get(),
+               "Total number of permanent faults injected")
+    {
+    }
+
+    CHAOSCache::FaultType 
+    CHAOSCache::stringToFaultType(const std::string &s) {
+        if (s == "bit_flip") return FaultType::BitFlip;
+        else if (s == "stuck_at_zero") return FaultType::StuckAtZero;
+        else if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        return FaultType::Random;
+    }
+
+    const char*
+    CHAOSCache::faultTypeToString(CHAOSCache::FaultType f) {
+        switch (f) {
+            case FaultType::BitFlip: return "bit_flip";
+            case FaultType::StuckAtZero: return "stuck_at_zero";
+            case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
+        }
+        return "random";
+    }
+
+    // §1.2 protection-aware modeling (N1 TRM Table 9-1 PROXY). Map the
+    // protectionModel string to an outcome-ladder enum. "none" (default) =
+    // raw upper bound = leave the corruption (escape), zero regression.
+    CHAOSCache::ProtectionOutcome
+    CHAOSCache::stringToProtectionModelPub(const std::string &s) {
+        if (s == "sed") return ProtectionOutcome::DetectedContained;  // placeholder; real ladder is in applyProtection by popcount
+        if (s == "secded_poison") return ProtectionOutcome::Latent;
+        if (s == "secded") return ProtectionOutcome::DetectedContained;
+        return ProtectionOutcome::Raw;  // "none" / unknown -> raw
+    }
+
+    const char*
+    CHAOSCache::protectionOutcomeToString(CHAOSCache::ProtectionOutcome o) {
+        switch (o) {
+            case ProtectionOutcome::Raw: return "Raw";
+            case ProtectionOutcome::Corrected: return "Corrected";
+            case ProtectionOutcome::DetectedContained: return "DetectedContained";
+            case ProtectionOutcome::Latent: return "Latent";
+            case ProtectionOutcome::SilentEscape: return "SilentEscape";
+        }
+        return "Raw";
+    }
+
+    // §1.2 post-injection protection handling. Decides the observable outcome
+    // from popcount(mask) (bits this fault flips) + protectionModel, then acts:
+    //   none           -> Raw (leave = escape). Default, zero regression.
+    //   sed            -> 1-bit: invalidate block (Corrected); >=2: SilentEscape.
+    //   secded_poison  -> 1-bit: undo (Corrected); 2-bit: poison-log + leave
+    //                       (Latent; classic cache has no poison bit, E3);
+    //                       >=3: SilentEscape.
+    //   secded         -> 1-bit: undo (Corrected); 2-bit: invalidate block
+    //                       (DetectedContained); >=3: SilentEscape (false-hit).
+    // `blk` may be null for the paired-sector partner path (no invalidate
+    // there — honest: the partner's containment is logged, not enforced).
+    CHAOSCache::ProtectionOutcome
+    CHAOSCache::applyProtection(CacheBlk *blk, int byteOffset,
+                                uint8_t mask, uint8_t orig_byte,
+                                FaultType ft, bool is_paired)
+    {
+        // popcount(mask) = bits this injection flips (§1.2 "1-bit/2-bit/≥3-bit").
+        int bits = __builtin_popcount(mask);
+
+        ProtectionOutcome outcome = ProtectionOutcome::Raw;
+        uint8_t *data = blk ? blk->data : nullptr;
+        // For the paired path we operate on the partner's data (caller sets blk).
+        (void)is_paired;
+
+        if (protection_model == "none") {
+            outcome = ProtectionOutcome::Raw;  // leave = escape (default)
+        } else if (protection_model == "sed") {
+            if (bits == 1) {
+                // 1-bit: invalidate block -> re-fetch clean on next access.
+                if (blk) blk->invalidate();
+                outcome = ProtectionOutcome::Corrected;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=2-bit silent
+            }
+        } else if (protection_model == "secded_poison") {
+            if (bits == 1) {
+                // 1-bit: undo the injection (re-apply the mutation = restore).
+                if (data) {
+                    switch (ft) {
+                        case FaultType::BitFlip:  data[byteOffset] ^= mask; break;
+                        case FaultType::StuckAtZero: data[byteOffset] |= mask; break;
+                        case FaultType::StuckAtOne:  data[byteOffset] &= ~mask; break;
+                        default: break;
+                    }
+                }
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                // 2-bit: poison-log + leave (Latent). Classic cache has no
+                // poison bit -> E3 proxy; the corruption propagates if read
+                // (SDC), but we LOG what real-hw SECDED would contain here.
+                outcome = ProtectionOutcome::Latent;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=3-bit silent
+            }
+        } else if (protection_model == "secded") {
+            if (bits == 1) {
+                if (data) {  // undo (Corrected)
+                    switch (ft) {
+                        case FaultType::BitFlip:  data[byteOffset] ^= mask; break;
+                        case FaultType::StuckAtZero: data[byteOffset] |= mask; break;
+                        case FaultType::StuckAtOne:  data[byteOffset] &= ~mask; break;
+                        default: break;
+                    }
+                }
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                if (blk) blk->invalidate();  // DetectedContained (recovery)
+                outcome = ProtectionOutcome::DetectedContained;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // false-hit
+            }
+        } else {
+            outcome = ProtectionOutcome::Raw;  // unknown model -> raw
+        }
+
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
+                << std::endl;
+        }
+        return outcome;
+    }
+
+    void 
+    CHAOSCache::scheduleAttack(Tick time) {
+        if (!attackEvent.scheduled()) {
+            schedule(attackEvent, time);
+        }
+    }
+
+    void 
+    CHAOSCache::scheduleCheckPermanentFault(Tick time) {
+        if (!periodicCheck.scheduled()) {
+            schedule(periodicCheck, time);
+        }
+    }
+
+    BaseTags*
+    CHAOSCache::getTags() const
+    {
+        // G3 (plan §4): use the supported Cache::getTags() accessor instead
+        // of the unsafe `static_cast<CacheAccessor*>` downcast that poked
+        // the protected BaseCache::tags member via a reinterpret helper
+        // (undefined behavior if targetCache is not exactly a Cache, and
+        // it broke C++ object-layout assumptions). targetCache is a Cache*
+        // per the param, so this is the supported path.
+        return targetCache->getTags();
+    }
+
+    uint8_t 
+    CHAOSCache::generateRandomMask(std::mt19937 &rng, int bits_to_change, unsigned size) {
+        // v1.1 Phase 8.3 (design doc §1.2 multi-bit ECC ladder): when
+        // faultMask==0 (caller wants a generated mask), bits_to_change bits
+        // are now ADJACENT (a contiguous n-bit burst starting at a random
+        // position), not independent random positions. Independent random
+        // picks made popcount(mask)==bits_to_change improbable (overlapping
+        // picks collapse the burst), so applyProtection()'s 2-bit (poison/
+        // Latent) and >=3-bit (SilentEscape) branches never fired
+        // deterministically — the L1D secded_poison formal only exercised
+        // 1-bit Corrected. A contiguous burst matches the physical MBU
+        // model (adjacent-cell upset, e.g. a single particle strike) and
+        // popcount == bits_to_change exactly.
+        if (bits_to_change <= 0) return 0;
+        if ((unsigned)bits_to_change >= size) return (uint8_t)((1ULL << size) - 1);
+        std::uniform_int_distribution<int> start_dist(0, size - bits_to_change);
+        int start = start_dist(rng);
+        return (uint8_t)(((1ULL << bits_to_change) - 1) << start);
+    }
+
+    void
+    CHAOSCache::noteFunnelAtInjection()
+    {
+        // [LSU][OBS-L3] funnel row with the counts as of NOW (legacy attack
+        // funnel: attempted = attack-event firings, eligible = firings that
+        // found >=1 valid block, injected = faults_injected_count). stdout
+        // stays untouched (W2.1 discipline) — the FUNNEL line goes to the
+        // injection log only; the abort-survivable copy is the prop-trace
+        // node (per-node gzflush).
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->noteFunnel(
+                "CHAOSCache", attack_attempts, attack_eligible,
+                faults_injected_count);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "FUNNEL: attempted=" << attack_attempts
+                << " eligible=" << attack_eligible
+                << " injected=" << faults_injected_count << std::endl;
+        }
+    }
+
+    void
+    CHAOSCache::injectFault()
+    {
+        // [LSU][OBS-L3] legacy attack funnel: this firing attempted an
+        // injection (attempted); eligible is counted below when a valid
+        // block was found.
+        ++attack_attempts;
+        BaseTags* tags = getTags();
+        unsigned blockSize = targetCache->getBlockSize();
+
+        std::vector<CacheBlk*> validBlocks;
+
+        tags->forEachBlk([&validBlocks](CacheBlk &blk) {
+            if (blk.isValid()) {
+                validBlocks.push_back(&blk);
+            }
+        });
+
+        if (validBlocks.empty()) {
+            warn("No valid block found\n");
+        } else{
+            // [LSU][OBS-L3] this firing found >=1 valid block (eligible).
+            ++attack_eligible;
+            // Directed target (report §六.3 'fixed-to'): if target_block_addr
+            // is set, find the VALID block whose regenerated address matches
+            // the block-aligned target. If not resident at injection time,
+            // fall back to random with a log warning (honest: the fault did
+            // not land on the directed block because it wasn't valid).
+            CacheBlk* targetBlk = nullptr;
+            bool directed_block = (target_block_addr != 0);
+            if (directed_block) {
+                Addr blkMask = ~(static_cast<Addr>(blockSize) - 1);
+                Addr wantBlockAddr = target_block_addr & blkMask;
+                for (CacheBlk* blk : validBlocks) {
+                    if (tags->regenerateBlkAddr(blk) == wantBlockAddr) {
+                        targetBlk = blk;
+                        break;
+                    }
+                }
+                if (!targetBlk && write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Directed target_block_addr=0x" << std::hex
+                        << target_block_addr << std::dec
+                        << " NOT resident (no valid block at that address) — "
+                        << "falling back to random block." << std::endl;
+                }
+            }
+            if (!targetBlk) {
+                std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
+                int randomIdx = blockDist(rng);
+                targetBlk = validBlocks[randomIdx];
+            }
+
+            Addr blockAddr = tags->regenerateBlkAddr(targetBlk);
+
+            uint8_t* data = targetBlk->data;
+
+            // §7.7 paired-sector 128B fault-domain proxy: find the 128B-aligned
+            // paired partner block (blockAddr XOR 64B). The fault is applied to
+            // BOTH sectors at the SAME byte offset. The partner must be VALID+
+            // resident (else only the primary is faulted — logged honestly).
+            // This models a 128B L3 fault domain spanning two 64B sectors. It is
+            // a PROXY, not a cycle-exact Kunpeng L3 model (per plan §7.7/§3.1).
+            CacheBlk* partnerBlk = nullptr;
+            uint8_t* partnerData = nullptr;
+            Addr partnerAddr = 0;
+            if (paired_sector) {
+                // The partner is the other 64B sector in the same 128B superline.
+                Addr partnerBlockAddr = blockAddr ^ blockSize;  // toggle bit (log2(64)=6)
+                for (CacheBlk* blk : validBlocks) {
+                    if (tags->regenerateBlkAddr(blk) == partnerBlockAddr) {
+                        partnerBlk = blk;
+                        partnerData = blk->data;
+                        partnerAddr = partnerBlockAddr;
+                        break;
+                    }
+                }
+                if (write_log && !partnerBlk) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", PAIRED-SECTOR WARN: partner block 0x" << std::hex
+                        << partnerBlockAddr << std::dec << " NOT resident — "
+                        << "only primary sector faulted (128B domain incomplete)."
+                        << std::endl;
+                }
+            }
+
+            // Directed byte offset (report §六.3 'fixed-to'): if set, pin the
+            // fault to this byte within the block; else random.
+            bool directed_byte = (target_byte_offset >= 0
+                                  && target_byte_offset < (int)blockSize);
+
+            FaultType chosen_fault_type_enum = fault_type_enum;
+            if (fault_type_enum == FaultType::Random) {
+                int faultIdx = random_fault_distribution(rng);
+                chosen_fault_type_enum = static_cast<FaultType>(faultIdx);
+            }
+
+            for (int i = 0; i < corruption_size; i++) {
+                unsigned char mask = (fault_mask != 0) ? fault_mask : generateRandomMask(rng, bits_to_change, 8);
+                int byteOffset;
+                if (directed_byte) {
+                    byteOffset = target_byte_offset;
+                } else {
+                    std::uniform_int_distribution<int> byteDist(0, blockSize - 1);
+                    byteOffset = byteDist(rng);
+                }
+
+                if (mask == 0) {
+                    warn("Mask is 0.");
+                    continue;
+                }
+
+                // §2.7/§2.11 field-level fault: when target_field != "data",
+                // corrupt the CacheBlk field (valid/dirty/coh) instead of the
+                // data byte. tag(F5) + repl deferred.
+                // v1.2 Phase 14 (plan 14 item 1): L2 tag F5 — replace the
+                // block's tag with ANOTHER VALID BLOCK's tag from the same
+                // cache (a legal, aligned, in-cache alias — modeling a tag
+                // SRAM soft error that hits a legal value, NOT a random bit
+                // flip). The block now aliases: a lookup for the OTHER
+                // address hits THIS block's data -> silent wrong-data
+                // (method2-style).
+                if (target_field == "tag") {
+                    if (validBlocks.size() < 2) {
+                        if (write_log) {
+                            *(log_stream->stream()) << "Tick: " << curTick()
+                                << ", Cache Block Addr: " << blockAddr
+                                << ", Field: tag — NO partner block (need >=2 valid)"
+                                << std::endl;
+                        }
+                        faults_injected_count++;
+                        continue;
+                    }
+                    // pick a partner != targetBlk
+                    CacheBlk *partner = nullptr;
+                    for (auto *b : validBlocks) {
+                        if (b != targetBlk) { partner = b; break; }
+                    }
+                    if (!partner) continue;
+                    auto old_tag = targetBlk->getTag();
+                    // re-tag via invalidate + insert (TaggedEntry::insert
+                    // asserts !isValid() — setValid on a valid block aborts;
+                    // found on the real machine as a gem5 assertion failure
+                    // at the injection tick). The block now answers to the
+                    // partner's address.
+                    bool was_secure = targetBlk->isSecure();
+                    targetBlk->invalidate();
+                    targetBlk->insert({partner->getTag(), was_secure});
+                    stats->numFaultsInjected++;
+                    faults_injected_count++;
+                    // [LSU][OBS-L3] tag fault: inj node only (alias target
+                    // unknowable from the CPU side — chain honestly stops).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, "tag");
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: tag (F5 alias), old_tag=0x" << std::hex
+                            << old_tag << " -> new_tag=0x" << partner->getTag()
+                            << std::dec << std::endl;
+                    }
+                    continue;
+                }
+                if (target_field == "valid") {
+                    targetBlk->invalidate();
+                    stats->numFaultsInjected++;
+                    // [LSU][OBS-L3] metadata fault: inj node only.
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, "valid");
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: valid (invalidate)" << std::endl;
+                    }
+                    faults_injected_count++;
+                    continue;  // skip byte mutation
+                } else if (target_field == "data_shift") {
+                    // LSU W6 C09: way-select MUX / alignment corruption —
+                    // rotate the block's data by 1 byte (misaligned readout
+                    // from the wrong way/offset in the data array).
+                    int blkSize = targetCache->getBlockSize();
+                    uint8_t *data = targetBlk->data;
+                    if (data && blkSize > 1) {
+                        uint8_t tmp = data[0];
+                        for (int i = 0; i < blkSize - 1; ++i)
+                            data[i] = data[i + 1];
+                        data[blkSize - 1] = tmp;
+                    }
+                    stats->numFaultsInjected++;
+                    faults_injected_count++;
+                    // [LSU][OBS-L3] whole-block fault: every byte corrupt —
+                    // register the full block range (delivery tracking ON).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -1, blockSize, "data_shift");
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: data_shift (C09 rotate by 1 byte)"
+                            << std::endl;
+                    }
+                    continue;
+                } else if (target_field == "dirty" || target_field == "coh") {
+                    // Force-set a coherence bit (dirty is a coherence bit in
+                    // gem5). honest: a true toggle needs a getter (none public);
+                    // set-the-bit is a valid fault (e.g. spurious dirty ->
+                    // spurious writeback). Use the public setCoherenceBits.
+                    unsigned bit = (target_field == "dirty") ? 0x4 : 0x1;
+                    targetBlk->setCoherenceBits(bit);
+                    stats->numFaultsInjected++;
+                    // [LSU][OBS-L3] metadata fault: inj node only.
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, target_field.c_str());
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: " << target_field << " (toggle bit "
+                            << bit << ")" << std::endl;
+                    }
+                    faults_injected_count++;
+                    continue;
+                }
+
+                // §2.11 L1I semantic-field stratification
+                if (!l1i_semantic_field.empty() && l1i_semantic_field != "none") {
+                    int lo=-1, hi=-1;
+                    if (l1i_semantic_field == "opcode") { lo=25; hi=31; }
+                    else if (l1i_semantic_field == "rn") { lo=5; hi=9; }
+                    else if (l1i_semantic_field == "rm") { lo=16; hi=20; }
+                    else if (l1i_semantic_field == "rd") { lo=0; hi=4; }
+                    else if (l1i_semantic_field == "imm12") { lo=10; hi=21; }
+                    else if (l1i_semantic_field == "cond") { lo=0; hi=3; }
+                    if (lo >= 0) {
+                        int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
+                        byteOffset = (bit / 8);
+                        mask = (1 << (bit % 8));
+                        if (write_log) {
+                            *(log_stream->stream()) << "    §2.11 l1i_field=" << l1i_semantic_field
+                                << " bit=" << bit << " byteOffset=" << byteOffset
+                                << " mask=0x" << std::hex << (int)mask << std::dec << std::endl;
+                        }
+                    }
+                }
+
+                uint8_t orig_byte = data[byteOffset];  // §1.2: for undo (Corrected)
+
+                switch (chosen_fault_type_enum) {
+                    case FaultType::StuckAtZero:
+                        data[byteOffset] &= ~mask;
+                        stats->numStuckAtZero++;
+                        stats->numPermanentFaults++;
+                        permanent_faults[std::make_pair(blockAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                        break;
+                    case FaultType::StuckAtOne:
+                        data[byteOffset] |= mask;
+                        stats->numStuckAtOne++;
+                        stats->numPermanentFaults++;
+                        permanent_faults[std::make_pair(blockAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                        break;
+                    case FaultType::BitFlip:
+                        data[byteOffset] ^= mask;
+                        stats->numBitFlips++;
+                        break;
+                    default:
+                        break;
+                }
+
+                // uint8_t newValue = data[byteOffset];
+                stats->numFaultsInjected++;
+
+                // [LSU][OBS-L3] data fault on one byte: register the faulted
+                // byte with the propagation tracer (inj node + faulted-byte
+                // registry — delivery tracking ON; a later load/store whose
+                // range covers this byte gets mem_req/resp nodes).
+                if (CHAOSPropagation::instance())
+                    CHAOSPropagation::instance()->registerCacheFault(
+                        blockAddr, byteOffset, blockSize, "data");
+
+                if (write_log){
+                    *(log_stream->stream())  << "Tick: " << curTick()
+                        << ", Cache Block Addr: " << blockAddr
+                        << ", Byte Offset: " << byteOffset
+                        << ", FaultType: " << faultTypeToString(chosen_fault_type_enum)
+                        << ", Mask: " << std::bitset<8>(mask)
+                        << std::endl;
+                }
+
+                // §1.2 post-injection protection handling (N1 TRM Table 9-1
+                // PROXY). Acts on the faulted block; may undo the mutation
+                // (Corrected) or invalidate the block (DetectedContained).
+                // Default protection_model="none" = Raw (no-op, zero regression).
+                applyProtection(targetBlk, byteOffset, mask, orig_byte,
+                                 chosen_fault_type_enum, /*is_paired=*/false);
+
+                // §7.7 paired-sector: apply the SAME fault to the 128B-aligned
+                // partner block's same byte offset (128B fault-domain proxy).
+                if (paired_sector && partnerBlk) {
+                    uint8_t orig_partner = partnerData[byteOffset];  // §1.2 undo
+                    switch (chosen_fault_type_enum) {
+                        case FaultType::StuckAtZero:
+                            partnerData[byteOffset] &= ~mask;
+                            permanent_faults[std::make_pair(partnerAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                            break;
+                        case FaultType::StuckAtOne:
+                            partnerData[byteOffset] |= mask;
+                            permanent_faults[std::make_pair(partnerAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                            break;
+                        case FaultType::BitFlip:
+                            partnerData[byteOffset] ^= mask;
+                            break;
+                        default: break;
+                    }
+                    stats->numFaultsInjected++;  // count the paired fault too
+                    // [LSU][OBS-L3] paired-sector partner byte (own chain).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            partnerAddr, byteOffset, blockSize, "data_paired");
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", PAIRED Cache Block Addr: " << partnerAddr
+                            << ", Byte Offset: " << byteOffset
+                            << ", FaultType: " << faultTypeToString(chosen_fault_type_enum)
+                            << ", Mask: " << std::bitset<8>(mask)
+                            << ", superline: 0x" << std::hex
+                            << (blockAddr & ~((Addr)2*blockSize - 1))
+                            << std::dec << std::endl;
+                    }
+                    // §1.2 protection handling on the paired partner too.
+                    applyProtection(partnerBlk, byteOffset, mask, orig_partner,
+                                     chosen_fault_type_enum, /*is_paired=*/true);
+                }
+            }
+
+            // [LSU][OBS-L3] one funnel row per attack that ran (log line is
+            // best-effort — lost on abort; the prop-trace node is durable).
+            noteFunnelAtInjection();
+
+            // targetBlk->setCoherenceBits(CacheBlk::DirtyBit);
+        }
+
+        // G5: single-fault enforcement. Count the valid injections that
+        // happened this attack (one per corruption_size byte). If we've
+        // reached max_faults, STOP rescheduling. max_faults==0 = unlimited.
+        faults_injected_count += corruption_size;
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
+        }
+
+        // G6: next-event interval must be >= 1 clock cycle. Clamp the
+        // geometric-sampled distance to >= 1 (it can be 0 at high p, which
+        // made the event re-fire in the same tick infinitely).
+        unsigned dist_cycles = inter_fault_cycles_dist(rng);
+        if (dist_cycles < 1) dist_cycles = 1;
+        Tick next_injection = curTick() + dist_cycles * tick_to_clock_ratio;
+        if (next_injection <= last_tick || last_tick == 0) {
+            scheduleAttack(next_injection);
+        }
+    }
+
+    void
+    CHAOSCache::checkPermanent()
+    {
+        BaseTags* tags = getTags();
+
+        for (auto& entry : permanent_faults) {
+            if(entry.second.update){
+                const std::pair<Addr, int>& key = entry.first;
+                const PermanentFault& fault = entry.second;
+
+                Addr blockAddr = key.first;
+                int byteOffset = key.second;
+                FaultType faultType = fault.fault_type;
+                uint64_t mask = fault.mask;
+
+                CacheBlk* blk = nullptr;
+                tags->forEachBlk([&](CacheBlk &b) {
+                    Addr blkAddr = tags->regenerateBlkAddr(&b);
+                    if (blkAddr == blockAddr && b.isValid()) {
+                        blk = &b;
+                    }
+                });
+                if (!blk) {
+                    continue;
+                }
+
+                uint8_t* data = blk->data;
+                // uint8_t oldValue = data[byteOffset];
+
+                switch (faultType) {
+                    case FaultType::StuckAtZero:
+                        data[byteOffset] &= ~((uint8_t)mask);
+                        break;
+                    case FaultType::StuckAtOne:
+                        data[byteOffset] |= ((uint8_t)mask);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault. Called by
+    // BaseCache::writebackBlk after setDataFromBlock — the corruption lives
+    // only in the in-flight writeback payload (the cache array stays
+    // clean, so a re-read of the block gets the GOOD data: the fault
+    // surfaces only if the next level's copy is later read back).
+    bool
+    CHAOSCache::maybeCorruptVictim(PacketPtr pkt)
+    {
+        if (!victim_fault) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        if (!pkt || !pkt->hasData()) return false;
+        uint8_t *data = pkt->getPtr<uint8_t>();
+        unsigned sz = pkt->getSize();
+        if (sz == 0) return false;
+        // adjacent multi-bit mask (the Phase 8.3 generator) on a random byte
+        std::uniform_int_distribution<int> byteDist(0, sz - 1);
+        int off = byteDist(rng);
+        uint8_t mask = generateRandomMask(rng, bits_to_change, 8);
+        if (mask == 0) mask = 0x80;
+        data[off] ^= mask;
+        faults_injected_count++;
+        // [LSU][OBS-L3] victim-path fault: inj node only — the corruption
+        // lives in the in-flight writeback payload (block_addr recorded for
+        // the chain bookkeeping; no delivery tracking, the chain honestly
+        // stops at inj). Attempted/eligible are not attack-event counters
+        // on this path — the funnel row uses the real legacy counters.
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerCacheFault(
+                pkt->getAddr(), -2, 0, "victim");
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: writebackBlk (victim path), pkt_addr=0x" << std::hex
+                << pkt->getAddr() << std::dec << ", byte_off=" << off
+                << ", Mask: " << std::bitset<8>(mask)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+} // namespace gem5

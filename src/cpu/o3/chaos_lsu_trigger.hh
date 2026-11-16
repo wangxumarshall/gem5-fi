@@ -1,0 +1,282 @@
+/*
+ * chaos_lsu_trigger.hh — LSU north-star F0-F6 trigger semantics
+ * (docs/gem5-fi/lsu/05-frequency-and-sampling.md r2-r8), EVENT-normalized:
+ * the denominator is the injector's eligible-event stream, NOT CPU cycles
+ * (the ooo track's chaos_trigger.hh stays cycle-based — different tracks,
+ * different denominators, no mixing; W2 R1 ruling 2026-09-25).
+ *
+ * Tiers (05 r2-r8):
+ *   F0 single transient — uniform over eligible events after warm-up;
+ *   F1/F2/F3 — mean interval 1,000,000 / 100,000 / 10,000 eligible events,
+ *              each next interval = U[iv/2, 3*iv/2) (±50% jitter, 05 r3-r5);
+ *   F4 short burst — every 100,000 eligible events fire once, then pollute
+ *              2-4 consecutive eligible events (05 r6);
+ *   F5 permanent — from the first eligible event after warm-up to end of run
+ *              (one bit/field per run; target choice is the injector's);
+ *   F6 deterministic event — inject ONCE at the first occurrence of the
+ *              specified event type (05 r7; event sources per 09 §2.1 map:
+ *              TlbHit[FS-only]/SqForward/DirtyEviction/CasSuccess).
+ *
+ * Funnel counts (04 L0): attempted (hook invocations) / eligible (passed the
+ * injector's eligibility filter) / injected (fault written). The ACTIVATED
+ * count (fault consumed downstream) is the L0 read-back layer's verdict —
+ * deliberately NOT counted here (W3 delivers it; W2 R2 ruling). End-of-run
+ * summary line: CHAOS_LSU_TRIGGER: injector= tier= attempted= eligible=
+ * injected=.
+ *
+ * F6 event notification: the single-consumer function pointer below is
+ * single-core-SE scoped (one LSU consumer per run — the 337-cell grid runs
+ * one injector per run by construction). A multicore/FS generalization is
+ * W8's business, recorded here honestly.
+ */
+#ifndef __CPU_O3_CHAOS_LSU_TRIGGER_HH__
+#define __CPU_O3_CHAOS_LSU_TRIGGER_HH__
+
+#include <cstdint>
+#include <cstdio>
+
+#include "cpu/o3/chaos_event_sample.hh"
+#include "sim/cur_tick.hh"     // curTick() [LSU][OBS-3]
+
+namespace gem5
+{
+
+enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
+
+// F6 event sources (09 §2.1 W1 map). TlbHit is FS-only — SE never calls
+// TLB::lookup (arm/mmu.cc:323-365 translateSe); the enum value exists so the
+// config surface is uniform, and an SE run selecting it logs zero events.
+enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
+                                     CasSuccess };
+
+// F6 event-source notification hook. The four sources (lsq_unit.cc forward
+// branch, cache.cc DirtyBit eviction, base.cc SwapReq commit, tlb.cc lookup
+// hit) each call this when the configured consumer registered a callback.
+// Inline global in a header-only TU included by exactly one .cc each —
+// single consumer registers at startup, deregisters at exit.
+inline void (*chaosLsuF6Notify)(ChaOSLsuEvent) = nullptr;
+
+// [LSU][OBS-1] Per-type F6 event-source observation counters (F-047 C-class
+// count-only gate): count at EVERY notify site regardless of consumer
+// registration, so count-only runs quantify F6 event supply even when the
+// mounted injector never registered a consumer (CHAOSLSQFwd pre-SEM-A:
+// injected was structurally 0 under ANY workload). Observation only — the
+// dispatch below is byte-for-byte the old null-checked call, so injection
+// semantics are unchanged.
+inline uint64_t chaosLsuF6EventsSeen[4] = {0, 0, 0, 0};
+
+inline void
+chaosLsuF6Observe(ChaOSLsuEvent e)
+{
+    ++chaosLsuF6EventsSeen[static_cast<unsigned>(e)];
+    if (chaosLsuF6Notify)
+        chaosLsuF6Notify(e);
+}
+
+// [LSU][OBS-1] End-of-run report line (called from the trigger summary so it
+// prints whenever any injector+trigger is mounted — census and rerun cases).
+inline void
+chaosLsuF6EventsReport()
+{
+    printf("CHAOS_LSU_F6_EVENTS: TlbHit=%lu SqForward=%lu DirtyEviction=%lu "
+           "CasSuccess=%lu\n",
+           (unsigned long)chaosLsuF6EventsSeen[0],
+           (unsigned long)chaosLsuF6EventsSeen[1],
+           (unsigned long)chaosLsuF6EventsSeen[2],
+           (unsigned long)chaosLsuF6EventsSeen[3]);
+}
+
+struct ChaOSLsuTrigger
+{
+    ChaOSLsuTier tier;
+    ChaOSLsuEvent f6_event = ChaOSLsuEvent::SqForward;
+    uint64_t rng;
+    uint64_t warmup_events = 0;   // eligible events skipped before arming
+    uint64_t span_events   = 0;   // F0: uniform window size (0 = fire at warmup)
+    uint64_t event_ordinal = 0;   // R01-R05: 1-based target event ordinal
+
+    // funnel (04 L0; activated lands in W3 — R2)
+    uint64_t attempted = 0;
+    uint64_t eligible  = 0;
+    uint64_t injected  = 0;
+
+    // [LSU][OBS-3] eligible-event window diagnostics (B/E-class): tick of the
+    // first / last eligible event — observation only, no semantic effect.
+    uint64_t first_eligible_tick = 0;
+    uint64_t last_eligible_tick  = 0;
+    uint64_t f6_seen = 0;          // F6 occurrences observed
+
+  private:
+    uint64_t next_fire = 0;       // eligible-count threshold (F1-F4)
+    uint64_t burst_left = 0;      // F4: remaining burst shots (this shot incl.)
+    bool spent  = false;          // F0/F6 fired once
+    bool armed  = false;
+
+    static constexpr uint64_t
+    intervalEvents(ChaOSLsuTier t)
+    {
+        switch (t) {
+          case ChaOSLsuTier::F1: return 1000000;
+          case ChaOSLsuTier::F2: return  100000;
+          case ChaOSLsuTier::F3: return   10000;
+          case ChaOSLsuTier::F4: return  100000;   // burst trigger period
+          default:               return       0;   // F0/F5/F6 not interval-based
+        }
+    }
+
+    void
+    scheduleNext(uint64_t from)
+    {
+        const uint64_t iv = intervalEvents(tier);
+        rng = chaosSampleLCG(rng);
+        next_fire = from + iv / 2 + rng % iv;      // mean ±50% (05 r3-r5)
+    }
+
+  public:
+    ChaOSLsuTrigger(ChaOSLsuTier t, uint64_t seed, uint64_t warmup,
+                    uint64_t span, ChaOSLsuEvent ev = ChaOSLsuEvent::SqForward,
+                    uint64_t ordinal = 0)
+        : tier(t), f6_event(ev), rng(seed ? seed : 1),
+          warmup_events(warmup), span_events(span), event_ordinal(ordinal)
+    {}
+
+    // The injector calls this once per hook invocation (before any filter).
+    void
+    onAttempt()
+    {
+        ++attempted;
+    }
+
+    // The injector calls this when a candidate PASSED its eligibility filter
+    // (target exists, window open, ...). Returns true => inject now.
+    bool
+    onEligible()
+    {
+        ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();   // [LSU][OBS-3]
+        switch (tier) {
+          case ChaOSLsuTier::F5: {
+              const uint64_t start = warmup_events +
+                  (event_ordinal ? event_ordinal : 1);
+              if (!armed && eligible >= start) armed = true;
+              if (!armed) return false;
+              ++injected;                 // every eligible event from start on
+              return true;
+          }
+          case ChaOSLsuTier::F0: {
+              if (spent) return false;
+              if (!armed) {
+                  armed = true;
+                  if (event_ordinal) {
+                      next_fire = warmup_events + event_ordinal;
+                  } else {
+                      const uint64_t span = span_events ? span_events : 1;
+                      rng = chaosSampleLCG(rng);
+                      next_fire = warmup_events + rng % span;
+                  }
+              }
+              if (eligible >= next_fire) { spent = true; ++injected; return true; }
+              return false;
+          }
+          case ChaOSLsuTier::F1:
+          case ChaOSLsuTier::F2:
+          case ChaOSLsuTier::F3: {
+              if (!armed) { armed = true; scheduleNext(warmup_events); }
+              if (eligible < next_fire) return false;
+              scheduleNext(next_fire);
+              ++injected;
+              return true;
+          }
+          case ChaOSLsuTier::F4: {
+              if (burst_left) { --burst_left; ++injected; return true; }
+              if (!armed) { armed = true; scheduleNext(warmup_events); }
+              if (eligible < next_fire) return false;
+              scheduleNext(next_fire);
+              rng = chaosSampleLCG(rng);
+              burst_left = 2 + rng % 3;   // 2-4 consecutive incl. this one
+              --burst_left;               // this shot consumes one
+              ++injected;
+              return true;
+          }
+          case ChaOSLsuTier::F6:
+              return false;               // F6 fires on the event, not here
+        }
+        return false;
+    }
+
+    // Read-only counterpart of onEligible() for a matched no-fault control:
+    // advances the eligible space with the SAME F0 ordinal selection the
+    // fault run uses, but never counts an injection. Only F0 (A01's tier) is
+    // defined; the control probe is not used by any other model.
+    bool
+    onControlProbe()
+    {
+        if (tier != ChaOSLsuTier::F0 || spent)
+            return false;
+        ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();
+        if (!armed) {
+            armed = true;
+            if (event_ordinal) {
+                next_fire = warmup_events + event_ordinal;
+            } else {
+                const uint64_t span = span_events ? span_events : 1;
+                rng = chaosSampleLCG(rng);
+                next_fire = warmup_events + rng % span;
+            }
+        }
+        if (eligible >= next_fire) {
+            spent = true;               // observe exactly once, inject never
+            return true;
+        }
+        return false;
+    }
+
+    // Census-only counterpart: advances the eligible ordinal without any
+    // injection decision (the v3.3.3 A01 8-byte count stream). `injected`
+    // stays 0; the caller logs the returned ordinal and never writes.
+    uint64_t
+    noteEligibleForCensus()
+    {
+        ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();
+        return eligible;
+    }
+
+    // The F6 event source calls this when the configured event occurs.
+    // Returns true => inject at this event, once ever.
+    bool
+    onF6Event()
+    {
+        if (tier != ChaOSLsuTier::F6 || spent) return false;
+        ++f6_seen;
+        if (event_ordinal && f6_seen != event_ordinal) return false;
+        spent = true;
+        ++attempted; ++eligible; ++injected;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();   // [LSU][OBS-3]
+        return true;
+    }
+
+    // End-of-run summary (the injector's exit callback prints this).
+    void
+    summary(const char *injector) const
+    {
+        printf("CHAOS_LSU_TRIGGER: injector=%s tier=F%d attempted=%lu "
+               "eligible=%lu injected=%lu first_eligible_tick=%lu "
+               "last_eligible_tick=%lu (activated=W3-L0-layer)\n",
+               injector, static_cast<int>(tier),
+               (unsigned long)attempted, (unsigned long)eligible,
+               (unsigned long)injected,
+               (unsigned long)first_eligible_tick,
+               (unsigned long)last_eligible_tick);
+        chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
+    }
+};
+
+} // namespace gem5
+
+#endif // __CPU_O3_CHAOS_LSU_TRIGGER_HH__

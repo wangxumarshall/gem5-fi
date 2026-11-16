@@ -1,0 +1,638 @@
+#include "cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"
+#include "params/CHAOSPhysReg.hh"
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <random>
+#include <bitset>
+#include <cstring>
+#include <cstdint>
+
+#include "base/output.hh"
+#include "cpu/o3/cpu.hh"
+#include "cpu/o3/regfile.hh"
+#include "cpu/o3/rename_map.hh"
+#include "arch/generic/isa.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
+
+namespace gem5
+{
+
+    CHAOSPhysReg::CHAOSPhysReg(const CHAOSPhysRegParams &p)
+        : SimObject(p),
+          cpu(dynamic_cast<o3::CPU *>(p.cpu)),
+          fi_mode(stringToMode(p.injectionMode)),
+          target_phys_idx(p.targetPhysRegIdx),
+          target_arch_idx(p.targetArchRegIdx),
+          reg_target_class(stringToRegClassSel(p.regTargetClass)),
+          vec_lane_width(p.vecLaneWidth),
+          vec_lane_offset(p.vecLaneOffset),
+          probability(p.probability),
+          num_bits_to_change(p.bitsToChange),
+          fault_type_enum(stringToFaultType(p.faultType)),
+          fault_mask(std::bitset<64>(p.faultMask)),
+          bit_flip_prob(0.9),
+          stuck_at_zero_prob(0.05),
+          stuck_at_one_prob(0.05),
+          first_clock(Cycles(p.firstClock)),
+          last_clock(Cycles(p.lastClock)),
+          max_faults(p.maxFaults),
+          faults_injected_count(0),
+          rng_seed(p.rngSeed),    write_log(p.writeLog),
+    trigger_value_mask(p.triggerValueMask),
+    trigger_value_pattern(p.triggerValuePattern),
+    semantic_role(p.semanticRole),
+          attackEvent([this] { this->attackCheck(); }, name()),
+          periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
+          readTraceEvent([this] { this->readTraceCheck(); }, name() + ".readTrace"),
+          stats(nullptr)
+    {
+        if (!cpu) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: cpu is not an O3CPU. CHAOSPhysReg only supports "
+                "O3CPU (it needs regFile/renameMap). Cast failed.");
+        }
+        if (probability > 0.0) {
+            log_stream = simout.create("fault_injections.log", false, true);
+            if (!log_stream || !log_stream->stream()) {
+                panic("CHAOSPhysReg: Could not open log file");
+            }
+            stats = std::make_unique<CHAOSPhysRegStats>(this);
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
+            if (num_bits_to_change == -1) {
+                std::uniform_int_distribution<int> dist(1, 64);
+                num_bits_to_change = dist(rng);
+            }
+            inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
+            unsigned next_fault_cycle_distance = inter_fault_cycles_dist(rng);
+            scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
+            scheduleCheckPermanentFault(first_clock + Cycles(1));
+            // W2.5 L0 lifecycle: print the pinned CHAOS_L0 line at end of
+            // sim via an exit callback (CHAOSProbe/CHAOSMicroSnap
+            // precedent). The readTrace poll event canNOT do this on short
+            // workloads: it is scheduled 100000 cycles out and never fires
+            // once the workload halts (observed on smoke — ReadTraceFinal
+            // only appears on runs long enough for one more poll).
+            registerExitCallback([this]() { this->l0Final(); });
+        }
+    }
+
+    CHAOSPhysReg::CHAOSPhysRegStats::CHAOSPhysRegStats(statistics::Group *parent)
+        : statistics::Group(parent),
+          ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
+                   "Total number of faults injected"),
+          ADD_STAT(numBitFlips, statistics::units::Count::get(),
+                   "Number of bit flip faults injected"),
+          ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
+                   "Number of stuck-at-0 faults injected"),
+          ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
+                   "Number of stuck-at-1 faults injected"),
+          ADD_STAT(numPermanentFaults, statistics::units::Count::get(),
+                   "Total number of permanent faults injected")
+    {}
+
+    CHAOSPhysReg::~CHAOSPhysReg() {}
+
+    CHAOSPhysReg::FaultType
+    CHAOSPhysReg::stringToFaultType(const std::string &s) {
+        if (s == "bit_flip") return FaultType::BitFlip;
+        else if (s == "stuck_at_zero") return FaultType::StuckAtZero;
+        else if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        return FaultType::Random;
+    }
+
+    const char*
+    CHAOSPhysReg::faultTypeToString(CHAOSPhysReg::FaultType f) {
+        switch (f) {
+            case FaultType::BitFlip: return "bit_flip";
+            case FaultType::StuckAtZero: return "stuck_at_zero";
+            case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum (clear -Wswitch)
+        }
+        return "random";
+    }
+
+    CHAOSPhysReg::Mode
+    CHAOSPhysReg::stringToMode(const std::string &s) {
+        if (s == "arch_commit") return Mode::ArchCommit;
+        else if (s == "arch_frontend") return Mode::ArchFrontend;
+        return Mode::Phys;
+    }
+
+    CHAOSPhysReg::RegClassSel
+    CHAOSPhysReg::stringToRegClassSel(const std::string &s) {
+        if (s == "floating_point") return RegClassSel::FloatingPoint;
+        else if (s == "vector") return RegClassSel::Vector;
+        else if (s == "both") return RegClassSel::Both;
+        return RegClassSel::Integer;
+    }
+
+    void
+    CHAOSPhysReg::scheduleAttackEvent(Cycles delay)
+    {
+        if (!attackEvent.scheduled())
+            schedule(attackEvent, cpu->clockEdge(delay));
+    }
+
+    void
+    CHAOSPhysReg::unscheduleAttackEvent()
+    {
+        if (attackEvent.scheduled()) attackEvent.squash();
+        if (periodicCheck.scheduled()) periodicCheck.squash();
+        // NOTE: readTraceEvent is intentionally NOT squashed here — it must
+        // keep counting reads of the injected phys slot until the workload
+        // ends (all threads halt). It is squashed only from readTraceCheck
+        // when the workload has halted.
+    }
+
+    void
+    CHAOSPhysReg::scheduleCheckPermanentFault(Cycles delay)
+    {
+        if (!periodicCheck.scheduled())
+            schedule(periodicCheck, cpu->clockEdge(delay));
+    }
+
+    uint64_t
+    CHAOSPhysReg::generateRandomMask(std::mt19937 &gen, int bits_to_change, int len)
+    {
+        uint64_t mask = 0;
+        std::uniform_int_distribution<int> bitDist(0, len - 1);
+        while (bits_to_change-- > 0) mask |= (1ULL << bitDist(gen));
+        return mask;
+    }
+
+    // Core: resolve a target PHYSICAL register id according to the fi_mode,
+    // then read-modify-write it directly in the physical register file.
+    // This is the key difference from CHAOSReg (which wrote the commitRenameMap
+    // phys reg via ThreadContext::setReg — a backdoor that doesn't propagate
+    // to in-flight instructions on O3).
+    void
+    CHAOSPhysReg::processFault(ThreadID tid)
+    {
+        // 1. Resolve target register class (integer / floating_point / vector).
+        // 'both' picks one at random per injection across the three classes (a
+        // real cell doesn't know its class either; this mirrors the ITC'23/GeFIN
+        // phys abstraction).
+        gem5::RegClassType target_class = gem5::IntRegClass;
+        if (reg_target_class == RegClassSel::FloatingPoint) {
+            target_class = gem5::FloatRegClass;
+        } else if (reg_target_class == RegClassSel::Vector) {
+            target_class = gem5::VecRegClass;
+        } else if (reg_target_class == RegClassSel::Both) {
+            switch (std::uniform_int_distribution<>(0, 2)(rng)) {
+              case 0: target_class = gem5::IntRegClass; break;
+              case 1: target_class = gem5::FloatRegClass; break;
+              default: target_class = gem5::VecRegClass; break;
+            }
+        }
+
+        // 2. Resolve target physical register id.
+        PhysRegIdPtr phys_reg = nullptr;
+        int chosen_phys_idx = -1;     // for logging
+        int chosen_arch_idx = -1;     // for logging (arch modes)
+
+        if (fi_mode == Mode::Phys) {
+            // Inject by physical register index. A real defective cell has no
+            // notion of architectural registers; whoever is allocated to this
+            // slot gets hit. This is the ITC'23/GeFIN abstraction.
+            int n;
+            if (target_class == gem5::FloatRegClass)
+                n = (int)cpu->physRegFile().numFloatPhysRegs();
+            else if (target_class == gem5::VecRegClass)
+                n = (int)cpu->physRegFile().numVecPhysRegs();
+            else
+                n = (int)cpu->physRegFile().numIntPhysRegs();
+            if (n <= 0) return;
+            // phys random: ACTIVE-ONLY sampling (Phase 5.6 fix). The naive
+            // uniform pick over ALL slots wastes the single fault on a free
+            // slot when the O3 window is sparsely filled (steady-state FS:
+            // FreeListSize 170/200 — the first method2 PRF-arm runs injected
+            // an Inactive slot = effective no-op). Re-sample up to K times
+            // for an allocated (non-free) slot; if all K miss (window
+            // truly empty), reschedule instead of burning the fault.
+            if (target_phys_idx >= 0) {
+                chosen_phys_idx = target_phys_idx;
+            } else {
+                const int K_ACTIVE_RETRY = 32;
+                chosen_phys_idx = -1;
+                for (int t = 0; t < K_ACTIVE_RETRY; t++) {
+                    int cand = std::uniform_int_distribution<>(0, n - 1)(rng);
+                    PhysRegIdPtr cand_reg =
+                        (target_class == gem5::FloatRegClass)
+                            ? cpu->physRegFile().floatPhysRegId(cand)
+                            : (target_class == gem5::VecRegClass)
+                                  ? cpu->physRegFile().vecPhysRegId(cand)
+                                  : cpu->physRegFile().intPhysRegId(cand);
+                    if (!cpu->physFreeList().isFree(target_class, cand_reg)) {
+                        chosen_phys_idx = cand;
+                        break;
+                    }
+                }
+                if (chosen_phys_idx < 0) {
+                    // window empty (all K samples free): honest skip —
+                    // reschedule, do NOT consume the fault
+                    return;  // caller's periodic event reschedules
+                }
+            }
+            if (chosen_phys_idx >= n) return;
+            if (target_class == gem5::FloatRegClass)
+                phys_reg = cpu->physRegFile().floatPhysRegId(chosen_phys_idx);
+            else if (target_class == gem5::VecRegClass)
+                phys_reg = cpu->physRegFile().vecPhysRegId(chosen_phys_idx);
+            else
+                phys_reg = cpu->physRegFile().intPhysRegId(chosen_phys_idx);
+
+            // Liveness probe: is this physical slot currently FREE (inactive)
+            // or ALLOCATED (active)? Correct criterion per project notes: a phys
+            // reg NOT in the free list is allocated — it may be held as a source
+            // by in-flight renamed-but-unexecuted instructions even if no rename
+            // map entry currently maps it (older version superseded but not yet
+            // released). So "not free" = active = may be read. (The earlier
+            // "rename map reverse-walk" criterion was too narrow and mislabeled
+            // some live slots as dead, producing the dead-slot SDC anomaly.)
+            bool is_free = cpu->physFreeList().isFree(target_class, phys_reg);
+            free_list_size_at_inject = cpu->physFreeList().numFreeRegs(
+                target_class);
+            if (!is_free) {
+                // active — also record which arch reg (if any) maps to it now,
+                // for diagnostics (walk rename map; best-effort, not the
+                // liveness source of truth).
+                gem5::ThreadContext *tc = cpu->getContext(tid);
+                if (tc) {
+                    gem5::BaseISA *isa = tc->getIsaPtr();
+                    if (isa) {
+                        const auto &rc = isa->regClasses();
+                        const gem5::RegClass *ic = rc[target_class];
+                        int na = ic ? ic->numRegs() : 0;
+                        // X0-X30 (cap 31) for int; V0-V31 (cap 32) for
+                        // float AND vector (AArch64 V/D/Q share the file).
+                        int cap;
+                        if (target_class == gem5::IntRegClass)
+                            cap = (na < 31 ? na : 31);
+                        else
+                            cap = (na < 32 ? na : 32);
+                        for (int a = 0; a < cap; a++) {
+                            gem5::RegId ar(*ic, a);
+                            const gem5::RegId flat = ar.flatten(*isa);
+                            PhysRegIdPtr pm =
+                                cpu->frontRenameMap()[tid].lookup(flat);
+                            if (pm && pm->index() == chosen_phys_idx) {
+                                chosen_arch_idx = a;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                chosen_arch_idx = -2;  // sentinel: free/inactive
+            }
+        } else {
+            // arch_frontend: renameMap.lookup      (in-flight mapping)
+            // arch_commit:   commitRenameMap.lookup (committed mapping = CHAOSReg)
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (!thread_context) return;
+            gem5::BaseISA *isa = thread_context->getIsaPtr();
+            if (!isa) return;
+            const auto &reg_classes = isa->regClasses();
+            const gem5::RegClass *reg_class = reg_classes[target_class];
+            if (!reg_class || reg_class->numRegs() == 0) return;
+            int arch_idx = target_arch_idx;
+            if (arch_idx < 0 || arch_idx >= reg_class->numRegs()) return;
+            chosen_arch_idx = arch_idx;
+            gem5::RegId arch_reg(*reg_class, arch_idx);
+            // flatten to match the per-class rename map's indexing
+            const gem5::RegId flat = arch_reg.flatten(*isa);
+            if (fi_mode == Mode::ArchFrontend)
+                phys_reg = cpu->frontRenameMap()[tid].lookup(flat);
+            else // ArchCommit
+                phys_reg = cpu->commitRenameMapAccess()[tid].lookup(flat);
+            if (!phys_reg) return;
+            chosen_phys_idx = phys_reg->index();
+        }
+
+        if (!phys_reg) return;
+
+        // 3. Read current physical reg value, apply fault, write back.
+        // VecRegClass holds a whole vector in a buffer (not a scalar RegVal),
+        // so it goes through the getReg/setReg void*-overload; the fault mask
+        // is applied to the first 8 bytes (one 64-bit word — enough to corrupt
+        // the low lane of a NEON/SVE vector and propagate as SDC). int/float/
+        // vecelem stay on the scalar RegVal path.
+        FaultType chosen = fault_type_enum;
+        if (fault_type_enum == FaultType::Random) {
+            int idx = random_fault_distribution(rng);
+            chosen = static_cast<FaultType>(idx);
+        }
+
+        uint64_t mask = fault_mask.any()
+            ? fault_mask.to_ullong()
+            : generateRandomMask(rng, num_bits_to_change, 64);
+
+        if (target_class == gem5::VecRegClass) {
+            // Buffer path: read the WHOLE vector, corrupt ONE lane, write back.
+            // The buffer MUST be sized to the actual vector phys reg byte width
+            // (AArch64 VecRegClass = up to 256B for SVE-2048b). The old fixed
+            // `uint8_t buf[64]` overflowed by 192B on getReg (report issue #3).
+            // Phase 2 item 1: NEON lane stratification — the fault is applied
+            // to ONE lane of vec_lane_width bits at lane vec_lane_offset,
+            // instead of always the low 64-bit word. So a per-lane SDC study
+            // (plan §7.4 BM-NEON: 4x32/2x64/8x16 lanes) is possible.
+            size_t vbytes = cpu->physRegFile().vecRegBytes();
+            if (vbytes < sizeof(uint64_t)) vbytes = sizeof(uint64_t);  // paranoia
+            std::vector<uint8_t> buf(vbytes, 0);
+            cpu->physRegFile().getReg(phys_reg, buf.data());
+            // Resolve the lane: width in bits -> bytes; clamp to vector width.
+            int lw = vec_lane_width;
+            if (lw != 8 && lw != 16 && lw != 32 && lw != 64) lw = 32;  // default
+            int lane_bytes = lw / 8;
+            int max_lanes = (int)(vbytes / lane_bytes);
+            if (max_lanes < 1) max_lanes = 1;
+            int lane = vec_lane_offset;
+            if (lane < 0 || lane >= max_lanes)
+                lane = std::uniform_int_distribution<>(0, max_lanes - 1)(rng);
+            // The fault mask applies within the lane's bit window. Treat the
+            // lane as a lane_bytes-wide little-endian integer; apply the
+            // 64-bit mask truncated/padded to lane_bytes, then read-modify-write
+            // only those bytes. (mask was generated for the scalar path as a
+            // 64-bit value; for a 32-bit lane we use the low 32 bits, etc.)
+            uint8_t *lane_ptr = buf.data() + (size_t)lane * lane_bytes;
+            uint64_t lane_val = 0;
+            for (int b = 0; b < lane_bytes; ++b)
+                lane_val |= ((uint64_t)lane_ptr[b]) << (8 * b);
+            uint64_t lane_mask = (lw < 64) ? (mask & ((1ULL << lw) - 1)) : mask;
+            switch (chosen) {
+              case FaultType::StuckAtZero:
+                lane_val &= ~lane_mask;
+                stats->numStuckAtZero++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                break;
+              case FaultType::StuckAtOne:
+                lane_val |= lane_mask;
+                stats->numStuckAtOne++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                break;
+              case FaultType::BitFlip:
+                lane_val ^= lane_mask;
+                stats->numBitFlips++;
+                break;
+              default: break;
+            }
+            for (int b = 0; b < lane_bytes; ++b)
+                lane_ptr[b] = (uint8_t)((lane_val >> (8 * b)) & 0xff);
+            cpu->physRegFile().setReg(phys_reg, buf.data());
+            // log the lane for the evidence trail
+            if (write_log) {
+                *(log_stream->stream())
+                    << "  [vec lane " << lane << "/" << max_lanes
+                    << " width=" << lw << "bits mask=0x" << std::hex
+                    << lane_mask << std::dec << "]" << std::endl;
+            }
+        } else {
+            // Scalar path (int / float / vecelem).
+            gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);
+
+            // §1.3/§2.1B F3 data-dependent trigger (method2 undervoltage):
+            // inject ONLY when (val & triggerValueMask) == triggerValuePattern.
+            // mask=0 (default) = unconditional (original behavior, zero regression).
+            if (trigger_value_mask != 0) {
+                if ((reg_val & trigger_value_mask) != trigger_value_pattern) {
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  [F3 trigger miss: val=0x" << std::hex
+                            << reg_val << " & mask=0x" << trigger_value_mask
+                            << " != pattern=0x" << trigger_value_pattern
+                            << std::dec << " — no injection]" << std::endl;
+                    }
+                    return;  // data-dependent condition not met — skip
+                }
+                if (write_log) {
+                    *(log_stream->stream())
+                        << "  [F3 trigger HIT: val=0x" << std::hex << reg_val
+                        << " matches (mask=0x" << trigger_value_mask
+                        << ", pattern=0x" << trigger_value_pattern
+                        << std::dec << ")]" << std::endl;
+                }
+            }
+
+            switch (chosen) {
+              case FaultType::StuckAtZero:
+                reg_val &= ~mask;
+                stats->numStuckAtZero++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: arm the write-path stuck mask so the bit is forced on
+                // EVERY subsequent write to this phys slot — the correct
+                // permanent (cell-stuck) model. Survives program re-writes,
+                // rename reuse, and spec/commit. Polarity 0 = stuck_at_zero.
+                cpu->physRegFile().setStuckTarget(target_class, chosen_phys_idx,
+                                                  (uint64_t)mask, 0);
+                break;
+              case FaultType::StuckAtOne:
+                reg_val |= mask;
+                stats->numStuckAtOne++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: write-path stuck mask, polarity 1 = stuck_at_one.
+                cpu->physRegFile().setStuckTarget(target_class, chosen_phys_idx,
+                                                  (uint64_t)mask, 1);
+                break;
+              case FaultType::BitFlip:
+                reg_val ^= mask;
+                stats->numBitFlips++;
+                break;
+              default: break;
+            }
+            cpu->physRegFile().setReg(phys_reg, reg_val);
+        }
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+
+        // Start read-tracing this phys slot until workload end, to measure
+        // whether the injected cell is actually read after injection.
+        // (Closure check: SDC|read>0 should be similar for layer2 & layer3,
+        //  SDC|read==0 should be ~0.) The readTraceEvent reschedules itself
+        // every 1000 cycles until all threads halt, then writes the final
+        // read count to the log.
+        traced_phys_idx = chosen_phys_idx;
+        reads_before_overwrite = 0;
+        trace_overwritten = false;
+        overwrite_recorded = false;
+        overwritten_at_cycle = 0;
+        cpu->physRegFile().setReadTraceTarget(target_class, chosen_phys_idx);
+        // W2.5 L0 lifecycle interface (chaos_l0.hh): register the injected
+        // item through the shared registration entry. The read/overwrite
+        // hooks are CONTAINER-owned (PhysRegFile::getReg/setReg count inside
+        // regfile.hh against this key) — this injector mirrors them via
+        // chaosL0Sync at each poll and prints the final line from l0Final.
+        chaosL0Register(l0, (uint64_t)chosen_phys_idx);
+        if (!readTraceEvent.scheduled()) {
+            schedule(readTraceEvent, cpu->clockEdge(Cycles(100000)));
+        }
+
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", CPU: " << cpu->name()
+                << ", Thread: " << tid
+                << ", Mode: " << (fi_mode == Mode::Phys ? "phys"
+                              : fi_mode == Mode::ArchFrontend ? "arch_frontend"
+                              : "arch_commit")
+                << ", RegClass: " << (target_class == gem5::FloatRegClass
+                                       ? "fp"
+                                       : (target_class == gem5::VecRegClass
+                                          ? "vec" : "int"))
+                << ", PhysReg[" << chosen_phys_idx << "]"
+                << (fi_mode == Mode::Phys
+                    ? (chosen_arch_idx == -2
+                       ? " (Inactive/free slot)"
+                       : (chosen_arch_idx >= 0
+                          ? " (Active, mapped from ArchReg[" + std::to_string(chosen_arch_idx) + "])"
+                          : " (Active, held by in-flight inst, no current rename-map entry)"))
+                    : (chosen_arch_idx >= 0
+                       ? " (<= ArchReg[" + std::to_string(chosen_arch_idx) + "])"
+                       : ""))
+                << ", semanticRole: " << (semantic_role.empty() ? "-" : semantic_role)
+                    << ", FaultType: " << faultTypeToString(chosen)
+                << ", Mask: " << std::bitset<64>(mask)
+                << ", FreeListSize: " << free_list_size_at_inject
+                << std::endl;
+        }
+    }
+
+    void
+    CHAOSPhysReg::attackCheck()
+    {
+        if (!probability) return;
+        for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (!thread_context || thread_context->status() == ThreadContext::Halted)
+                continue;
+            processFault(tid);
+        }
+        // maxFaults cap (mirrors CHAOSReg)
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            unscheduleAttackEvent();
+            return;
+        }
+        bool any_active = false;
+        for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (thread_context && thread_context->status() != ThreadContext::Halted) {
+                any_active = true; break;
+            }
+        }
+        if (any_active) {
+            Cycles next = Cycles(inter_fault_cycles_dist(rng));
+            if (last_clock == 0 || (next + cpu->curCycle()) <= last_clock)
+                scheduleAttackEvent(next);
+        } else {
+            unscheduleAttackEvent();
+        }
+    }
+
+    void
+    CHAOSPhysReg::checkPermanent()
+    {
+        // NOTE: periodic re-apply is the WRONG stuck mechanism (see project
+        // notes). The correct one is a write-path mask hook in
+        // PhysRegFile::setReg. This periodic re-apply is kept only as a
+        // fallback for the 'arch_*' modes' compatibility and will NOT make
+        // stuck faults truly permanent on O3 for the same reason CHAOSReg's
+        // didn't propagate (commits vs in-flight). Phys-fi_mode stuck also needs
+        // the write-path mask to be correct.
+        for (auto &entry : permanent_faults) {
+            if (!entry.second.update) continue;
+            ThreadID tid = entry.first.first;
+            int phys_idx = entry.first.second;
+            if (phys_idx < 0 || phys_idx >= cpu->physRegFile().numIntPhysRegs()) continue;
+            PhysRegIdPtr phys_reg = cpu->physRegFile().intPhysRegId(phys_idx);
+            try {
+                gem5::RegVal v = cpu->physRegFile().getReg(phys_reg);
+                switch (entry.second.fault_type) {
+                    case FaultType::StuckAtZero: v &= ~entry.second.mask; break;
+                    case FaultType::StuckAtOne:  v |= entry.second.mask; break;
+                    default: break;
+                }
+                cpu->physRegFile().setReg(phys_reg, v);
+                entry.second.update = false; // (kept for compatibility; TODO remove + write-path mask)
+            } catch (...) {}
+            scheduleCheckPermanentFault(Cycles(1));
+        }
+    }
+
+    void
+    CHAOSPhysReg::readTraceCheck()
+    {
+        // Poll the PhysRegFile's read counter for the INJECTED VALUE.
+        // Counting stops once the slot is written (injected value destroyed),
+        // so reads_before_overwrite = # reads of the injected value specifically.
+        reads_before_overwrite = cpu->physRegFile().getReadsBeforeOverwrite();
+        // Capture the cycle at the moment the value is overwritten (once).
+        if (cpu->physRegFile().isTraceOverwritten() && !overwrite_recorded) {
+            overwritten_at_cycle = cpu->curCycle();
+            overwrite_recorded = true;
+        }
+        // W2.5 L0: mirror the container-owned counters into the L0 state
+        // (poll-granular overwrite stamp — tighter than the exit-callback
+        // sync in l0Final; see 07-l0-lifecycle-interface.md §3.3).
+        chaosL0Sync(l0, cpu->physRegFile().getReadsBeforeOverwrite(),
+                    cpu->physRegFile().isTraceOverwritten(), cpu->curCycle());
+        if (write_log) {
+            *(log_stream->stream())
+                << "ReadTracePoll: cycle " << cpu->curCycle()
+                << " PhysReg[" << traced_phys_idx
+                << "] reads_before_overwrite=" << reads_before_overwrite
+                << " overwritten=" << (overwrite_recorded ? 1 : 0)
+                << (overwrite_recorded ? (" at_cycle=" + std::to_string(overwritten_at_cycle)) : "")
+                << std::endl;
+        }
+        bool any_active = false;
+        for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (thread_context && thread_context->status() != ThreadContext::Halted) {
+                any_active = true; break;
+            }
+        }
+        if (any_active) {
+            schedule(readTraceEvent, cpu->clockEdge(Cycles(100000)));
+        } else {
+            if (write_log) {
+                *(log_stream->stream())
+                    << "ReadTraceFinal: PhysReg[" << traced_phys_idx
+                    << "] reads_before_overwrite=" << reads_before_overwrite
+                    << " overwritten=" << (overwrite_recorded ? 1 : 0)
+                    << (overwrite_recorded ? (" at_cycle=" + std::to_string(overwritten_at_cycle)) : "")
+                    << " (workload halted)"
+                    << std::endl;
+            }
+            cpu->physRegFile().clearReadTraceTarget();
+            traced_phys_idx = -1;
+        }
+    }
+
+    void
+    CHAOSPhysReg::l0Final()
+    {
+        // W2.5 L0 lifecycle final line (docs/gem5-fi/ooo/
+        // 07-l0-lifecycle-interface.md), printed exactly once at end of
+        // sim from the exit callback registered in the constructor.
+        // Sync the FRESH container counters — PhysRegFile::getReg/setReg
+        // keep counting past the last poll, and the counters survive
+        // clearReadTraceTarget (only the key is cleared) — so reads/...
+        // are exact up to sim end; only at= stays observation-granular
+        // (poll stamp if a poll saw the flip, else this exit cycle).
+        // No injection ever landed (honest skip / F3 trigger miss all
+        // attempts) -> no line. Crash/abort paths run no exit callbacks,
+        // so Crash runs legitimately have no CHAOS_L0 line.
+        if (!l0.active || !write_log)
+            return;
+        chaosL0Sync(l0, cpu->physRegFile().getReadsBeforeOverwrite(),
+                    cpu->physRegFile().isTraceOverwritten(), cpu->curCycle());
+        *(log_stream->stream()) << chaosL0Line("CHAOSPhysReg", l0)
+                                 << std::endl;
+    }
+
+} // namespace gem5

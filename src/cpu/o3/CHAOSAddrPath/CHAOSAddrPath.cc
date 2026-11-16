@@ -1,0 +1,822 @@
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
+
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
+#include "cpu/o3/cpu.hh"          // o3::CPU
+#include "debug/CHAOSAddrPath.hh"
+#include "params/CHAOSAddrPath.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (W2 summary line)
+
+namespace gem5
+{
+
+    CHAOSAddrPath *CHAOSAddrPath::f6Consumer = nullptr;
+
+    CHAOSAddrPath::CHAOSAddrPath(const CHAOSAddrPathParams &p)
+        : SimObject(p),
+          cpu(p.cpu),
+          fi_mode(stringToMode(p.mode)),
+          probability(p.probability),
+          first_clock(p.firstClock),
+          last_clock(p.lastClock),
+          max_faults(p.maxFaults),
+          rng_seed(p.rngSeed),
+          write_log(p.writeLog),
+          a03_watchdog_cycles(p.watchdogCycles),
+          count_only(p.countOnly),
+          pre_mode(p.preMode),
+          agu_size_to(p.aguSizeTo)
+    {
+        if (p.lsuTier != "off") {
+            lsuTrigger = new ChaOSLsuTrigger(tierFromString(p.lsuTier),
+                                             rng_seed ? rng_seed : 1,
+                                             p.lsuWarmupEvents,
+                                             p.lsuSpanEvents,
+                                             eventFromString(p.lsuF6Event),
+                                             p.lsuEventOrdinal);
+        }
+        if (probability > 0.0f) {
+            log_stream = simout.create("addrpath_injections.log", false, true);
+            if (!log_stream || !log_stream->stream())
+                panic("CHAOSAddrPath: Could not open log file");
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
+        }
+    }
+
+    CHAOSAddrPath::~CHAOSAddrPath() {}
+
+    CHAOSAddrPath::Mode
+    CHAOSAddrPath::stringToMode(const std::string &s) {
+        if (s == "low_bit_flip") return Mode::LowBitFlip;
+        // LSU W4 A-series (03-design-matrix A01-A03)
+        if (s == "a01_bit") return Mode::A01Bit;
+        if (s == "a02_2bit") return Mode::A02DoubleBit;
+        if (s == "a03_stuck0") return Mode::A03Stuck0;
+        if (s == "a03_stuck1") return Mode::A03Stuck1;
+        return Mode::Byte7Zero;  // default / unknown
+    }
+
+    const char *
+    CHAOSAddrPath::modeName(Mode m)
+    {
+        // [LSU][V3.2.12][A01] the true config name per mode (the exact
+        // stringToMode spellings) for the post-hook injection-log line; the
+        // legacy ternary printed "low_bit_flip" for every non-byte7 mode.
+        switch (m) {
+          case Mode::Byte7Zero:   return "byte7_zero";
+          case Mode::LowBitFlip:  return "low_bit_flip";
+          case Mode::A01Bit:      return "a01_bit";
+          case Mode::A02DoubleBit: return "a02_2bit";
+          case Mode::A03Stuck0:   return "a03_stuck0";
+          case Mode::A03Stuck1:   return "a03_stuck1";
+        }
+        return "unknown";
+    }
+
+    ChaOSLsuTier
+    CHAOSAddrPath::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSLsuTier::F0;
+        if (s == "F1") return ChaOSLsuTier::F1;
+        if (s == "F2") return ChaOSLsuTier::F2;
+        if (s == "F3") return ChaOSLsuTier::F3;
+        if (s == "F4") return ChaOSLsuTier::F4;
+        if (s == "F5") return ChaOSLsuTier::F5;
+        if (s == "F6") return ChaOSLsuTier::F6;
+        panic("CHAOSAddrPath: unknown lsuTier '%s'\n", s);
+    }
+
+    ChaOSLsuEvent
+    CHAOSAddrPath::eventFromString(const std::string &s) {
+        if (s == "tlb_hit") return ChaOSLsuEvent::TlbHit;
+        if (s == "dirty_eviction") return ChaOSLsuEvent::DirtyEviction;
+        if (s == "cas_success") return ChaOSLsuEvent::CasSuccess;
+        return ChaOSLsuEvent::SqForward;  // sq_forward / default
+    }
+
+    void
+    CHAOSAddrPath::f6Thunk(ChaOSLsuEvent ev) {
+        // Single-consumer F6 notify (chaos_lsu_trigger.hh). The trigger's
+        // onF6Event() both filters the event type and enforces once-ever.
+        if (f6Consumer && f6Consumer->lsuTrigger &&
+            f6Consumer->lsuTrigger->f6_event == ev &&
+            f6Consumer->lsuTrigger->onF6Event())
+            f6Consumer->f6_pending = true;  // fire at the next eligible hook
+    }
+
+    bool
+    CHAOSAddrPath::inWindow() {
+        // Frequency-correct: use the CPU's actual clock period for the
+        // cycles->ticks conversion (C0 2GHz=500t/cyc, C2-KP 2.6GHz~385t/cyc).
+        // The old *1000 assumed 1GHz and never opened the window on C2.
+        if (!cpu) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        Tick now = curTick();
+        Tick period = o3cpu->clockPeriod();
+        Tick f = first_clock * period;
+        if (now < f) return false;
+        if (last_clock != 0 && now > last_clock * period) return false;
+        return true;
+    }
+
+    bool
+    CHAOSAddrPath::maybeCorrupt(RequestPtr &req)
+    {
+        if (!cpu || probability <= 0.0f) return false;
+        if (!req) return false;
+
+        if (lsuTrigger) {
+            // LSU W2 path (05 r2-r8): event-normalized trigger owns the
+            // warm-up/repetition/max-faults semantics; the cycle window and
+            // per-event probability roll do NOT apply on this path.
+            lsuTrigger->onAttempt();
+            bool go;
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = lsuTrigger->onEligible();
+            }
+            if (!go) return false;
+            ++obs_post_fired;   // [LSU][OBS-2]
+        } else {
+            // Legacy cycle-window path (KP track) — byte-identical.
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
+
+        // §2.4 AGU address-path: corrupt the request vaddr BEFORE translateTiming.
+        //   byte7_zero: clear byte 7 (canonical -> non-canonical kernel addr).
+        //   low_bit_flip: XOR a low bit (sub-page address shift).
+        // HONEST: SE-inert — SE phys mem from 0, only 512MiB, so byte7 zero still
+        // lands in the mapped physical range (no fault). FS-only effective.
+        Addr vaddr = req->getVaddr();
+        Addr new_vaddr = vaddr;
+        // [LSU][V3.2.12][A01] applied single-bit index of an A01Bit
+        // corruption (kNoBit for every other mode) — the coordinate the
+        // staged a01_ea record below needs.
+        int a01_applied_bit = chaos_a01::kNoBit;
+        if (fi_mode == Mode::Byte7Zero) {
+            new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7
+        } else if (fi_mode == Mode::A01Bit) {
+            // A01 (03): single-bit flip, low/mid/high band sampling
+            // (VA is 48-bit in SE: low 0-15 / mid 16-39 / high 40-47).
+            const uint64_t band = rng() % 3;
+            const uint64_t bit = (band == 0) ? rng() % 16
+                               : (band == 1) ? 16 + rng() % 24
+                               : 40 + rng() % 8;
+            a01_applied_bit = (int)bit;
+            new_vaddr = vaddr ^ (1ULL << bit);
+        } else if (fi_mode == Mode::A02DoubleBit) {
+            // A02 (03): two bits in the SAME event, 50% adjacent / 50%
+            // non-adjacent (covers both MBU and dispersed error spaces).
+            if (rng() % 2) {
+                const uint64_t b = rng() % 46;
+                new_vaddr = vaddr ^ ((1ULL << b) | (1ULL << (b + 1)));
+            } else {
+                uint64_t b1 = rng() % 48, b2 = rng() % 48;
+                if (b1 == b2) b2 = (b2 + 1) % 48;
+                new_vaddr = vaddr ^ ((1ULL << b1) | (1ULL << b2));
+            }
+        } else if (fi_mode == Mode::A03Stuck0 || fi_mode == Mode::A03Stuck1) {
+            // A03 (03): one EA bit stuck-at-0/1, applied on EVERY event from
+            // warm-up on (F5 semantics). A correct value already equal to
+            // the stuck value is a NO-OP application — logged distinctly so
+            // L5 can subtract it from injected (A03's activated 口径).
+            if (f5_bit == 64) f5_bit = rng() % 48;
+            const Addr mask = 1ULL << f5_bit;
+            new_vaddr = (fi_mode == Mode::A03Stuck0) ? (vaddr & ~mask)
+                                                     : (vaddr | mask);
+        } else if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5) {
+            // LSU F5 (05 r8): "每次运行仅选一个 bit/字段" — ONE fixed bit per
+            // run, stuck from the first post-warm-up eligible event on. A
+            // per-event random bit (the legacy path) instead aliases each
+            // access unpredictably and trips packet-offset assertions.
+            if (f5_bit == 64) f5_bit = rng() % 16;
+            new_vaddr = vaddr ^ (1ULL << f5_bit);
+        } else {
+            new_vaddr = vaddr ^ (1ULL << (rng() % 16));  // low-bit flip
+        }
+        if (new_vaddr == vaddr) { ++obs_post_nochange; return false; }   // [LSU][OBS-2]
+        req->setVaddr(new_vaddr);
+        // W3 L0: register the injected item + local funnel accounting. The
+        // trigger-mirrored counts are taken at EXIT (see the exit callback)
+        // — mirroring at injection time would snapshot mid-run values.
+        // activated: this hook corrupts the request that translateTiming
+        // consumes next — count the item consumed (.hh approximation note).
+        chaosL0Register(l0_item, new_vaddr);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        faults_injected_count++;
+        // [LSU][V3.2.12][A01] Mode::A01Bit: stage the golden/actual EA
+        // record at EA formation (read-only trace evidence, plan Task 7).
+        // The Request is in hand at this hook: dyn seq via
+        // getReqInstSeqNum (the binding gem5 v25 maintains), size via
+        // getSize, PC via getPC when the request carries one (_pc
+        // defaults to MaxAddr when unstamped — never fabricated).
+        if (fi_mode == Mode::A01Bit) {
+            stageA01EA(chaos_a01::eaCoordsForFlip(
+                faults_injected_count, req->getReqInstSeqNum(),
+                (req->getPC() != MaxAddr) ? req->getPC()
+                                          : chaos_a01::kPcUnknown,
+                vaddr, a01_applied_bit, req->getSize()));
+        }
+        // [LSU][OBS-L3] abort-survivable funnel row (attempted/eligible/
+        // injected as of NOW; the inj/addr_form nodes are registered by the
+        // lsq.cc sendFragmentToTranslation call site, which sees the return
+        // value and both vaddrs).
+        notifyFunnelAtInjection();
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: lsq_sendFragmentToTranslation"
+                << ", mode=" << modeName(fi_mode)
+                << ", old_vaddr=0x" << std::hex << vaddr
+                << ", new_vaddr=0x" << new_vaddr << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << " (NOTE: SE-inert — byte7 zero lands in SE 512MiB range)"
+                << std::endl;
+        }
+        return true;
+    }
+
+    unsigned int
+    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
+                               Request::Flags& flags, uint64_t dyn_seq,
+                               uint64_t pc)
+    {
+        // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
+        // (flag-only modes S06/L02 leave addr/size untouched).
+        obs_pre_hook_injected = false;
+        if (probability <= 0.0f) {
+            // [A01 v3.3 proposal] matched control (probability 0.0): observe
+            // the ordinal-selected golden EA read-only. Never mutates addr or
+            // size and never counts an injection.
+            // v3.3.3 L-A12: the control must advance the SAME 8-byte-only
+            // eligible space as the fault run, or the target ordinal selects
+            // a different instruction.
+            if (pre_mode == "a01_bit3_load" && isLoad && size == 8)
+                probeA01Control(addr, size, isLoad, dyn_seq, pc);
+            return size;
+        }
+
+        if (lsuTrigger) {
+            lsuTrigger->onAttempt();
+            // [LSU][SEM-PRE] op-class filter BEFORE the trigger decision (F-049
+            // phantom fix, user step 8 2026-10-10): the model's op class is part
+            // of ELIGIBILITY (checklist 激活口径) — a trigger fire the mode
+            // cannot write is not an injection. L01/L02 = loads only; S13/S04/
+            // S05/S11 = stores only; eligible streams now exclude the opposite
+            // class, so interval tiers (F1/F2/F4) count against the op-filtered
+            // stream. The in-switch checks stay as belt-and-braces; OBS-2's
+            // pre_opclass counter is the regression detector (must stay 0).
+            const bool pre_load_only  = (pre_mode == "l01_load_addr" ||
+                                         pre_mode == "l02_load_state" ||
+                                         pre_mode == "a01_bit3_load" ||
+                                         pre_mode == "a03_bit3_stuck0_load");
+            const bool pre_store_only = (pre_mode == "s13_store_addr" ||
+                                         pre_mode == "s04_store_subst" ||
+                                         pre_mode == "s05_store_size" ||
+                                         pre_mode == "s11_store_lost");
+            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad))
+                return size;   // op class not eligible for this model
+            // [LSU][V3.3.3][A01] size filter (ledger L-A12): A01 targets a
+            // 64-bit GPR load. A 16-byte vector load (ldr q) becomes
+            // misaligned after EA^0x8, splits, and bypasses the GPR
+            // writeback observer; it is not an A01-eligible event. A03
+            // (persistent) stays size-agnostic.
+            if (pre_mode == "a01_bit3_load" && size != 8)
+                return size;
+            if (count_only) {
+                // Census-only: advance the eligible ordinal and log it; no
+                // injection decision, no fault write.
+                const uint64_t ord = lsuTrigger->noteEligibleForCensus();
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "CHAOS_ELIGIBLE: ordinal="
+                        << ord << ";dyn_inst_seq=" << dyn_seq
+                        << ";pc=0x" << std::hex << pc
+                        << ";size=" << std::dec << size
+                        << ";ea=0x" << std::hex << addr << std::dec
+                        << std::endl;
+                }
+                return size;
+            }
+            bool go;
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = lsuTrigger->onEligible();
+            }
+            if (!go) return size;
+            ++obs_pre_fired;   // [LSU][OBS-2]
+        } else {
+            // Legacy gating (same shape as the post hook).
+            if (max_faults != 0 && faults_injected_count >= max_faults) return size;
+            if (!inWindow()) return size;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return size;
+        }
+
+        const Addr old_addr = addr;
+        const unsigned old_size = size;
+
+        if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
+            // A04/A08 (03): substitute another LEGAL address in the same
+            // 4KiB page (16B-aligned, != original). A04's "same allocated
+            // object" needs the W9 oracle object table — same-page is the
+            // honest decidable proxy (both must map; SE flat space).
+            const Addr page = addr & ~(Addr)0xFFF;
+            Addr cand;
+            do {
+                cand = page | ((Addr)(rng() % 256) << 4);
+            } while (cand == addr);
+            addr = cand;
+        } else if (pre_mode == "a05_shift") {
+            // A05 (03), shift-amount substitution submodel: rotate the low
+            // byte of the EA by d in [1,7] — the observable effect of a
+            // wrong LSL amount on the offset bits.
+            const uint64_t d = 1 + rng() % 7;
+            const Addr lo = addr & 0xFF;
+            addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
+        } else if (pre_mode == "a06_size") {
+            // A06 (03): access-size substitution to another legal value
+            // {1,2,4,8,16}; address unchanged. byte_enable is const at
+            // this hook — size only (documented, 09 §3-W4).
+            if (agu_size_to == 1 || agu_size_to == 2 || agu_size_to == 4 ||
+                agu_size_to == 8 || agu_size_to == 16)
+                size = (unsigned)agu_size_to;
+            else
+                { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] invalid target size — no-op, logged below
+        } else if (pre_mode == "s13_store_addr") {
+            // S13 (03): SQ entry address/tag single-bit flip — STORES only.
+            // The corrupted address affects forwarding comparison AND the
+            // final writeback destination (both consume the SQ addr field).
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]   // L01's territory, not ours
+            const uint64_t bit = rng() % 48;   // VA 48-bit
+            addr = addr ^ (1ULL << bit);
+        } else if (pre_mode == "s04_store_subst") {
+            // S04 (03): SQ addr field substitution to another legal same-page
+            // address — STORES only. Changes both forwarding comparison and
+            // the final writeback destination.
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
+            const Addr page = addr & ~(Addr)0xFFF;
+            Addr cand;
+            do { cand = page | ((Addr)(rng() % 256) << 4); } while (cand == addr);
+            addr = cand;
+        } else if (pre_mode == "s05_store_size") {
+            // S05 (03): SQ byte-enable/access-size substitution — STORES
+            // only. Changes the partial-store coverage (which bytes get
+            // written). Address unchanged.
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
+            const unsigned new_sizes[] = {1, 2, 4, 8, 16};
+            const unsigned pick = rng() % 5;
+            if (new_sizes[pick] != size) size = new_sizes[pick];
+            else size = new_sizes[(pick + 1) % 5];
+        } else if (pre_mode == "s06_store_state") {
+            // S06 (03): SQ lifecycle state corruption — STORES only. Toggle
+            // STRICT_ORDER on the store, which changes how it drains
+            // (strictly-ordered stores bypass normal writeback path).
+            // Honest approximation of the valid/committed/completed state.
+            flags.set(Request::STRICT_ORDER);
+        } else if (pre_mode == "s07_store_ptr") {
+            // S07 (03): SQ head/tail pointer corruption — STORES only.
+            // Honest approximation: alias the store to the PREVIOUS cache
+            // line (64B shift), simulating a head/tail misalignment where
+            // the wrong entry is selected for writeback.
+            addr = (addr & ~(Addr)0x3F) - 0x40;
+        } else if (pre_mode == "s11_store_lost") {
+            // S11 (03): SQ drain handshake — STORES only. Set size=0
+            // (simulating a lost/never-completed write request: the SQ
+            // "thinks" it sent the write but nothing reaches L1D).
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
+            size = 0;
+        } else if (pre_mode == "l02_load_state") {
+            // L02 (03): LQ lifecycle state corruption — LOADS only. Toggle
+            // STRICTLY_ORDERED flag, which changes how the load is handled
+            // (strictly-ordered loads bypass forwarding and go to memory).
+            // Honest approximation: the full valid/issued/completed state
+            // machine is internal to LSQRequest; the flags are the
+            // externally controllable lifecycle proxy at this hook.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
+            flags.set(Request::STRICT_ORDER);
+        } else if (pre_mode == "l01_load_addr") {
+            // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
+            // The corrupted address affects the conflict/violation check
+            // against older stores AND the actual memory access.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]  // S13's territory, not ours
+            const uint64_t bit = rng() % 48;
+            addr = addr ^ (1ULL << bit);
+        } else if (pre_mode == "a01_bit3_load") {
+            // A01 (LSU v3.2 pilot): single transient bit-3 flip of the AGU
+            // effective address at the audited pushRequest entry. LOADS
+            // only. F0 is the tier (maxFaults=1), so exactly one eligible
+            // load is corrupted per run.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
+            addr = addr ^ (Addr)0x8;
+        } else if (pre_mode == "a03_bit3_stuck0_load") {
+            // A03 (LSU v3.2 pilot): bit-3 stuck-at-0 applied to EVERY
+            // post-warm-up eligible load (F5 reapplication, not a physical
+            // latch). LOADS only. If bit 3 is already 0 the condition is
+            // still applied: count the application and log it as nochange;
+            // there is no corrupted address to propagate.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
+            addr = addr & ~(Addr)0x8;
+            // [LSU][V3.2.12][A03] read-only eligibility stream (plan Task
+            // 8): one a03_stream record per trigger-fired eligible load —
+            // and the fired stream IS the post-activation stream, because
+            // the F5 trigger returns false for every pre-activation
+            // eligible event (chaos_lsu_trigger.hh F5 case arms at
+            // warmup_events + event_ordinal), so this branch only runs at
+            // and after the activation start position. The first fired
+            // event also records a03_activation {tick, bit, mode}.
+            // Observes the same old_addr/addr pair the branch already
+            // computed — no fault-semantics change, no data-path change.
+            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3, pc);
+            if (addr == old_addr) {
+                ++obs_pre_nochange;
+                ++l0_funnel.injected;
+                ++faults_injected_count;
+                if (o3cpu_resolved && o3cpu_resolved->chaosPropagation)
+                    o3cpu_resolved->chaosPropagation->noteNoChange(
+                        "lsq_pushRequest_PRE", dyn_seq, addr, pre_mode.c_str(),
+                        0, 0);
+                notifyFunnelAtInjection();
+                logPreInjection(old_addr, addr, old_size, size, true);
+                return size;
+            }
+        } else {
+            { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] unknown pre_mode — config validated in .py choices
+        }
+
+        chaosL0Register(l0_item, addr ? addr : size);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        // [LSU][V3.2.12][A01] a01_bit3_load (the v3.2 pilot path): stage
+        // the golden/actual EA record at EA formation — golden = the AGU
+        // EA at hook entry (old_addr), actual = the post-XOR addr, bit 3,
+        // access size as pushed. The PC flows through the hook param the
+        // lsq.cc call site passes (inst->pcState().instAddr(); 0 =
+        // kPcUnknown — never fabricated).
+        // Read-only: no data-path change beyond the XOR above.
+        if (pre_mode == "a01_bit3_load") {
+            stageA01EA(chaos_a01::eaCoordsForFlip(
+                faults_injected_count, dyn_seq,
+                pc ? pc : chaos_a01::kPcUnknown,
+                old_addr, 3, size));
+        }
+        // [LSU][OBS-L3] the PRE hook DID inject: the lsq.cc pushRequest call
+        // site registers inj/addr_form with CHAOSPropagation through
+        // lastPreHookInjected() (it sees the before/after addr/size for the
+        // addr registry); here we only owe the abort-survivable funnel row.
+        obs_pre_hook_injected = true;
+        notifyFunnelAtInjection();
+        logPreInjection(old_addr, addr, old_size, size, false);
+        return size;
+    }
+
+    void
+    CHAOSAddrPath::logPreInjection(uint64_t old_addr, uint64_t new_addr,
+                                   unsigned old_size, unsigned new_size,
+                                   bool nochange)
+    {
+        // [LSU][V3.3.2][A03] The persistent F5 mode applies the fault on
+        // every eligible load. A corrupted address can change control flow
+        // and drive the program into a long/pathological loop, so cap this
+        // per-application line for A03 only. Counters stay exact; the ROI
+        // evidence (A03_STREAM) has its own recorder; one marker records
+        // the cap. Other modes keep the unbounded legacy behaviour.
+        if (!write_log || !log_stream || !log_stream->stream())
+            return;
+        const bool a03 = (pre_mode == "a03_bit3_stuck0_load");
+        if (a03 && a03_pre_log_lines >= kA03PreLogCap)
+            return;
+        auto &s = *log_stream->stream();
+        s << "Tick: " << curTick()
+          << ", Site: lsq_pushRequest_PRE"
+          << ", mode=" << pre_mode
+          << ", old_addr=0x" << std::hex << old_addr
+          << ", new_addr=0x" << new_addr
+          << ", old_size=" << std::dec << old_size
+          << ", new_size=" << new_size;
+        if (nochange)
+            s << ", value_changed=0";
+        s << ", faults_injected: " << faults_injected_count << std::endl;
+        if (a03 && ++a03_pre_log_lines == kA03PreLogCap) {
+            s << "A03_LOG_CAPPED: cap=" << kA03PreLogCap
+              << " faults_injected=" << faults_injected_count
+              << " tick=" << curTick() << std::endl;
+        }
+    }
+
+    void
+    CHAOSAddrPath::notifyFunnelAtInjection()
+    {
+        // [LSU][OBS-L3] funnel row with the counts as of NOW. Trigger path:
+        // mirror the trigger's own counters (the exit callback mirrors the
+        // same way); legacy path: attempted=eligible=injected (the existing
+        // non-trigger l0_funnel mirror convention, CHAOSAddrPath.cc exit
+        // callback). stdout stays untouched (W2.1 discipline) — the FUNNEL
+        // line goes to the injection log only, and the abort-survivable
+        // copy is the prop-trace node (per-node gzflush).
+        const uint64_t attempted =
+            lsuTrigger ? lsuTrigger->attempted : faults_injected_count;
+        const uint64_t eligible =
+            lsuTrigger ? lsuTrigger->eligible : faults_injected_count;
+        const uint64_t injected =
+            lsuTrigger ? lsuTrigger->injected : faults_injected_count;
+        if (o3cpu_resolved && o3cpu_resolved->chaosPropagation)
+            o3cpu_resolved->chaosPropagation->noteFunnel(
+                "CHAOSAddrPath", attempted, eligible, injected);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "FUNNEL: attempted=" << attempted
+                << " eligible=" << eligible
+                << " injected=" << injected << std::endl;
+        }
+    }
+
+    void
+    CHAOSAddrPath::stageA01EA(const chaos_a01::EACoords &c)
+    {
+        // [LSU][V3.2.12][A01] Read-only trace staging at EA formation (plan
+        // Task 7). The injector computes the golden/actual coordinates with
+        // the pure math in a01_coords.hh; CHAOSPropagation stays the SINGLE
+        // prop-trace writer — the sink-side emitter reads the staged record
+        // (stagedA01EA) at the lsq.cc call sites and writes the a01_ea node;
+        // this method never touches CPU state, the request, or the trace
+        // file. Durable copies today: (1) the A01_EA line below, written to
+        // the SAME addrpath_injections.log stream every injection already
+        // uses, in the frozen detail format from a01_coords.hh so the log
+        // line and the future prop-trace node can never drift; (2) the
+        // staged record itself for the sink side. fault_va is NOT_APPLICABLE
+        // at formation (no fault is raised yet); the sink side completes it
+        // with chaos_a01::recordFaultVA when the corrupted request's fault
+        // lands (task-7-report.md names the observation point).
+        staged_a01_ea = c;
+        a01_ea_staged = true;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "A01_EA: "
+                << chaos_a01::eaDetail(staged_a01_ea) << std::endl;
+        }
+    }
+
+    void
+    CHAOSAddrPath::a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
+                                       Addr actual_ea, int bit, uint64_t pc)
+    {
+        // [LSU][V3.2.12][A03] read-only F5 eligibility stream (plan Task 8).
+        // Called ONCE per trigger-fired eligible load from the
+        // a03_bit3_stuck0_load application branch, with the (golden,
+        // actual) pair the branch already computed. Observation only — no
+        // fault-semantics change, no data-path change:
+        //  - the first fired event stages a03_activation {tick, bit,
+        //    mode} (the recorder makes a second activation structurally
+        //    impossible — rejected, counted);
+        //  - every fired event stages one a03_stream record (the
+        //    recorder rejects double-records / ordinal regressions,
+        //    counted, never silent) whose affected/reason fields are
+        //    DERIVED from the observed pair (a03_stream.hh: affected=1
+        //    iff the EA changed; golden==actual is the ALREADY_STUCK
+        //    masking path — recorded, not dropped);
+        //  - the durable in-process copy is the A03_ACTIVATION /
+        //    A03_STREAM lines in addrpath_injections.log (the A01_EA
+        //    precedent: same log stream, same writer, frozen detail
+        //    format). CHAOSPropagation stays the SINGLE prop-trace
+        //    writer; the sink side reads the staged record through
+        //    a03StreamStaged()/stagedA03Stream() (the a01_ea contract).
+        if (!lsuTrigger)
+            return;  // no eligible-event ordinal space: the A03 pilot
+                     // family is trigger-mounted (F5) by construction
+                     // (manifests: --addrpath_lsu_tier F5); the legacy
+                     // cycle-window path has no activation concept, so
+                     // the stream is honestly absent there.
+        // event_ordinal: the trigger's eligible count AFTER onEligible()
+        // returned true for this load — this load's 1-based ordinal in the
+        // same eligible-event space the R01-R05 activation positions index
+        // (warmup_events + event_ordinal), so R05's first stream row is
+        // ordinal 5. The PC is threaded from the lsq.cc pushRequest call
+        // site (inst->pcState().instAddr(); 0 = genuinely unavailable ->
+        // kPcUnknown, never fabricated).
+        const uint64_t event_pc = pc ? pc : chaos_a01::kPcUnknown;
+        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
+            lsuTrigger->eligible, dyn_seq, event_pc,
+            golden_ea, actual_ea, bit);
+        if (!a03_stream_rec.activated()) {
+            chaos_a03::Activation act;
+            act.tick = curTick();
+            act.bit = bit;
+            act.mode = pre_mode;
+            // v3.3.2 P0-5: lifecycle identity of the persistent fault's
+            // activation row (ordinal/dyn seq/pc/golden EA); the frozen
+            // {tick, bit, mode} activationDetail line is unchanged.
+            act.event_ordinal = ev.event_ordinal;
+            act.dyn_inst_seq = dyn_seq;
+            act.pc = event_pc;
+            act.golden_ea = golden_ea;
+            if (a03_stream_rec.activate(act)) {
+                // 1-based fault ordinal of this persistent fault: the
+                // activation application's own ordinal (faults_injected_count
+                // has not been incremented for this load yet).
+                a03_fault_id = faults_injected_count + 1;
+                writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
+                    a03_stream_rec.activation()));
+                // [LSU][V3.3.3][A03] arm the in-simulator watchdog ONCE per
+                // run, at activation (ledger L-A02). This path is reached
+                // only from a real F5 application branch, so a matched
+                // control (probability 0) can never schedule it. 0 =
+                // disabled: every other model stays byte-identical.
+                if (a03_watchdog_cycles && !a03_watchdog_event) {
+                    a03_watchdog_event = new EventFunctionWrapper(
+                        [this]() { this->a03Watchdog(); },
+                        "A03 watchdog", true);
+                    schedule(a03_watchdog_event,
+                             cpu->clockEdge(Cycles(a03_watchdog_cycles)));
+                }
+            }
+        }
+        if (a03_stream_rec.record(ev)) {
+            staged_a03_stream = ev;
+            a03_stream_staged = true;
+            writeA03LogLine("A03_STREAM", chaos_a03::streamDetail(ev));
+        }
+    }
+
+    void
+    CHAOSAddrPath::writeA03LogLine(const char *tag, const std::string &detail)
+    {
+        // [LSU][V3.2.12][A03] durable in-process copy of one a03 record:
+        // the same addrpath_injections.log stream every injection line
+        // already uses, in the frozen detail format from a03_stream.hh so
+        // the log line and the future prop-trace node can never drift.
+        // The log is a simout stream (lost on abort); the abort-survivable
+        // copy is the sink-side prop-trace node, not this line.
+        if (write_log && log_stream && log_stream->stream())
+            *(log_stream->stream()) << tag << ": " << detail << std::endl;
+    }
+
+    void
+    CHAOSAddrPath::probeA01Control(Addr addr, unsigned size, bool isLoad,
+                                   uint64_t dyn_seq, uint64_t pc)
+    {
+        if (!o3cpu_resolved || !o3cpu_resolved->chaosPropagation)
+            return;
+        if (!lsuTrigger || lsuTrigger->tier != ChaOSLsuTier::F0)
+            return;                     // control probe is F0-only
+        if (!isLoad)
+            return;                     // a01_bit3_load is load-only
+        if (!lsuTrigger->onControlProbe())
+            return;                     // not the ordinal-selected load
+        const chaos_a01::EACoords c = chaos_a01::eaCoordsNoop(
+            0 /* fault_id: no injection */, dyn_seq,
+            pc ? pc : chaos_a01::kPcUnknown, addr, size);
+        o3cpu_resolved->chaosPropagation->registerControlProbe(
+            "lsq_pushRequest_PRE", dyn_seq, addr, size, isLoad, c);
+        if (write_log && log_stream && log_stream->stream())
+            *(log_stream->stream()) << "A01_CONTROL: "
+                << chaos_a01::eaDetail(c) << std::endl;
+    }
+
+    void
+    CHAOSAddrPath::startup() {
+        SimObject::startup();
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) {
+            warn("CHAOSAddrPath: cpu is not an O3CPU; injector disabled.\n");
+            return;
+        }
+        // [LSU][OBS-L3] cache the resolved O3 CPU for the injection-time
+        // funnel notify (dynamic_cast once, not per event).
+        o3cpu_resolved = o3cpu;
+        // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
+        // registers on the pushRequest-entry pointer; the post family
+        // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.
+        if (pre_mode != "off")
+            o3cpu->setChaosAddrPathPre(this);
+        else
+            o3cpu->setChaosAddrPath(this);
+        if (lsuTrigger) {
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                f6Consumer = this;
+                chaosLsuF6Notify = &CHAOSAddrPath::f6Thunk;
+            }
+            // W2 funnel summary (attempted/eligible/injected; activated is
+            // the W3 L0 read-back layer's verdict — R2 ruling) + W3 L0 lines
+            // (chaos_l0 discipline: to the LOG FILE, stdout stays stable).
+            // [LSU][V3.3.3][A03] the body lives in emitExitReport() so the
+            // in-simulator watchdog and this callback cannot drift.
+            registerExitCallback([this]() { emitExitReport(); });
+        } else if (probability > 0.0f) {
+            // [LSU][OBS-L3] legacy (non-trigger) path: final funnel row only.
+            // The l0 lines above stay lsuTrigger-only, so the legacy log
+            // output is otherwise byte-identical.
+            registerExitCallback([this]() { emitExitReport(); });
+        }
+    }
+
+    void
+    CHAOSAddrPath::emitExitReport()
+    {
+        // [LSU][V3.3.3][A03] single body shared by the normal exit callback
+        // and a03Watchdog(). Emits at most once: the watchdog emits the final
+        // report before exitSimLoop(), and the exit callback it triggers
+        // must not repeat it.
+        if (exit_report_emitted)
+            return;
+        exit_report_emitted = true;
+        // Normal exit while the watchdog is still pending: take it off the
+        // event queue so teardown never runs a stale event. Never dereference
+        // an AutoDelete event that already fired — a03Watchdog() clears the
+        // pointer first.
+        if (!a03_watchdog_fired && a03_watchdog_event &&
+            a03_watchdog_event->scheduled()) {
+            deschedule(a03_watchdog_event);
+        }
+        if (!lsuTrigger) {
+            // Legacy (non-trigger) path: final funnel row only — unchanged
+            // (the lsuTrigger-only l0 lines below stay trigger-only, so the
+            // legacy log output is byte-identical).
+            if (probability > 0.0f)
+                notifyFunnelAtInjection();
+            return;
+        }
+        lsuTrigger->summary("CHAOSAddrPath");
+        // [LSU][OBS-2] post-trigger decline report (D-class):
+        // pre_opclass>0 with fault writes < trigger.injected is
+        // the phantom-activation signature (F-049).
+        // [LSU][V3.3.3][A01] pre_retry_skipped counts the excluded
+        // translation-retry re-entries (ledger L-A01).
+        printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
+               "pre_invalid=%lu pre_nochange=%lu post_fired=%lu "
+               "post_nochange=%lu trigger_injected=%lu "
+               "pre_retry_skipped=%lu\n",
+               (unsigned long)obs_pre_fired,
+               (unsigned long)obs_pre_opclass,
+               (unsigned long)obs_pre_invalid,
+               (unsigned long)obs_pre_nochange,
+               (unsigned long)obs_post_fired,
+               (unsigned long)obs_post_nochange,
+               (unsigned long)lsuTrigger->injected,
+               (unsigned long)obs_pre_retry_skipped);
+        // Mirror the trigger's FINAL counts here (exit time), so
+        // the funnel line and the summary line always agree.
+        l0_funnel.attempted = lsuTrigger->attempted;
+        l0_funnel.eligible  = lsuTrigger->eligible;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << chaosL0Line("CHAOSAddrPath",
+                                                   l0_item)
+                                    << std::endl
+                                    << l0_funnel.line("CHAOSAddrPath")
+                                    << std::endl;
+        }
+        // [LSU][V3.3.2][A03] one lifecycle line for the persistent
+        // stuck-at fault: applications (affected=1) vs already_stuck
+        // (affected=0) + the activation and first-affected identity.
+        // Observation only; emitted only when the A03 stream actually
+        // activated (never a silent zero line for other modes).
+        if (a03_stream_rec.activated() && !a03_lifecycle_emitted) {
+            a03_lifecycle_emitted = true;
+            writeA03LogLine("A03_STUCK_LIFECYCLE",
+                            chaos_a03::lifecycleDetail(
+                                a03_stream_rec.lifecycle(a03_fault_id,
+                                                         pre_mode)));
+        }
+        // [LSU][OBS-L3] final funnel row (final counts; runs only on
+        // normal exit — aborts keep the last injection-time node,
+        // which is exactly why the per-injection rows exist).
+        notifyFunnelAtInjection();
+    }
+
+    void
+    CHAOSAddrPath::a03Watchdog()
+    {
+        // [LSU][V3.3.3][A03] in-simulator watchdog (ledger L-A02). The
+        // corrupted exit path of the persistent stuck-at fault can leave the
+        // guest looping after its final checksum; without this the external
+        // driver kill truncates the trace and the exit callbacks never run.
+        a03_watchdog_fired = true;
+        // AutoDelete event: the event queue deletes it after process()
+        // returns; drop the pointer before any exit callback observes it.
+        a03_watchdog_event = nullptr;
+        const uint64_t stream_rows = a03_stream_rec.recorded();
+        const uint64_t injected_applications =
+            lsuTrigger ? lsuTrigger->injected : faults_injected_count;
+        // Lifecycle + final funnel/decline lines through the SAME helper as
+        // the normal exit callback (cannot drift).
+        emitExitReport();
+        std::ostringstream d;
+        d << "tick=" << curTick()
+          << " activated=" << (a03_stream_rec.activated() ? 1 : 0)
+          << " stream_rows=" << stream_rows
+          << " injected_applications=" << injected_applications;
+        writeA03LogLine("A03_WATCHDOG_EXPIRED", d.str());
+        printf("A03_WATCHDOG_EXPIRED: %s\n", d.str().c_str());
+        // Graceful end (NOT fatal): exitSimLoop runs the exit callbacks, the
+        // addrpath log flushes and the gzip trailer is written. The runner
+        // classifies the marker; the oracle verdict (the already-printed
+        // final checksum) is preserved.
+        exitSimLoop("CHAOS_A03_WATCHDOG_EXPIRED", 0);
+    }
+
+} // namespace gem5

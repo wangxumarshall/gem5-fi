@@ -1,0 +1,5 @@
+# -*- mode:python -*-
+Import('*')
+SimObject('CHAOSMD04.py', sim_objects=['CHAOSMD04'], enums=[])
+Source('CHAOSMD04.cc')
+DebugFlag('CHAOSMD04')
