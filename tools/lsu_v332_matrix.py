@@ -41,8 +41,14 @@ from lsu_campaign_lock import LockHeld, campaign_lock
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/platform"
 RUN_PILOT = PLATFORM / "run_pilot.py"
-GEM5 = ROOT / "build/ARM/gem5.opt"
-CONFIG = ROOT / "configs/se/lsu_proxy.py"
+# Portable environment resolution for the historical v3.3.3 acceptance: the
+# frozen binary/config can live in a preserved tree on this host.  The same
+# LSU_GEM5_BIN convention as tools/lsu_runner keeps the SHA gates exact
+# without copying a 1.1 GiB binary.
+GEM5 = Path(os.environ.get("LSU_GEM5_BIN",
+                           str(ROOT / "build/ARM/gem5.opt")))
+CONFIG = Path(os.environ.get("LSU_CONFIG",
+                             str(ROOT / "configs/se/lsu_proxy.py")))
 WORKLOADS = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/workloads"
 DIRECTED = ROOT / "workloads/directed"
 OUT_BASE = ROOT / "runs/lsu/formal_v333"

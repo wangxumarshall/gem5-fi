@@ -8,6 +8,7 @@ from __future__ import annotations
 import ast
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -16,7 +17,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
 PLATFORM = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/platform"
-RUNS = ROOT / "audit_v3_3_2/runs"
+RUNS = Path(os.environ.get("LSU_V333_RUNS_ROOT",
+                           str(ROOT / "audit_v3_3_2/runs")))
 
 sys.path.insert(0, str(TOOLS))
 sys.path.insert(0, str(PLATFORM))

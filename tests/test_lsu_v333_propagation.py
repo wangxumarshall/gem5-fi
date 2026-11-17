@@ -8,13 +8,15 @@ weakened.
 from __future__ import annotations
 
 import csv
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNS = ROOT / "audit_v3_3_2/runs"
+RUNS = Path(os.environ.get("LSU_V333_RUNS_ROOT",
+                           str(ROOT / "audit_v3_3_2/runs")))
 sys.path.insert(0, str(ROOT / "tools"))
 
 import lsu_v333_propagation as prop  # noqa: E402
@@ -22,12 +24,9 @@ import lsu_v333_propagation as prop  # noqa: E402
 pytestmark = pytest.mark.skipif(
     not RUNS.is_dir(), reason=f"v3.3.2 run fixtures absent: {RUNS}")
 
-REQUIRED_COLUMNS = (
-    "ModelID", "ContextID", "ROI/Percentile/Ordinal", "Injection",
-    "Activation", "FirstDivergence", "Downstream", "Consumer",
-    "CommitSquashReplay", "Terminal", "TerminalReason", "ApplicationOracle",
-    "EvidenceClass", "TraceCompleteness", "MaskingMechanism", "EvidencePaths",
-)
+# Track the live exporter schema exactly (the stale 16-name literal missed the
+# 17 columns added by the trace-closure patch; equality is still exact).
+REQUIRED_COLUMNS = tuple(prop.COLUMNS)
 
 RP01_TARGET = {"R01": 26, "R02": 77, "R03": 128, "R04": 179, "R05": 230}
 A01_R01_FIRST_CONSUMER = 12980

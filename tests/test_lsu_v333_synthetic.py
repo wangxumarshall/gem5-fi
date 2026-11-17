@@ -314,7 +314,14 @@ def test_builder_regenerates_identical_fixtures(tmp_path):
         if src.suffix == ".gz":
             assert src.read_bytes() == dst.read_bytes(), rel
         else:
-            a = src.read_text(encoding="utf-8").replace(str(FIX), "<ROOT>")
+            # The committed fixtures were generated in the frozen worktree;
+            # normalise that known root as well as this checkout so the
+            # comparison is root-independent (bytes are otherwise identical).
+            frozen_root = ("/home/sdc/gem5-fi-ding/.claude/worktrees/"
+                           "lsu-platform-v3.2.12/tests/fixtures/"
+                           "lsu_v333_synthetic")
+            a = (src.read_text(encoding="utf-8").replace(str(FIX), "<ROOT>")
+                 .replace(frozen_root, "<ROOT>"))
             b = dst.read_text(encoding="utf-8").replace(str(target), "<ROOT>")
             assert a == b, f"fixture drift in {rel}"
 

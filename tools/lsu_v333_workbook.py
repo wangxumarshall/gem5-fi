@@ -33,6 +33,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -57,9 +58,11 @@ CANDIDATE_MODELS = {"FW02", "RP01", "MD04", "SQ01", "SQ03", "SP05"}
 CANDIDATE_STATUS = "OVERRIDE_APPROVED"
 APPROVAL_REF = "LSU_v3.3.3_Researcher_Approval.md decision #1 (2026-11-12)"
 
-GEM5_BINARY = ROOT / "build/ARM/gem5.opt"
+GEM5_BINARY = Path(os.environ.get("LSU_GEM5_BIN",
+                                  str(ROOT / "build/ARM/gem5.opt")))
 GEM5_SHA_FALLBACK = ("070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca")
-CONFIG_PATH = ROOT / "configs/se/lsu_proxy.py"
+CONFIG_PATH = Path(os.environ.get("LSU_CONFIG",
+                                  str(ROOT / "configs/se/lsu_proxy.py")))
 CONFIG_SHA = hashlib.sha256(CONFIG_PATH.read_bytes()).hexdigest()
 CONFIG_FROZEN = ("YES (approved 2026-11-12; final binary and config SHA "
                  "recorded in Binary_Config)")

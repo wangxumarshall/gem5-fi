@@ -33,6 +33,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -45,8 +46,10 @@ FROZEN_PROVENANCE = (
 MANIFEST_TEMPLATE = (
     ROOT / "audit_v3_3_3/trace_closure/final_config/LSU_Final_Campaign_Manifest_Template.csv"
 )
-BINARY = ROOT / "build/ARM/gem5.opt"
-CONFIG = ROOT / "configs/se/lsu_proxy.py"
+BINARY = Path(os.environ.get("LSU_GEM5_BIN",
+                             str(ROOT / "build/ARM/gem5.opt")))
+CONFIG = Path(os.environ.get("LSU_CONFIG",
+                             str(ROOT / "configs/se/lsu_proxy.py")))
 CAMPAIGN_ROOT = ROOT / "runs/lsu/formal_v333_final_20261112"
 
 # Frozen v3.3.3 launch values (plan global constraints).  Report-only when the
@@ -56,6 +59,34 @@ EXPECTED_CONFIG_SHA = "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b819
 
 # Substrings that mark a path as belonging to a different/old tree.
 FORBIDDEN_PATH_MARKERS = ("v3.2/", "v3.2.10/", "archive")
+
+# The 120-row template was generated in the frozen worktree.  These prefixes
+# are rewritten onto this checkout so the same rows verify against the live
+# workload bytes; the SHA checks below still require byte-identical files.
+_FROZEN_MANIFEST_PREFIXES = (
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12",
+    "/home/sdc/gem5-fi-ding",
+)
+
+
+def portable_manifest_path(value) -> Path:
+    """Map a frozen-worktree path from the manifest onto this checkout.
+
+    A relative path is resolved against ROOT.  An absolute path under a known
+    frozen prefix is re-rooted at ROOT; all other paths are returned as-is.
+    Existence is not assumed here (the campaign Evidence directory is not in
+    this worktree), so verification compares the mapped path, not its bytes.
+    """
+    if value in (None, ""):
+        return Path(value or "")
+    p = Path(str(value))
+    if not p.is_absolute():
+        return ROOT / p
+    text = str(p)
+    for prefix in _FROZEN_MANIFEST_PREFIXES:
+        if text == prefix or text.startswith(prefix + "/"):
+            return ROOT / text[len(prefix):].lstrip("/")
+    return p
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _TABLE_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([0-9a-fA-F]{64})`\s*\|\s*$")
@@ -299,14 +330,14 @@ def verify_manifest_template(
             continue
         exec_path = formal_execution_path(model)
         source_path = workload_source_path(exec_path.name)
-        row_exec = Path(row.get("FormalExecutionPath", "") or "/nonexistent")
-        row_source = Path(row.get("WorkloadSourcePath", "") or "/nonexistent")
+        row_exec = portable_manifest_path(row.get("FormalExecutionPath"))
+        row_source = portable_manifest_path(row.get("WorkloadSourcePath"))
         if row_exec.resolve() != exec_path.resolve():
             result["errors"].append(
                 f"row {index} {row.get('RunID', '')}: FormalExecutionPath "
                 f"{row_exec} != resolve_workload {exec_path}"
             )
-        if Path(row.get("ELF", "") or "/nonexistent").resolve() != exec_path.resolve():
+        if portable_manifest_path(row.get("ELF")).resolve() != exec_path.resolve():
             result["errors"].append(
                 f"row {index} {row.get('RunID', '')}: ELF is not the formal execution path"
             )
@@ -332,7 +363,8 @@ def verify_manifest_template(
                 f"row {index} {row.get('RunID', '')}: actual sha256 differs from frozen table"
             )
         evidence = row.get("Evidence", "")
-        if not str(Path(evidence)).startswith(str(CAMPAIGN_ROOT)):
+        if not str(portable_manifest_path(evidence)).startswith(
+                str(CAMPAIGN_ROOT)):
             result["errors"].append(
                 f"row {index} {row.get('RunID', '')}: Evidence {evidence!r} "
                 f"not under {CAMPAIGN_ROOT}"

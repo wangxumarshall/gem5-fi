@@ -102,11 +102,16 @@ def test_manifest_rows_carry_real_hashes_and_execution_path(tmp_path):
     for row in rows:
         model = row["ModelID"]
         exec_path = matrix.resolve_workload(model, matrix.CONTEXTS[model].get("workload"))
-        assert Path(row["FormalExecutionPath"]) == Path(exec_path), row["RunID"]
-        assert Path(row["ELF"]) == Path(exec_path), row["RunID"]
+        # The frozen template records the worktree it was generated in; map
+        # that prefix onto this checkout, then compare exactly.
+        assert provenance.portable_manifest_path(
+            row["FormalExecutionPath"]) == Path(exec_path), row["RunID"]
+        assert provenance.portable_manifest_path(
+            row["ELF"]) == Path(exec_path), row["RunID"]
         assert row["ELF_SHA256"] == real_sha(exec_path), row["RunID"]
         assert row["Workload"] == Path(exec_path).name, row["RunID"]
-        assert row["Evidence"].startswith(str(matrix.OUT_BASE.parent / "formal_v333_final_20261112"))
+        assert str(provenance.portable_manifest_path(row["Evidence"])).startswith(
+            str(matrix.OUT_BASE.parent / "formal_v333_final_20261112"))
 
 
 def test_wrong_expected_sha_is_detected():

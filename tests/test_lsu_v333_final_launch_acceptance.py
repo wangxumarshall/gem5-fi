@@ -226,7 +226,8 @@ def test_fault_control_pairs_share_sample_run_id_and_seed(tmp_path):
 # Gate 2 — frozen binary and config SHA on the real files
 # ===========================================================================
 def test_frozen_binary_sha():
-    binary = ROOT / "build/ARM/gem5.opt"
+    binary = Path(os.environ.get("LSU_GEM5_BIN",
+                                 str(ROOT / "build/ARM/gem5.opt")))
     assert binary.is_file(), f"missing {binary}"
     observed = _sha256(binary)
     assert observed == FROZEN_BINARY_SHA, (
@@ -235,7 +236,8 @@ def test_frozen_binary_sha():
 
 
 def test_frozen_config_sha():
-    config = ROOT / "configs/se/lsu_proxy.py"
+    config = Path(os.environ.get("LSU_CONFIG",
+                                 str(ROOT / "configs/se/lsu_proxy.py")))
     assert config.is_file(), f"missing {config}"
     observed = _sha256(config)
     assert observed == FROZEN_CONFIG_SHA, (

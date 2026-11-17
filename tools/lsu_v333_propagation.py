@@ -658,19 +658,26 @@ def read_prop_events(run: Path) -> list[dict]:
     if not path.exists():
         return []
     events: list[dict] = []
-    with gzip.open(path, "rt", errors="replace") as fh:
-        for line in fh:
-            if not line.strip() or line.startswith("#"):
-                continue
-            values = next(csv.reader([line]))
-            if len(values) < len(PROP_TRACE_COLS):
-                continue
-            event = dict(zip(PROP_TRACE_COLS, values))
-            try:
-                event["node"] = int(event["node_id"])
-            except ValueError:
-                continue
-            events.append(event)
+    # A03's raw trace can be a cut stream (the persistent fault run is bounded
+    # by wall clock and the gzip member has no trailer).  Read the complete
+    # prefix; the truncation is a property of the evidence, not an error to
+    # hide, and every row that was actually written is kept.
+    try:
+        with gzip.open(path, "rt", errors="replace") as fh:
+            for line in fh:
+                if not line.strip() or line.startswith("#"):
+                    continue
+                values = next(csv.reader([line]))
+                if len(values) < len(PROP_TRACE_COLS):
+                    continue
+                event = dict(zip(PROP_TRACE_COLS, values))
+                try:
+                    event["node"] = int(event["node_id"])
+                except ValueError:
+                    continue
+                events.append(event)
+    except (EOFError, OSError):
+        pass
     return events
 
 
