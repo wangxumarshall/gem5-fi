@@ -4,6 +4,8 @@
 #include <random>
 #include <bitset>
 #include <memory>
+#include <string>
+#include <zlib.h>
 
 #include "base/output.hh"
 #include "sim/eventq.hh"
@@ -132,6 +134,11 @@ class CHAOSLSQFwd : public SimObject
     bool rp01SkipMode() const {
         return struct_mode == StructMode::Rp01SkipReplay;
     }
+    // [LSU][STRICT-E2E] Read-only post-injection stall sampler.  It never
+    // participates in shouldSkip(), replay scheduling, RNG draws or any
+    // injector decision; it only observes ROB/IQ/LSQ/target state.
+    void rp01Probe();
+    void rp01Emit(const char *phase, const char *reason);
 
     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
     // the simulation with a non-zero code. The event fires at
@@ -271,6 +278,17 @@ class CHAOSLSQFwd : public SimObject
     uint64_t last_eligible_store_seq = 0;
     uint64_t last_eligible_replay_gen = 0;
     Tick last_eligible_tick = 0;
+    // [LSU][STRICT-E2E] Post-injection stall trace state (observation only).
+    std::string rp01_trace_file;
+    uint64_t rp01_probe_cycles = 0;
+    uint64_t rp01_probe_dense_cycles = 0;
+    uint64_t rp01_probe_dense_count = 0;
+    gzFile rp01_gz = nullptr;
+    EventFunctionWrapper *rp01_probe_event = nullptr;
+    uint64_t rp01_probe_count = 0;
+    uint64_t rp01_probe_seq = 0;
+    Tick rp01_inject_tick = 0;
+    bool rp01_trace_open = false;
 
     std::mt19937 rng;
     std::random_device rd;

@@ -390,6 +390,12 @@ class InstructionQueue
     /** Returns the number of used entries for a thread. */
     unsigned getCount(ThreadID tid) const;
 
+    // [LSU][STRICT-E2E] Read-only target-state probes for the RP01 stall
+    // trace (implemented in inst_queue.cc where DynInst is complete).
+    bool chaosInIQ(ThreadID tid, InstSeqNum seq) const;
+    bool chaosInReadyList(ThreadID tid, InstSeqNum seq) const;
+    bool chaosInReplayList(ThreadID tid, InstSeqNum seq) const;
+
     /** Debug function to print all instructions. */
     void printInsts();
 

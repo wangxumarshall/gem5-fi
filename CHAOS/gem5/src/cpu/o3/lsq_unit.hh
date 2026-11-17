@@ -359,6 +359,13 @@ class LSQUnit
     /** Returns the number of loads in the LQ. */
     int numLoads() { return loadQueue.size(); }
 
+    // [LSU][STRICT-E2E] Read-only LQ entry snapshot for the RP01 stall trace.
+    // Returns false when the dynamic instruction is no longer in the LQ.
+    bool chaosLoadState(InstSeqNum seq, bool &valid, bool &has_request,
+                        bool &outstanding, bool &lq04_corrupt,
+                        uint64_t &generation, unsigned &size,
+                        Addr &addr);
+
     /** Returns the number of stores in the SQ. */
     int numStores() { return storeQueue.size(); }
 

@@ -2169,6 +2169,31 @@ LSQUnit::getLoadHeadSeqNum()
         return 0;
 }
 
+// [LSU][STRICT-E2E] Read-only RP01 observability.  Scans the LQ for the
+// dynamic instruction and reports its entry state.  Nothing is mutated and
+// the entry is never moved/freed here.
+bool
+LSQUnit::chaosLoadState(InstSeqNum seq, bool &valid, bool &has_request,
+                        bool &outstanding, bool &lq04_corrupt,
+                        uint64_t &generation, unsigned &size, Addr &addr)
+{
+    for (int i = 0; i < loadQueue.size(); ++i) {
+        LQEntry &e = loadQueue[i];
+        if (!e.instruction() || e.instruction()->seqNum != seq)
+            continue;
+        valid = e.valid();
+        has_request = e.hasRequest();
+        outstanding = e.hasRequest() && e.request() &&
+                      e.request()->isAnyOutstandingRequest();
+        lq04_corrupt = e.lq04Corrupt();
+        generation = e.instruction()->lqEntryGeneration;
+        size = e.size();
+        addr = e.instruction()->effAddr;
+        return true;
+    }
+    return false;
+}
+
 InstSeqNum
 LSQUnit::getStoreHeadSeqNum()
 {

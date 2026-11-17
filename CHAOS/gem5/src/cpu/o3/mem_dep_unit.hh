@@ -151,6 +151,11 @@ class MemDepUnit
      */
     void squash(const InstSeqNum &squashed_num, ThreadID tid);
 
+    // [LSU][STRICT-E2E] Read-only RP01 observability.  True iff the given
+    // instruction is currently waiting in the replay list.  No mutation.
+    // Defined in mem_dep_unit.cc where DynInst is complete.
+    bool chaosInReplay(InstSeqNum seq) const;
+
     /** Indicates an ordering violation between a store and a younger load. */
     void violation(const DynInstPtr &store_inst,
                    const DynInstPtr &violating_load);

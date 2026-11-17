@@ -642,5 +642,15 @@ MemDepUnit::dumpLists()
 #endif
 }
 
+// [LSU][STRICT-E2E] Read-only RP01 observability.
+bool
+MemDepUnit::chaosInReplay(InstSeqNum seq) const
+{
+    for (const auto &inst : instsToReplay)
+        if (inst && inst->seqNum == seq)
+            return true;
+    return false;
+}
+
 } // namespace o3
 } // namespace gem5

@@ -1824,5 +1824,36 @@ InstructionQueue::dumpInsts()
     }
 }
 
+// [LSU][STRICT-E2E] Read-only RP01 observability: is the target load in the
+// IQ / ready heap / MemDepUnit replay list right now?  No mutation.
+bool
+InstructionQueue::chaosInIQ(ThreadID tid, InstSeqNum seq) const
+{
+    for (const auto &inst : instList[tid])
+        if (inst && inst->seqNum == seq)
+            return true;
+    return false;
+}
+
+bool
+InstructionQueue::chaosInReadyList(ThreadID tid, InstSeqNum seq) const
+{
+    for (int i = 0; i < Num_OpClasses; ++i) {
+        auto copy = readyInsts[i];
+        while (!copy.empty()) {
+            if (copy.top() && copy.top()->seqNum == seq)
+                return true;
+            copy.pop();
+        }
+    }
+    return false;
+}
+
+bool
+InstructionQueue::chaosInReplayList(ThreadID tid, InstSeqNum seq) const
+{
+    return memDepUnit[tid].chaosInReplay(seq);
+}
+
 } // namespace o3
 } // namespace gem5

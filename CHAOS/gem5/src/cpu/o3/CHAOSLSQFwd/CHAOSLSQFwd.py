@@ -91,6 +91,15 @@ class CHAOSLSQFwd(SimObject):
     rp01EventOrdinal = Param.UInt64(0,
         "RP01: 1-based eligible partial-replay ordinal (0 = none; 999 = none "
         "in any bounded stream — the select-none control inside fault mode)")
+    rp01TraceFile = Param.String("",
+        "[LSU][STRICT-E2E] Read-only post-injection stall trace file. "
+        "Empty = disabled (legacy behaviour unchanged).")
+    rp01ProbeCycles = Param.UInt64(100000,
+        "[LSU][STRICT-E2E] Sparse post-injection sampling period (cycles).")
+    rp01ProbeDenseCycles = Param.UInt64(10000,
+        "[LSU][STRICT-E2E] Dense post-injection sampling period (cycles).")
+    rp01ProbeDenseCount = Param.UInt64(100,
+        "[LSU][STRICT-E2E] Dense samples before switching to sparse.")
     rp01WatchdogCycles = Param.UInt64(500000000,
         "RP01: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
         "the simulation exits with code 1 and CHAOS_RP01_WATCHDOG_EXPIRED")
