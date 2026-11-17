@@ -30,9 +30,33 @@ PROFILES = {
                         "simulator_abort")],
     ("A03", "SQUASHED"): [("injection", "address_formed", "memory_request",
                            "squash")],
+    # v3.3.4 evidence-hardening: A03 SDC was missing, so every A03 SDC trace
+    # fell back to the one-stage DEFAULT_PROFILE and graded COMPLETE with only
+    # an injection record (the exact false-positive this round removes).
+    ("A03", "SDC"): [("injection", "address_formed", "memory_request",
+                      "memory_response", "register_writeback",
+                      "consumer_commit")],
     ("A03", "MASKED"): [("injection", "address_formed", "memory_request",
                          "memory_response", "register_writeback",
                          "consumer_commit")],
+    ("A03", "UNRESOLVED"): [("injection",)],
+    # SP05 had no profile at all (DEFAULT has no SP05 key either).  Two real
+    # shapes exist: the measured store path (suppressed writeback + complete
+    # + commit) and the platform's sp05_stage record emitted alongside the
+    # data path; both are accepted, never a bare-injection fallback.
+    ("SP05", "SDC"): [
+        ("injection", "store_writeback_suppressed", "sp05_complete", "commit"),
+        ("injection", "sp05_stage", "commit"),
+    ],
+    ("SP05", "MASKED"): [
+        ("injection", "store_writeback_suppressed", "sp05_complete", "commit"),
+        ("injection", "sp05_stage", "commit"),
+        ("injection", "store_writeback", "store_mem_write"),
+        ("injection", "sq_lifecycle"),
+    ],
+    ("SP05", "SQUASHED"): [("injection", "squash")],
+    ("SP05", "CRASH"): [("injection", "simulator_abort")],
+    ("SP05", "UNRESOLVED"): [("injection",)],
     ("FW02", "MASKED"): [("forwarding_decision", "memory_response",
                           "register_writeback", "consumer_commit")],
     ("FW02", "CRASH"): [("forwarding_decision", "memory_response",
@@ -154,6 +178,66 @@ DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW05": ("injection",), "SQ03": ("injection",),
                    "LQ04": ("injection",), "RP01": ("injection",)}
 
+# v3.3.4 evidence-hardening: the runner's measured terminal names are not the
+# trace-schema enum.  Normalise before a profile lookup so a MASKED run is
+# never graded against the one-stage DEFAULT_PROFILE fallback and a
+# HANG_WATCHDOG run reaches the RP01 HANG profile.
+TERMINAL_ALIASES = {
+    "NO_VISIBLE_MISMATCH": "MASKED",
+    "COMMITTED_NO_VISIBLE_MISMATCH": "MASKED",
+    "UNRESOLVED_NO_TARGET_COMMIT": "UNRESOLVED",
+    "UNRESOLVED_NO_INJECTION_RECORD": "UNRESOLVED",
+    "NO_INJECTION": "UNRESOLVED",
+    "HANG_WATCHDOG": "HANG",
+    "TIMEOUT": "HANG",
+    "ARCH_STATE_CORRUPTION": "SDC",
+}
+
+
+def normalize_terminal(value):
+    if value is None:
+        return None
+    return TERMINAL_ALIASES.get(value, value)
+
+
+def _target_seq_set(target):
+    """Every dynamic-instruction seq the target is known by.
+
+    The census exposes the target under different keys per model
+    (``dyn_inst_seq``, ``seq``, ``load_seq``, ``store_seq``).  All of them are
+    treated as the same identity; a match on any one is a real match because
+    the census carries them for the same selected event.
+    """
+    seqs = set()
+    for key in ("dyn_inst_seq", "seq", "load_seq", "store_seq",
+                "younger_load_dyn_inst_seq", "older_store_dyn_inst_seq"):
+        value = (target or {}).get(key)
+        try:
+            if value is not None:
+                seqs.add(int(str(value), 0))
+        except (TypeError, ValueError):
+            pass
+    return seqs
+
+
+def select_target_injection(injections, target):
+    """Select the injection bound to the target instruction, never the
+    first/last injection in the file.
+
+    Preference order: target-seq match with INJECTED, then target-seq match
+    with NO_CHANGE (legitimate for A03 F5 when the bit is already stuck),
+    then a single injection only when no target identity is available.
+    """
+    seqs = _target_seq_set(target)
+    if not seqs:
+        return injections[-1] if injections else None
+    cands = [e for e in injections if e.get("dyn_inst_seq") in seqs]
+    if not cands:
+        return None
+    injected = [e for e in cands
+                if e.get("injection_status") == "INJECTED"]
+    return (injected or cands)[0]
+
 
 def expected_stages(model_id: str | None,
                     terminal: str | None) -> list[tuple[str, ...]]:
@@ -164,7 +248,8 @@ def expected_stages(model_id: str | None,
     return value if isinstance(value, list) else [value]
 
 
-def check_completeness(path: Path) -> dict:
+def check_completeness(path: Path, *, target: dict | None = None,
+                       hardened: bool = False) -> dict:
     path = Path(path)
     reasons: list[str] = []
     errs = validate(path)
@@ -195,6 +280,8 @@ def check_completeness(path: Path) -> dict:
     if declared == "INCOMPLETE":
         reasons.append("summary declares INCOMPLETE")
     terminal = summary.get("terminal_state")
+    if hardened:
+        terminal = normalize_terminal(terminal)
     if declared == "INCOMPLETE" and terminal == "MASKED":
         reasons.append("incomplete trace declares MASKED (forbidden)")
         terminal = None
@@ -210,9 +297,17 @@ def check_completeness(path: Path) -> dict:
                       if e.get("event_type") in ("injection",
                                                  "injection_nochange")
                       or e.get("injection_status") in ("INJECTED", "NO_CHANGE")]
-    inj = injections_all[-1] if injections_all else None
+    if hardened and injections_all:
+        # Bind the injection to the census target, never "the last injection
+        # in the file" (A03 F5 emits one injection record per eligible load).
+        inj = select_target_injection(injections_all, target)
+    else:
+        inj = injections_all[-1] if injections_all else None
     chain_ptag = inj.get("ptag") if inj else None
     inj_seq = inj.get("dyn_inst_seq") if inj else None
+    target_seqs = _target_seq_set(target) if hardened else set()
+    if target_seqs and inj is None:
+        reasons.append("no_injection_for_target_identity")
     chain_scoped = False
     if inj is None:
         # Legacy trace without an injection event: no chain identity exists;
@@ -220,17 +315,49 @@ def check_completeness(path: Path) -> dict:
         chain = events
         chain_source = "none"
     elif chain_ptag:
+        def _keep(e):
+            seq = e.get("dyn_inst_seq")
+            if e.get("event_type") in ("commit", "errant_commit", "squash",
+                                      "replay", "watchdog_terminal"):
+                # ptag is reused across instructions; a boundary event may
+                # only join by the target's own seq.
+                return target_seqs and seq in target_seqs
+            return True
+
         chain = [e for e in events
-                 if e.get("ptag") == chain_ptag
+                 if (e.get("ptag") == chain_ptag and _keep(e))
                  or (inj_seq is not None
                      and e.get("dyn_inst_seq") == inj_seq)]
+        if target_seqs:
+            # The target may own rows carrying ptag=0 (commit/squash/
+            # lifecycle).  Include them only by the target's own seq.
+            chain.extend(e for e in events
+                         if e.get("dyn_inst_seq") in target_seqs
+                         and e not in chain)
         chain_scoped = True
         chain_source = "ptag"
     else:
-        chain = [e for e in events
-                 if inj_seq is not None and e.get("dyn_inst_seq") == inj_seq]
+        seq_set = target_seqs or ({inj_seq} if inj_seq is not None else set())
+        chain = [e for e in events if e.get("dyn_inst_seq") in seq_set]
         chain_source = "dyn_seq"
-    kinds = {e.get("event_type") for e in chain}
+    # Deduplicate while preserving document order (extend above can add the
+    # injection row twice when it matches both ptag and target seq).
+    seen_ids: set = set()
+    deduped = []
+    for e in chain:
+        key = e.get("event_id", id(e))
+        if key in seen_ids:
+            continue
+        seen_ids.add(key)
+        deduped.append(e)
+    chain = deduped
+    raw_kinds = {e.get("event_type") for e in chain}
+    kinds = set(raw_kinds)
+    if hardened and "injection_nochange" in kinds:
+        # A03 F5: the selected load's bit can already be stuck (affected=0).
+        # That is a real, logged injection attempt with no value change, not a
+        # missing injection stage.  Keep the raw kind in the evidence output.
+        kinds.add("injection")
     consumer_nodes = [e for e in chain
                       if e.get("event_type") == "consumer_commit"]
     # v3.2.5.1: operand records are not instructions. A multi-source
@@ -247,7 +374,11 @@ def check_completeness(path: Path) -> dict:
                   "consumer_commit", "errant_commit", "forwarding_decision",
                   "replay", "rp01_skip", "squash", "simulator_abort",
                   "store_writeback", "store_mem_write", "sq_lifecycle",
-                  "sq03_complete"):
+                  "sq03_complete", "sp05_complete",
+                  "store_writeback_suppressed", "watchdog_terminal",
+                  "chain_verdict", "effect_verdict", "consumer_evidence",
+                  "injection_stream", "injection_evidence", "commit",
+                  "store_commit", "sp05_stage"):
         if stage in kinds:
             stages.append(stage)
     record_integrity = "INVALID" if errs else "VALID"
@@ -457,8 +588,74 @@ def check_completeness(path: Path) -> dict:
     if chain_integrity == "FAIL":
         coverage = "PARTIAL" if coverage != "NONE" else "NONE"
 
+    seqs = target_seqs or ({inj_seq} if inj_seq is not None else set())
+    commit_evs = [e for e in chain
+                  if e.get("event_type") in ("commit", "errant_commit")
+                  and e.get("dyn_inst_seq") in seqs]
+    squash_evs = [e for e in chain
+                  if e.get("event_type") == "squash"
+                  and e.get("dyn_inst_seq") in seqs]
+    replay_evs = [e for e in chain
+                  if e.get("event_type") == "replay"
+                  and e.get("dyn_inst_seq") in seqs]
+    foreign_commits = [e for e in events
+                       if e.get("event_type") in ("commit", "errant_commit")
+                       and e.get("dyn_inst_seq") not in seqs]
+    foreign_squashes = [e for e in events
+                        if e.get("event_type") == "squash"
+                        and e.get("dyn_inst_seq") not in seqs]
+    if squash_evs:
+        boundary = "TARGET_SQUASH"
+    elif commit_evs:
+        boundary = "TARGET_COMMIT"
+    elif replay_evs:
+        boundary = "TARGET_REPLAY"
+    elif any(e.get("event_type") == "watchdog_terminal" for e in chain):
+        boundary = "TARGET_STALL_WATCHDOG"
+    elif foreign_commits or foreign_squashes:
+        boundary = "OTHER_INSTRUCTION_ONLY"
+    else:
+        boundary = "UNKNOWN"
+
+    identity_ok = bool(seqs) and inj is not None and \
+        inj.get("dyn_inst_seq") in seqs
+    # Any boundary event that claims the target must actually carry its seq;
+    # foreign events are reported, never silently attached.
+    boundary_identity_ok = all(
+        e.get("dyn_inst_seq") in seqs for e in chain
+        if e.get("event_type") in ("commit", "errant_commit", "squash"))
+    identity_linkage = ("PASS" if identity_ok and boundary_identity_ok
+                        else "FAIL") if hardened else None
+    if inj is None:
+        injection_evidence = "MISSING"
+    elif inj.get("event_type") == "injection_nochange" or \
+            inj.get("injection_status") == "NO_CHANGE":
+        injection_evidence = "NO_CHANGE"
+    elif inj.get("injection_status") == "INJECTED":
+        injection_evidence = "INJECTED"
+    else:
+        injection_evidence = "PRESENT"
+    dimensions = {
+        "event_record_integrity": record_integrity,
+        "injection_evidence": injection_evidence,
+        "identity_linkage": identity_linkage,
+        "data_control_propagation": coverage,
+        "architectural_boundary": boundary,
+        "software_outcome": terminal,
+        "overall_chain_status": (
+            "COMPLETE" if coverage == "COMPLETE" and identity_linkage == "PASS"
+            else "PARTIAL" if coverage != "NONE" else "UNRESOLVED"),
+    }
+
     return {
         "trace": str(path),
+        "dimensions": dimensions if hardened else {},
+        "target_seqs": sorted(seqs) if hardened else [],
+        "target_commit_event_ids": [e.get("event_id") for e in commit_evs],
+        "target_squash_event_ids": [e.get("event_id") for e in squash_evs],
+        "target_replay_event_ids": [e.get("event_id") for e in replay_evs],
+        "foreign_commit_events": len(foreign_commits),
+        "foreign_squash_events": len(foreign_squashes),
         "trace_completeness": trace_completeness,
         "record_integrity": record_integrity,
         "propagation_coverage": coverage,

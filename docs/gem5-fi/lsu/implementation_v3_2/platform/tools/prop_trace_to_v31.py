@@ -65,6 +65,26 @@ KIND_MAP = {
     "replay": "replay",
     "squash": "squash",
     "prop_edge": "propagation_edge",
+    # v3.3.4 evidence-hardening: model-specific records that were previously
+    # passed through under their raw CSV names, so no consumer could bind
+    # them to a target instruction or a terminal boundary.
+    "a03_activation": "activation",
+    "a03_stream": "injection_stream",
+    "a01_ea": "injection_evidence",
+    "a01_consumed": "consumer_evidence",
+    "a01_ea_discarded": "injection_discarded",
+    "store_commit": "commit",
+    "watchdog_terminal": "watchdog_terminal",
+    "trace_flush_start": "trace_control",
+    "trace_flush_complete": "trace_control",
+    "sq01_chain": "chain_verdict",
+    "sq03_effect": "effect_verdict",
+    "sp05_stage": "effect_verdict",
+    "sp05_write_skipped": "store_writeback_suppressed",
+    "store_writeback_suppressed": "store_writeback_suppressed",
+    "fw02_decision": "forwarding_decision_evidence",
+    "fw05_reload": "reload_evidence",
+    "funnel": "diagnostic_counts",
 }
 UNIT_MAP = {
     "inj": ("AGU", "injection"),
@@ -96,6 +116,23 @@ UNIT_MAP = {
     "sq_lifecycle": ("LSQ", "SQ lifecycle"),
     "replay": ("LSQ", "replay"),
     "squash": ("LSQ", "squash"),
+    "a03_activation": ("AGU", "activation"),
+    "a03_stream": ("AGU", "stuck_at_stream"),
+    "a01_ea": ("AGU", "effective_address"),
+    "a01_consumed": ("Commit", "consumer_evidence"),
+    "a01_ea_discarded": ("AGU", "injection_discarded"),
+    "store_commit": ("Commit", "commit"),
+    "watchdog_terminal": ("Simulator", "watchdog_terminal"),
+    "trace_flush_start": ("Simulator", "flush"),
+    "trace_flush_complete": ("Simulator", "flush"),
+    "sq01_chain": ("SQ", "chain_verdict"),
+    "sq03_effect": ("SQ", "effect_verdict"),
+    "sp05_stage": ("SQ", "effect_verdict"),
+    "sp05_write_skipped": ("SQ", "write_skipped"),
+    "store_writeback_suppressed": ("SQ", "writeback_suppressed"),
+    "fw02_decision": ("FWD", "decision_evidence"),
+    "fw05_reload": ("FWD", "reload_evidence"),
+    "funnel": ("Diagnostic", "counts"),
 }
 
 
@@ -321,9 +358,19 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                                                         "inj_sp05"))
                              and kind != "taint_value_mismatch"
                              else "UNKNOWN")
-        commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
+        commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit",
+                                                 "commit", "store_commit")
                          else "UNKNOWN")
         squash_status = "SQUASHED" if kind == "squash" else "UNKNOWN"
+        # v3.3.4 evidence-hardening: model records carry their own semantics.
+        # A03's per-eligible stuck-at stream is real activation evidence; a
+        # run-level a03_activation is the F5 trigger; A01's a01_ea is the
+        # wrong-EA application; the watchdog row is the terminal boundary.
+        if kind in ("a03_stream", "a03_activation", "a01_ea"):
+            activation_status = "TRIGGERED"
+        if kind == "watchdog_terminal":
+            activation_status = "TRIGGERED"
+            commit_status = "UNKNOWN"
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
         if kind in ("lq_lifecycle", "sq_lifecycle"):
             sub_unit = d.get("action") or kind
