@@ -190,7 +190,9 @@ def extract(stats, strict=True):
     windows["sad_roi"] = sad_roi if sad_roi is not None else windows["sad_samples"]
     window_values = [windows["rf_ace"], windows["l1d_ace"],
                      windows["l1i_ace"], windows["ibr"], windows["sad_roi"]]
-    present = [value for value in window_values if value is not None]
+    # A zero measuredCycles means that family is not enabled (the stats group
+    # still exists); it must not make a matching SAD/ACE window inconsistent.
+    present = [value for value in window_values if value]
     return {
         "windows": windows,
         "window_consistent": len(set(present)) == 1 if present else False,

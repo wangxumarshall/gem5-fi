@@ -99,6 +99,16 @@ def test_window_consistency_uses_roi_cycles_when_present():
         metrics.extract(stats)
 
 
+def test_zero_windows_from_disabled_families_are_ignored():
+    stats = synthetic_stats(window=100.0)
+    stats[CORE + "sad.roiCycles"] = 100.0
+    stats[L1D + "measuredCycles"] = 0.0
+    stats[L1I + "measuredCycles"] = 0.0
+    stats[CORE + "fuIbr.measuredCycles"] = 0.0
+    document = metrics.extract(stats)
+    assert document["window_consistent"] is True
+
+
 def test_ambiguous_suffix_raises():
     stats = synthetic_stats()
     stats["duplicate.rfAce.intAceRatio"] = 0.0
