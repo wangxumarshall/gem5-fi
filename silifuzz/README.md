@@ -103,8 +103,8 @@ FUZZ_SECONDS=180 ./scripts/run_scale.sh
   原样 fixer），只在事后按**代理覆盖区域**选流（`tools/covfingerprint/` 读回 SanitizerCoverage
   计数器）。产物 [`evidence/pairs-paper-2026-11-23/`](evidence/pairs-paper-2026-11-23/)，
   方法与上限见 [`docs/pairs-paper-2026-11-23.md`](docs/pairs-paper-2026-11-23.md)。
-  实测上限：满纯度最长流只有 3–4 条指令，覆盖率 0.13–0.50，且 v5/v1/v6/o2 的关键助记符
-  在 95,475 条语料里从未出现。
+  实测上限：满纯度最长流只有 3–4 条指令，覆盖率 0.13–0.50；o2 的 `b.ne` 在 95,475 条语料里
+  0 次，`dup` 各 15 次，v5 的 LSE 只有 3 种各 1 次（另 4 种 0 次）。
 - **定向扩展** `tools/pairgen.py`：给生成器加约束（词表、补表、按类均衡、寄存器分区），
   能拿到"类覆盖 100%"的配对，但分布不是 SiliFuzz，只能作为对照。
 

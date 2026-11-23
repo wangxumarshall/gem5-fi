@@ -345,9 +345,11 @@ def regions(args):
     # the full 20 x N table once keeps the per-template pass cheap and makes the
     # "which other templates share this region" question answerable.
     snap_region, snap_insns, snap_mn, stats = {}, {}, {}, {}
+    snap_mn_all = {}   # every snapshot, including 1-instruction ones
     for name, data in snap_code.items():
         w = words_of(data)
         snap_insns[name] = len(w)
+        snap_mn_all[name] = {mnem(x) for x in w if mnem(x)}
         r = region(w)
         if not r:
             continue
@@ -480,18 +482,21 @@ def regions(args):
     # What the corpus as a whole can reach, independent of any selection:
     # a template mnemonic that no snapshot ever contains cannot be paired at all.
     reach = {}
-    all_mn = set()
-    for name, mns in snap_mn.items():
-        all_mn |= mns
+    mn_counts = Counter()
+    for mns in snap_mn_all.values():
+        for m in mns:
+            mn_counts[m] += 1
     for tidy in templates:
-        hit = templates_mn[tidy] & all_mn
+        counts = {m: mn_counts.get(m, 0) for m in sorted(templates_mn[tidy])}
         reach[tidy] = {
             "template_mnemonics": len(templates_mn[tidy]),
-            "reachable": len(hit),
-            "unreachable": sorted(templates_mn[tidy] - all_mn),
+            "reachable": sum(1 for v in counts.values() if v),
+            "missing": sorted(m for m, v in counts.items() if not v),
+            "counts": counts,
         }
-        if reach[tidy]["unreachable"]:
-            log("%s: unreachable by the whole corpus: %s" % (tidy, reach[tidy]["unreachable"]))
+        rare = {m: v for m, v in counts.items() if 0 < v <= 10}
+        log("%s: mnemonic counts %s%s" % (tidy, counts,
+                                          ("; rare<=10: %s" % rare) if rare else ""))
 
     (work / "selection.json").write_text(json.dumps({
         "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -725,19 +730,22 @@ def report(args):
         "",
         "## 语料可达性（选流之前就存在的上限）",
         "",
-        "整个 21,504 条语料里都**没有出现过**的模板助记符——这些区域无论怎么选流都覆盖不到：",
+        "统计口径：{:,} 条语料**全部**计入（含单指令快照），表中数字是「含该助记符的快照条数」。"
+        .format(corpus["accepted"]),
         "",
-        "| 模板 | 模板助记符 | 语料可达 | 永不出现 |",
-        "| --- | --- | --- | --- |",
+        "| 模板 | 模板助记符 | 有出现 | 稀有(≤10 条) | 从未出现 |",
+        "| --- | --- | --- | --- | --- |",
     ] + [
-        "| %s | %d | %d | %s |" % (
+        "| %s | %d | %d | %s | %s |" % (
             k, v["template_mnemonics"], v["reachable"],
-            ", ".join(v["unreachable"]) if v["unreachable"] else "—")
+            ", ".join("%s×%d" % (m, c) for m, c in sorted(v["counts"].items()) if 0 < c <= 10) or "—",
+            ", ".join(v.get("missing") or []) or "—")
         for k, v in (sel.get("reachability") or {}).items()
     ] + [
         "",
-        "这是原文生成方式的直接后果：ifuzz 的表里没有 LSE/DUP，代理随机字节又几乎不可能",
-        "正好落进这些编码空间，所以 v5（原子）、v1/v6（DUP）在本次预算下不可达。",
+        "典型例子：o2 的 `b.ne` 出现 0 次（ifuzz 的 B.cond 条目只编码 b.eq，代理也没随机到）；",
+        "v1/v6 的 `dup` 各 15 条；v5 的 LSE 里 casa/casal/ldadd 各 1 条，其余 4 种为 0。",
+        "也就是说这些区域「能到但极稀有」，稀有到凑不出「两条以上且在区域内」的流。",
         "",
         "## 机群校验",
         "",

@@ -1,119 +1,320 @@
 {
-  "generated": "2026-11-23T16:32:27",
+  "generated": "2026-11-23T16:59:51",
   "reachability": {
     "c1": {
       "template_mnemonics": 6,
       "reachable": 6,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "ldr": 19450,
+        "mov": 12772,
+        "movk": 1982,
+        "str": 18932
+      }
     },
     "c3": {
       "template_mnemonics": 8,
       "reachable": 8,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "ldp": 35,
+        "ldr": 19450,
+        "mov": 12772,
+        "movk": 1982,
+        "stp": 9976,
+        "str": 18932
+      }
     },
     "e1": {
       "template_mnemonics": 5,
       "reachable": 5,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "adds": 5663,
+        "eor": 4821,
+        "mov": 12772,
+        "movk": 1982
+      }
     },
     "e2": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "msub": 1904,
+        "mul": 2949,
+        "smull": 1908,
+        "umull": 1962
+      }
     },
     "e3": {
       "template_mnemonics": 10,
       "reachable": 10,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "and": 4679,
+        "bic": 8362,
+        "eon": 1936,
+        "eor": 4821,
+        "mov": 12772,
+        "movk": 1982,
+        "orn": 2888,
+        "orr": 8988,
+        "sub": 6425
+      }
     },
     "f1": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "fadd": 2937,
+        "fcmp": 3661,
+        "fdiv": 2901,
+        "fmov": 11699,
+        "fmul": 4773,
+        "fsub": 2877,
+        "mov": 12772,
+        "movi": 15849,
+        "movk": 1982
+      }
     },
     "i1": {
       "template_mnemonics": 4,
       "reachable": 4,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "madd": 1958,
+        "nop": 2895
+      }
     },
     "i2": {
       "template_mnemonics": 6,
       "reachable": 6,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "b": 747,
+        "eor": 4821,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982
+      }
     },
     "l1": {
       "template_mnemonics": 7,
       "reachable": 7,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "ldr": 19450,
+        "mov": 12772,
+        "movk": 1982,
+        "mul": 2949,
+        "str": 18932
+      }
     },
     "l2": {
       "template_mnemonics": 6,
       "reachable": 6,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "ldp": 35,
+        "mov": 12772,
+        "movk": 1982,
+        "stp": 9976
+      }
     },
     "m1": {
       "template_mnemonics": 4,
       "reachable": 4,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "ldr": 19450,
+        "str": 18932
+      }
     },
     "m3": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "fmov": 11699,
+        "ldp": 35,
+        "ldur": 6645,
+        "mov": 12772,
+        "movk": 1982,
+        "stp": 9976,
+        "stur": 6518
+      }
     },
     "o1": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "adds": 5663,
+        "and": 4679,
+        "eor": 4821,
+        "ldr": 19450,
+        "madd": 1958,
+        "orr": 8988,
+        "sub": 6425,
+        "subs": 5605
+      }
     },
     "o2": {
       "template_mnemonics": 7,
       "reachable": 6,
-      "unreachable": [
+      "missing": [
         "b.ne"
-      ]
+      ],
+      "counts": {
+        "add": 8232,
+        "b.ne": 0,
+        "eor": 4821,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "subs": 5605
+      }
     },
     "v1": {
       "template_mnemonics": 9,
-      "reachable": 8,
-      "unreachable": [
-        "dup"
-      ]
+      "reachable": 9,
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "dup": 15,
+        "eor": 4821,
+        "fmla": 2902,
+        "fmov": 11699,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "nop": 2895
+      }
     },
     "v2": {
       "template_mnemonics": 16,
       "reachable": 16,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "adds": 5663,
+        "and": 4679,
+        "bic": 8362,
+        "eor": 4821,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "msub": 1904,
+        "mul": 2949,
+        "orn": 2888,
+        "orr": 8988,
+        "smull": 1908,
+        "sub": 6425,
+        "subs": 5605,
+        "umull": 1962
+      }
     },
     "v3": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "adds": 5663,
+        "b.eq": 967,
+        "cmp": 5645,
+        "fmov": 11699,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "subs": 5605
+      }
     },
     "v4": {
       "template_mnemonics": 9,
       "reachable": 9,
-      "unreachable": []
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "eor": 4821,
+        "fmov": 11699,
+        "ldp": 35,
+        "ldur": 6645,
+        "mov": 12772,
+        "movk": 1982,
+        "stp": 9976,
+        "stur": 6518
+      }
     },
     "v5": {
       "template_mnemonics": 11,
-      "reachable": 4,
-      "unreachable": [
-        "casa",
-        "casal",
-        "ldadd",
+      "reachable": 7,
+      "missing": [
         "ldadda",
         "ldaddl",
         "swp",
         "swpal"
-      ]
+      ],
+      "counts": {
+        "add": 8232,
+        "casa": 1,
+        "casal": 1,
+        "eor": 4821,
+        "ldadd": 1,
+        "ldadda": 0,
+        "ldaddl": 0,
+        "mov": 12772,
+        "movk": 1982,
+        "swp": 0,
+        "swpal": 0
+      }
     },
     "v6": {
       "template_mnemonics": 15,
-      "reachable": 14,
-      "unreachable": [
-        "dup"
-      ]
+      "reachable": 15,
+      "missing": [],
+      "counts": {
+        "add": 8232,
+        "aese": 936,
+        "aesmc": 952,
+        "crc32cw": 974,
+        "crc32cx": 915,
+        "dup": 15,
+        "eor": 4821,
+        "fmov": 11699,
+        "madd": 1958,
+        "mov": 12772,
+        "movk": 1982,
+        "mul": 2949,
+        "sha1c": 977,
+        "sha256h": 968,
+        "sub": 6425
+      }
     }
   },
   "templates": {
@@ -1292,10 +1493,10 @@
         }
       ],
       "unicorn": {
-        "template_size": 323,
+        "template_size": 322,
         "stream_size": 211,
         "precision": 0.9384,
-        "recall": 0.613
+        "recall": 0.6149
       }
     },
     "i1": {
