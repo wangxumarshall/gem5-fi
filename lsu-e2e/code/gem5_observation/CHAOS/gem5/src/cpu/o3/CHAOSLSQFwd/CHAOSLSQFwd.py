@@ -1,0 +1,106 @@
+# CHAOSLSQFwd — store-to-load forwarding-path fault injector for O3CPU.
+#
+# Injects bit-flips / stuck-at faults into the data forwarded from the store
+# queue to a load (the memcpy at lsq_unit.cc FullAddrRangeCoverage branch),
+# modeling the store-buffer forwarding-path corruption that reproduce-method2
+# v3 localized to core 179's load/store unit (the reload `ldr` of just-read
+# input, multi-bit, mantissa-concentrated, sign-immune). This is the only
+# injection point that directly exercises method2's mechanism — CHAOSPhysReg
+# corrupts a register cell; CHAOSLSQFwd corrupts the forwarding datapath.
+#
+# O3-only: attaches via a cpu-side hook (cpu->lsqFwd accessor in cpu.hh,
+# called from lsq_unit.cc after the forward memcpy).
+from m5.params import *
+from m5.SimObject import SimObject
+
+
+class CHAOSLSQFwd(SimObject):
+    type = "CHAOSLSQFwd"
+    cxx_class = "gem5::CHAOSLSQFwd"
+    cxx_header = "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+
+    cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
+
+    probability = Param.Float(0.0,
+        "Per-forwarding-event probability of corrupting the forwarded data. "
+        "0 = no injection; use e.g. 0.001 to corrupt ~1/1000 forwards.")
+
+    faultType = Param.String("bit_flip",
+        "bit_flip | stuck_at_zero | stuck_at_one | random")
+    faultMask = Param.UInt64(0,
+        "§2.4: 64-bit (was UInt32 — truncated bit>=32). Per-byte bitmask "
+        "applied to the forwarded data (0 = random, bitsToChange bits). "
+        "Applied to ONE byte selected by byteOffset (-1 = random byte).")
+    bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
+    byteOffset = Param.Int(-1,
+        "Which byte of the forwarded buffer to corrupt (-1 = random within "
+        "[0, size-1]). method2's mantissa concentration comes from corrupting "
+        "the low bytes of IEEE754 data.")
+    # §2.4 structured fault mode (from fi-h6-h7 branch, H5 closed):
+    structMode = Param.String("byte_flip",
+        "byte_flip (default, orig) | byte_lane_skew (rol_k rotate the whole "
+        "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
+        "signature) | all_zero (zero the whole 8-byte buffer) | "
+        "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+        "entry — method1 wrong-source store->load forwarding) | "
+        "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
+        "store->load forwarding match and force the load to memory) | "
+        "da04_be_bit0 (LSU v3.2.4: 4-byte store byte-enable bit0 clear, "
+        "0xF->0xE) | "
+        "rp01_count_only (LSU v3.2.12: count/record eligible partial-replay "
+        "events, never skip) | "
+        "rp01_skip_replay (LSU v3.2.12: the ordinal-selected event skips "
+        "the rescheduleMemInst call once)")
+    laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
+    l03Mode = Param.Bool(False,
+        "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
+        "data-path hook is excluded from the trigger stream (hook split); without "
+        "it, the violation hook stays silent (data-path structMode models only)")
+
+    firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
+    lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
+    maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited")
+    rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    # v1.1 Phase 8.2 uniform sampling (design doc §1.7 rule 4): FIXED skip
+    # from the driver's chaosPickSkip(seed, N_eligible) overrides the
+    # legacy geometric(p=0.1) draw. UINT64_MAX sentinel = legacy behavior.
+    eventsToSkip = Param.UInt64(0xFFFFFFFFFFFFFFFF,
+        "FIXED number of eligible events to skip before the first "
+        "injection (uniform-sampling mode). Default UINT64_MAX = legacy "
+        "geometric(0.1) draw from rngSeed.")
+    countOnly = Param.Bool(False,
+        "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
+        "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # LSU W2/W5 (05 r2-r8): event-normalized trigger tier; "off" = legacy
+    # cycle-window + geometric-skip path (byte-identical).
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
+    f6EventOrdinal = Param.UInt64(0,
+        "R01-R05: 1-based F6 pair ordinal (0 = first pair)")
+    fw05EventOrdinal = Param.UInt64(0,
+        "FW05: 1-based eligible wrong-source ordinal (0 = first eligible)")
+    sq03WatchdogCycles = Param.UInt64(500000000,
+        "SQ03: in-simulator watchdog in ticks (0 = disabled); on expiry the "
+        "simulation exits with code 1 and CHAOS_SQ03_WATCHDOG_EXPIRED")
+    sp05EventOrdinal = Param.UInt64(0,
+        "SP05: 1-based eligible (newly canWB) store ordinal (0 = none)")
+    sp05WatchdogCycles = Param.UInt64(500000000,
+        "SP05: in-simulator watchdog in clock cycles (0 = disabled); on expiry the "
+        "simulation exits with code 1 and CHAOS_SP05_WATCHDOG_EXPIRED")
+    rp01EventOrdinal = Param.UInt64(0,
+        "RP01: 1-based eligible partial-replay ordinal (0 = none; 999 = none "
+        "in any bounded stream — the select-none control inside fault mode)")
+    rp01TraceFile = Param.String("",
+        "[LSU][STRICT-E2E] Read-only post-injection stall trace file. "
+        "Empty = disabled (legacy behaviour unchanged).")
+    rp01ProbeCycles = Param.UInt64(100000,
+        "[LSU][STRICT-E2E] Sparse post-injection sampling period (cycles).")
+    rp01ProbeDenseCycles = Param.UInt64(10000,
+        "[LSU][STRICT-E2E] Dense post-injection sampling period (cycles).")
+    rp01ProbeDenseCount = Param.UInt64(100,
+        "[LSU][STRICT-E2E] Dense samples before switching to sparse.")
+    rp01WatchdogCycles = Param.UInt64(500000000,
+        "RP01: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
+        "the simulation exits with code 1 and CHAOS_RP01_WATCHDOG_EXPIRED")
+    writeLog = Param.Bool(True, "Write a fault_injections.log file")

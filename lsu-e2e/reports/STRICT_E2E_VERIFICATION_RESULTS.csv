@@ -1,0 +1,36 @@
+Check,Pass,Detail
+180_audit_rows,True,180
+all_complete,True,{'E2E_CAUSAL_COMPLETE'}
+12_models,True,"A01,A03,DA04,FW02,FW05,LP01,LQ04,MD04,RP01,SP05,SQ01,SQ03"
+15_per_model,True,"{'A01': 15, 'A03': 15, 'DA04': 15, 'FW02': 15, 'FW05': 15, 'LP01': 15, 'LQ04': 15, 'MD04': 15, 'RP01': 15, 'SP05': 15, 'SQ01': 15, 'SQ03': 15}"
+chain_files,True,180
+60_controls_complete,True,60
+180_ordinal_matches,True,
+108_wrong_output,True,108
+sdc_hash_and_edge_proof,True,
+165_output_expressions_verified,True,165 non-RP01 runs
+57_no_checksum_error,True,57
+57_masking_rows,True,57
+masking_categories_A_D,True,"{'B', 'D', 'A', 'C'}"
+masking_proof_present,True,
+57_masking_endpoints_connected,True,
+20_ivd_terminal_nodes,True,
+rp01_15_audit,True,15
+rp01_15_complete,True,
+rp01_probes_present,True,
+rp01_target_head,True,
+rp01_control_commits,True,
+rp01_watchdog_reason,True,
+rp01_target_identity_same,True,{'True'}
+rp01_chain_proved,True,
+rp01_canonical_gzip,True,
+six_squash_rows,True,6
+six_squash_verified,True,{'VERIFIED'}
+six_squash_frozen_sha,True,
+six_squash_cause_preserved,True,
+60_equivalence_rows,True,60
+census_delta_reported,True,same=33 changed=27
+edge_json_csv_reconciled,True,csv=712998 sum=712998
+negative_positive_tests,True,42 passed in 72.57s (0:01:12)
+frozen_commit_unchanged,True,tag=e8759972a8e65856b540629a0defdd7e744ff921 head=2bbf2907668f78e0b67473caf5a63153b70bede3 ancestor=True
+no_fault_rule_edit,True,

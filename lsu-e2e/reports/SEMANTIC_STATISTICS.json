@@ -1,0 +1,20 @@
+{
+ "all_180_ledger": "evidence/semantic/SEMANTIC_REVALIDATION_ALL_180.csv.gz",
+ "before_mismatch": 6808,
+ "before_rows": 6812,
+ "before_unsupported": 4,
+ "complete": 180,
+ "conditional_unverified": 0,
+ "dropped_sources": 0,
+ "flag_producers_verified": 490710,
+ "flag_semantic_mismatches": 0,
+ "memory_semantics_incomplete": 0,
+ "outcome_RESOLVED_BY_CORRECT_SEMANTICS": 6812,
+ "pair_checks": 8,
+ "reval_files": 153,
+ "reval_rows": 1141566,
+ "runs": 180,
+ "semantic_mismatches": 0,
+ "unsupported_critical": 0,
+ "unverified_semantic_edges": 0
+}

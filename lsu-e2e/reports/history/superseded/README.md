@@ -1,0 +1,5 @@
+# SUPERSEDED — NOT FOR FINAL PAPER STATISTICS
+
+These legacy reports predate the strict R2 statistics and are kept only for history. Do not cite their totals. The authoritative statistics are the `FINAL_*` reports generated from the 180 frozen chain JSONs. The `STRICT_E2E_*.csv` files that remain in `reports/` are the machine-readable evidence layer, not paper reports.
+
+Files: E2E_180_Run_Causal_Completion.csv, E2E_180_Run_Symptom_Matrix.csv, E2E_Application_Oracle_Diff.csv, E2E_Causal_Gap_Audit.csv, E2E_Control_Fault_Pairing.csv, E2E_Crash_Hang_Squash_Masking_Audit.csv, E2E_Eligible_Census_Comparison.csv, E2E_Evidence_Index.csv, E2E_Executive_Report.md, E2E_FS_Symptom_Report.md, E2E_Git_Status.md, E2E_Microarchitecture_to_Software_Evidence.csv, E2E_Regression_and_Validation.md, E2E_Reproduction_Guide.md, E2E_Symptom_Statistics.csv, E2E_Where_When_Symptom_Comparison.csv, STRICT_E2E_EDGE_COUNT_RECONCILIATION.md, STRICT_E2E_EXECUTIVE_REPORT.md, STRICT_E2E_GIT_STATUS.md, STRICT_E2E_MODEL_PROPAGATION_REPORT.md, STRICT_E2E_REGRESSION_REPORT.md, STRICT_E2E_REPRODUCTION_GUIDE.md

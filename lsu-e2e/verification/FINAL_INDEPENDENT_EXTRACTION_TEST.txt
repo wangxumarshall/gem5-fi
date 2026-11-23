@@ -1,0 +1,17 @@
+# Independent extraction test: pre-verification build
+
+Extraction root: /home/sdc/gem5-fi-LSU/.lsu_extract_t0o6lcb7
+unzip exit=0
+sha256sum -c --quiet exit=0
+all listed package files match SHA256SUMS
+
+pytest exit=0
+..........................................s............................. [ 78%]
+....................                                                     [100%]
+=========================== short test summary info ============================
+SKIPPED [1] code/tests/test_final_package.py:329: SERVER_EVIDENCE_REQUIRED: run on the original server workspace with LSU_E2E_SERVER_EVIDENCE=1
+91 passed, 1 skipped in 275.32s (0:04:35)
+
+
+
+RESULT: PASS

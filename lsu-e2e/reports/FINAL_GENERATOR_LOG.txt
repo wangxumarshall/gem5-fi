@@ -1,0 +1,9 @@
+root: /home/sdc/gem5-fi-LSU/LSU_E2E_PAPER_FINAL_FROZEN_R2_SUPP1
+chains: 180 rp01: 15
+edges: 712998 {'DIRECT_OBSERVED': 712031, 'CORRELATED_ONLY': 609, 'RECONSTRUCTED_VERIFIED': 358}
+symptoms: {'WRONG_OUTPUT': 108, 'INTERMEDIATE_VALUE_DIVERGENCE': 20, 'NO_VISIBLE_ERROR': 37, 'HANG_TIMEOUT': 15}
+terminations: {'COMMITTED_AND_PROPAGATED': 108, 'MASKED_BY_OVERWRITE': 18, 'MASKED_BY_NON_CONSUMPTION': 3, 'MASKED_BY_VALUE_CONVERGENCE': 2, 'ACTIVATED_NO_DATA_CORRUPTION': 34, 'SIMULATOR_STALL_WATCHDOG': 15}
+checks: {'software_symptoms': True, 'application_symptoms': True, 'propagation_termination': True, 'edge_total': True, 'edge_levels': True, 'all_180_complete': True, 'no_gaps': True, 'masking_57': True, 'ivd_20': True, 'watchdog_15': True, 'semantics_zero': True, 'reconciliation_6812': True}
+manifest rows: 1332 missing required: 0 server-only: 0
+
+EXIT=0

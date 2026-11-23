@@ -1,0 +1,462 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+index c51de894..d70db3da 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+@@ -14,6 +14,9 @@
+ #include "cpu/o3/cpu.hh"
+ #include "cpu/o3/dyn_inst.hh"   // complete DynInst before lsq_unit.hh
+ #include "cpu/o3/lsq_unit.hh"   // [V3.3.3][RP01] read-only LQ/SQ snapshot
++#include "cpu/o3/iew.hh"        // [STRICT-E2E] IQ/replay probes
++#include "cpu/o3/inst_queue.hh"
++#include "cpu/o3/rob.hh"
+ #include "debug/LSQUnit.hh"
+ 
+ namespace gem5
+@@ -38,6 +41,10 @@ namespace gem5
+           l03_mode(p.l03Mode),   // [LSU][SEM-B]
+           f6_event_ordinal(p.f6EventOrdinal),
+           fw05_event_ordinal(p.fw05EventOrdinal),
++          rp01_trace_file(p.rp01TraceFile),
++          rp01_probe_cycles(p.rp01ProbeCycles),
++          rp01_probe_dense_cycles(p.rp01ProbeDenseCycles),
++          rp01_probe_dense_count(p.rp01ProbeDenseCount),
+           rng(rng_seed != 0 ? rng_seed : rd()),
+           log_stream(nullptr),
+           stats(nullptr)
+@@ -224,6 +231,42 @@ namespace gem5
+                     cpu->clockEdge(Cycles(p.rp01WatchdogCycles));
+                 schedule(rp01_watchdog_event, rp01_watchdog_armed_tick);
+             }
++            // [LSU][STRICT-E2E] Open the read-only stall trace.  This file
++            // does not exist unless the caller opts in; when it does, every
++            // row is gzflush()ed so a fatal watchdog exit cannot lose the
++            // post-injection history.
++            if (!rp01_trace_file.empty()) {
++                const std::string path = simout.resolve(rp01_trace_file);
++                rp01_gz = gzopen(path.c_str(), "wb");
++                if (!rp01_gz)
++                    panic("CHAOSLSQFwd: cannot open RP01 trace %s",
++                          path.c_str());
++                const char *hdr =
++                    "# rp01_stall v1: probe,phase,tick,cycle,target_seq,"
++                    "target_pc,target_in_rob,target_issued,target_executed,"
++                    "target_completed,target_result_ready,target_squashed,"
++                    "target_in_iq,target_in_ready_list,target_in_replay_list,"
++                    "target_lq_present,target_lq_valid,target_lq_has_request,"
++                    "target_lq_outstanding,target_lq04_corrupt,"
++                    "target_lq_gen,target_lq_size,target_lq_addr,"
++                    "target_replay_generation,rob_occ,rob_head,rob_tail,"
++                    "iq_occ,lq_loads,lq_head,sq_stores,lsq_stalled,"
++                    "last_commit_dyn_seq,last_commit_tick,no_progress_ticks,"
++                    "no_progress_cycles,watchdog_armed_tick,"
++                    "watchdog_deadline_cycles,reason\n";
++                const int hlen = (int)strlen(hdr);
++                if (gzwrite(rp01_gz, hdr, hlen) != hlen)
++                    panic("CHAOSLSQFwd: RP01 trace header write failed");
++                gzflush(rp01_gz, Z_SYNC_FLUSH);
++                rp01_trace_open = true;
++                registerExitCallback([this]() {
++                    if (rp01_gz) {
++                        gzflush(rp01_gz, Z_SYNC_FLUSH);
++                        gzclose(rp01_gz);
++                        rp01_gz = nullptr;
++                    }
++                });
++            }
+             registerExitCallback([this]() {
+                 if (write_log && log_stream && log_stream->stream()) {
+                     *(log_stream->stream())
+@@ -244,6 +287,13 @@ namespace gem5
+ 
+     CHAOSLSQFwd::~CHAOSLSQFwd()
+     {
++        // [LSU][STRICT-E2E] Backstop for normal exits (the exit callback is
++        // primary; fatal() paths already zflush'ed their last row).
++        if (rp01_gz) {
++            gzflush(rp01_gz, Z_SYNC_FLUSH);
++            gzclose(rp01_gz);
++            rp01_gz = nullptr;
++        }
+         // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+         // N_eligible from this line (campaign.py parses the log).
+         if (count_only && log_stream && log_stream->stream()) {
+@@ -632,6 +682,136 @@ namespace gem5
+         return true;
+     }
+ 
++    // [LSU][STRICT-E2E] One read-only post-injection state row.  Every field
++    // is a copy of an existing gem5/CHAOS accessor; nothing is written back.
++    void
++    CHAOSLSQFwd::rp01Emit(const char *phase, const char *reason)
++    {
++        if (!rp01_gz)
++            return;
++
++        const uint64_t tseq = rp01_fired_id.dyn_inst_seq;
++        bool in_rob = false, issued = false, executed = false;
++        bool completed = false, result_ready = false, squashed = false;
++        uint64_t replay_gen = 0;
++        o3::DynInstPtr ti = nullptr;
++        uint64_t rob_occ = 0, rob_head = 0, rob_tail = 0;
++        uint64_t iq_occ = 0;
++        bool in_iq = false, in_ready = false, in_replay = false;
++        uint64_t lq_loads = 0, lq_head = 0, sq_stores = 0;
++        bool lsq_stalled = false;
++        bool lq_present = false, lq_valid = false, lq_has_req = false;
++        bool lq_outstanding = false, lq04_corrupt = false;
++        uint64_t lq_gen = 0;
++        unsigned lq_size = 0;
++        Addr lq_addr = 0;
++        uint64_t last_commit_seq = 0;
++        Tick last_commit_tick = 0;
++
++        if (cpu) {
++            ti = cpu->o3ROB().findInst(0, (InstSeqNum)tseq);
++            in_rob = static_cast<bool>(ti);
++            if (ti) {
++                issued = ti->isIssued();
++                executed = ti->isExecuted();
++                completed = ti->isCompleted();
++                result_ready = ti->isResultReady();
++                squashed = ti->isSquashed();
++                replay_gen = ti->replayGeneration;
++            }
++            rob_occ = (uint64_t)cpu->o3ROB().countInsts();
++            const o3::DynInstPtr rh = cpu->o3ROB().readHeadInst(0);
++            const o3::DynInstPtr rt = cpu->o3ROB().readTailInst(0);
++            rob_head = rh ? (uint64_t)rh->seqNum : 0;
++            rob_tail = rt ? (uint64_t)rt->seqNum : 0;
++            iq_occ = (uint64_t)cpu->o3IEW().instQueue.getCount(0);
++            in_iq = cpu->o3IEW().instQueue.chaosInIQ(0, (InstSeqNum)tseq);
++            in_ready = cpu->o3IEW().instQueue.chaosInReadyList(
++                0, (InstSeqNum)tseq);
++            in_replay = cpu->o3IEW().instQueue.chaosInReplayList(
++                0, (InstSeqNum)tseq);
++            auto &ldst = cpu->o3IEW().ldstQueue;
++            if (ldst.numLSQUnits() > 0) {
++                auto &unit = ldst.getLSQUnit(0);
++                lq_loads = (uint64_t)unit.numLoads();
++                sq_stores = (uint64_t)unit.numStores();
++                lsq_stalled = unit.isStalled();
++                if (lq_loads)
++                    lq_head = (uint64_t)unit.getLoadHeadSeqNum();
++                lq_present = unit.chaosLoadState(
++                    (InstSeqNum)tseq, lq_valid, lq_has_req, lq_outstanding,
++                    lq04_corrupt, lq_gen, lq_size, lq_addr);
++            }
++            if (cpu->chaosPropagation) {
++                last_commit_seq =
++                    cpu->chaosPropagation->lastCommitDynSeq();
++                last_commit_tick = cpu->chaosPropagation->lastCommitTick();
++            }
++        }
++
++        const Tick now = curTick();
++        const Tick no_prog = (last_commit_tick && now > last_commit_tick)
++            ? now - last_commit_tick : 0;
++        const double period = cpu ? (double)cpu->clockPeriod() : 1.0;
++        const uint64_t no_prog_cyc =
++            period > 0.0 ? (uint64_t)(no_prog / period) : 0;
++
++        std::ostringstream row;
++        row << rp01_probe_seq++ << ',' << phase << ',' << now << ','
++            << (uint64_t)(now / period) << ','
++            << tseq << ',' << rp01_fired_pc << ','
++            << (in_rob ? 1 : 0) << ',' << (issued ? 1 : 0) << ','
++            << (executed ? 1 : 0) << ',' << (completed ? 1 : 0) << ','
++            << (result_ready ? 1 : 0) << ',' << (squashed ? 1 : 0) << ','
++            << (in_iq ? 1 : 0) << ',' << (in_ready ? 1 : 0) << ','
++            << (in_replay ? 1 : 0) << ','
++            << (lq_present ? 1 : 0) << ',' << (lq_valid ? 1 : 0) << ','
++            << (lq_has_req ? 1 : 0) << ',' << (lq_outstanding ? 1 : 0) << ','
++            << (lq04_corrupt ? 1 : 0) << ',' << lq_gen << ',' << lq_size
++            << ",0x" << std::hex << lq_addr << std::dec << ','
++            << replay_gen << ',' << rob_occ << ',' << rob_head << ','
++            << rob_tail << ',' << iq_occ << ',' << lq_loads << ','
++            << lq_head << ',' << sq_stores << ',' << (lsq_stalled ? 1 : 0)
++            << ',' << last_commit_seq << ',' << last_commit_tick << ','
++            << no_prog << ',' << no_prog_cyc << ','
++            << rp01_watchdog_armed_tick << ',' << rp01_watchdog_cycles
++            << ',' << (reason ? reason : "") << '\n';
++        const std::string s = row.str();
++        if (gzwrite(rp01_gz, s.data(), (unsigned)s.size())
++                != (int)s.size())
++            panic("CHAOSLSQFwd: RP01 trace row write failed");
++        // Eager durability: a fatal() path must not lose the last samples.
++        gzflush(rp01_gz, Z_SYNC_FLUSH);
++    }
++
++    void
++    CHAOSLSQFwd::rp01Probe()
++    {
++        rp01Emit("PROBE", "");
++        ++rp01_probe_count;
++
++        // Stop once the target is no longer in flight (it cannot commit
++        // under the skip, but a squash/corrective path would show here).
++        bool in_rob = false;
++        if (cpu && rp01_fired_id.dyn_inst_seq)
++            in_rob = static_cast<bool>(cpu->o3ROB().findInst(
++                0, (InstSeqNum)rp01_fired_id.dyn_inst_seq));
++        if (cpu && !in_rob && rp01_probe_count > 2)
++            return;
++        if (rp01_probe_count >= rp01_probe_dense_count
++                && rp01_probe_cycles == 0)
++            return;
++        const uint64_t period = (rp01_probe_count < rp01_probe_dense_count)
++            ? rp01_probe_dense_cycles : rp01_probe_cycles;
++        if (!period || !cpu)
++            return;
++        if (!rp01_probe_event)
++            rp01_probe_event = new EventFunctionWrapper(
++                [this]() { this->rp01Probe(); }, "RP01 stall probe", true);
++        schedule(rp01_probe_event,
++                 curTick() + Cycles(period) * cpu->clockPeriod());
++    }
++
+     void
+     CHAOSLSQFwd::rp01Watchdog()
+     {
+@@ -693,6 +873,9 @@ namespace gem5
+         // runner cannot classify the stalled run as MASKED (design gate
+         // condition 4 — a skipped replay reschedule that hangs the ROB is
+         // the RP01 expected terminal, never a normal completion).
++        // [LSU][STRICT-E2E] Emit the watchdog row before fatal(): fatal()
++        // exits the process and skips gem5's exit callbacks.
++        rp01Emit("WATCHDOG", "INTERNAL_WATCHDOG_DEADLINE");
+         fatal("CHAOS_RP01_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+               (unsigned long long)curTick(), (int)faults_injected_count,
+               (int)eligible_count);
+@@ -810,6 +993,21 @@ namespace gem5
+         DPRINTF(LSQUnit, "CHAOSLSQFwd RP01: skipped partial-replay "
+                 "reschedule for load [sn:%llu] stalling store [sn:%llu]\n",
+                 (unsigned long long)load_seq, (unsigned long long)store_seq);
++        // [LSU][STRICT-E2E] Read-only post-injection sampling.  The first
++        // row is written at the exact injection tick, then dense sampling
++        // switches to sparse.  No replay decision is touched here.
++        rp01_inject_tick = curTick();
++        rp01Emit("INJECTION", "replay_reschedule_suppressed");
++        if (rp01_gz && cpu && rp01_probe_cycles) {
++            const uint64_t period = rp01_probe_dense_cycles
++                ? rp01_probe_dense_cycles : rp01_probe_cycles;
++            if (!rp01_probe_event)
++                rp01_probe_event = new EventFunctionWrapper(
++                    [this]() { this->rp01Probe(); }, "RP01 stall probe",
++                    true);
++            schedule(rp01_probe_event,
++                     curTick() + Cycles(period) * cpu->clockPeriod());
++        }
+         return true;
+     }
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+index 8836bb18..33718eeb 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+@@ -4,6 +4,8 @@
+ #include <random>
+ #include <bitset>
+ #include <memory>
++#include <string>
++#include <zlib.h>
+ 
+ #include "base/output.hh"
+ #include "sim/eventq.hh"
+@@ -132,6 +134,11 @@ class CHAOSLSQFwd : public SimObject
+     bool rp01SkipMode() const {
+         return struct_mode == StructMode::Rp01SkipReplay;
+     }
++    // [LSU][STRICT-E2E] Read-only post-injection stall sampler.  It never
++    // participates in shouldSkip(), replay scheduling, RNG draws or any
++    // injector decision; it only observes ROB/IQ/LSQ/target state.
++    void rp01Probe();
++    void rp01Emit(const char *phase, const char *reason);
+ 
+     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
+     // the simulation with a non-zero code. The event fires at
+@@ -271,6 +278,17 @@ class CHAOSLSQFwd : public SimObject
+     uint64_t last_eligible_store_seq = 0;
+     uint64_t last_eligible_replay_gen = 0;
+     Tick last_eligible_tick = 0;
++    // [LSU][STRICT-E2E] Post-injection stall trace state (observation only).
++    std::string rp01_trace_file;
++    uint64_t rp01_probe_cycles = 0;
++    uint64_t rp01_probe_dense_cycles = 0;
++    uint64_t rp01_probe_dense_count = 0;
++    gzFile rp01_gz = nullptr;
++    EventFunctionWrapper *rp01_probe_event = nullptr;
++    uint64_t rp01_probe_count = 0;
++    uint64_t rp01_probe_seq = 0;
++    Tick rp01_inject_tick = 0;
++    bool rp01_trace_open = false;
+ 
+     std::mt19937 rng;
+     std::random_device rd;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+index 6edb1e73..f7ab99ac 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+@@ -91,6 +91,15 @@ class CHAOSLSQFwd(SimObject):
+     rp01EventOrdinal = Param.UInt64(0,
+         "RP01: 1-based eligible partial-replay ordinal (0 = none; 999 = none "
+         "in any bounded stream — the select-none control inside fault mode)")
++    rp01TraceFile = Param.String("",
++        "[LSU][STRICT-E2E] Read-only post-injection stall trace file. "
++        "Empty = disabled (legacy behaviour unchanged).")
++    rp01ProbeCycles = Param.UInt64(100000,
++        "[LSU][STRICT-E2E] Sparse post-injection sampling period (cycles).")
++    rp01ProbeDenseCycles = Param.UInt64(10000,
++        "[LSU][STRICT-E2E] Dense post-injection sampling period (cycles).")
++    rp01ProbeDenseCount = Param.UInt64(100,
++        "[LSU][STRICT-E2E] Dense samples before switching to sparse.")
+     rp01WatchdogCycles = Param.UInt64(500000000,
+         "RP01: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
+         "the simulation exits with code 1 and CHAOS_RP01_WATCHDOG_EXPIRED")
+diff --git a/CHAOS/gem5/src/cpu/o3/inst_queue.cc b/CHAOS/gem5/src/cpu/o3/inst_queue.cc
+index 04141048..7733bcc9 100644
+--- a/CHAOS/gem5/src/cpu/o3/inst_queue.cc
++++ b/CHAOS/gem5/src/cpu/o3/inst_queue.cc
+@@ -1824,5 +1824,36 @@ InstructionQueue::dumpInsts()
+     }
+ }
+ 
++// [LSU][STRICT-E2E] Read-only RP01 observability: is the target load in the
++// IQ / ready heap / MemDepUnit replay list right now?  No mutation.
++bool
++InstructionQueue::chaosInIQ(ThreadID tid, InstSeqNum seq) const
++{
++    for (const auto &inst : instList[tid])
++        if (inst && inst->seqNum == seq)
++            return true;
++    return false;
++}
++
++bool
++InstructionQueue::chaosInReadyList(ThreadID tid, InstSeqNum seq) const
++{
++    for (int i = 0; i < Num_OpClasses; ++i) {
++        auto copy = readyInsts[i];
++        while (!copy.empty()) {
++            if (copy.top() && copy.top()->seqNum == seq)
++                return true;
++            copy.pop();
++        }
++    }
++    return false;
++}
++
++bool
++InstructionQueue::chaosInReplayList(ThreadID tid, InstSeqNum seq) const
++{
++    return memDepUnit[tid].chaosInReplay(seq);
++}
++
+ } // namespace o3
+ } // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/inst_queue.hh b/CHAOS/gem5/src/cpu/o3/inst_queue.hh
+index 49c3f669..ba40fb8c 100644
+--- a/CHAOS/gem5/src/cpu/o3/inst_queue.hh
++++ b/CHAOS/gem5/src/cpu/o3/inst_queue.hh
+@@ -390,6 +390,12 @@ class InstructionQueue
+     /** Returns the number of used entries for a thread. */
+     unsigned getCount(ThreadID tid) const;
+ 
++    // [LSU][STRICT-E2E] Read-only target-state probes for the RP01 stall
++    // trace (implemented in inst_queue.cc where DynInst is complete).
++    bool chaosInIQ(ThreadID tid, InstSeqNum seq) const;
++    bool chaosInReadyList(ThreadID tid, InstSeqNum seq) const;
++    bool chaosInReplayList(ThreadID tid, InstSeqNum seq) const;
++
+     /** Debug function to print all instructions. */
+     void printInsts();
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index f9ab24cc..4ae7c050 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -2169,6 +2169,31 @@ LSQUnit::getLoadHeadSeqNum()
+         return 0;
+ }
+ 
++// [LSU][STRICT-E2E] Read-only RP01 observability.  Scans the LQ for the
++// dynamic instruction and reports its entry state.  Nothing is mutated and
++// the entry is never moved/freed here.
++bool
++LSQUnit::chaosLoadState(InstSeqNum seq, bool &valid, bool &has_request,
++                        bool &outstanding, bool &lq04_corrupt,
++                        uint64_t &generation, unsigned &size, Addr &addr)
++{
++    for (int i = 0; i < loadQueue.size(); ++i) {
++        LQEntry &e = loadQueue[i];
++        if (!e.instruction() || e.instruction()->seqNum != seq)
++            continue;
++        valid = e.valid();
++        has_request = e.hasRequest();
++        outstanding = e.hasRequest() && e.request() &&
++                      e.request()->isAnyOutstandingRequest();
++        lq04_corrupt = e.lq04Corrupt();
++        generation = e.instruction()->lqEntryGeneration;
++        size = e.size();
++        addr = e.instruction()->effAddr;
++        return true;
++    }
++    return false;
++}
++
+ InstSeqNum
+ LSQUnit::getStoreHeadSeqNum()
+ {
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.hh b/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
+index 902b989a..fcaf2a1f 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
+@@ -359,6 +359,13 @@ class LSQUnit
+     /** Returns the number of loads in the LQ. */
+     int numLoads() { return loadQueue.size(); }
+ 
++    // [LSU][STRICT-E2E] Read-only LQ entry snapshot for the RP01 stall trace.
++    // Returns false when the dynamic instruction is no longer in the LQ.
++    bool chaosLoadState(InstSeqNum seq, bool &valid, bool &has_request,
++                        bool &outstanding, bool &lq04_corrupt,
++                        uint64_t &generation, unsigned &size,
++                        Addr &addr);
++
+     /** Returns the number of stores in the SQ. */
+     int numStores() { return storeQueue.size(); }
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/mem_dep_unit.cc b/CHAOS/gem5/src/cpu/o3/mem_dep_unit.cc
+index 64069e03..01a7d14f 100644
+--- a/CHAOS/gem5/src/cpu/o3/mem_dep_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/mem_dep_unit.cc
+@@ -642,5 +642,15 @@ MemDepUnit::dumpLists()
+ #endif
+ }
+ 
++// [LSU][STRICT-E2E] Read-only RP01 observability.
++bool
++MemDepUnit::chaosInReplay(InstSeqNum seq) const
++{
++    for (const auto &inst : instsToReplay)
++        if (inst && inst->seqNum == seq)
++            return true;
++    return false;
++}
++
+ } // namespace o3
+ } // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/mem_dep_unit.hh b/CHAOS/gem5/src/cpu/o3/mem_dep_unit.hh
+index 57df492c..c605f9e8 100644
+--- a/CHAOS/gem5/src/cpu/o3/mem_dep_unit.hh
++++ b/CHAOS/gem5/src/cpu/o3/mem_dep_unit.hh
+@@ -151,6 +151,11 @@ class MemDepUnit
+      */
+     void squash(const InstSeqNum &squashed_num, ThreadID tid);
+ 
++    // [LSU][STRICT-E2E] Read-only RP01 observability.  True iff the given
++    // instruction is currently waiting in the replay list.  No mutation.
++    // Defined in mem_dep_unit.cc where DynInst is complete.
++    bool chaosInReplay(InstSeqNum seq) const;
++
+     /** Indicates an ordering violation between a store and a younger load. */
+     void violation(const DynInstPtr &store_inst,
+                    const DynInstPtr &violating_load);

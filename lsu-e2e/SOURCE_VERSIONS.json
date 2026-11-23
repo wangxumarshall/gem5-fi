@@ -1,0 +1,16 @@
+{
+  "gem5_source_commit": "2bbf2907668f78e0b67473caf5a63153b70bede3",
+  "experiment_commit": "780099c805867ad194d74a81c3b6273aa0be8e5a",
+  "experiment_tag": "LSU_SE_PAPER_FINAL_FROZEN_20261119_SUPP1",
+  "experiment_branch": "lsu-se-final-closure-r2-20261118",
+  "package": "LSU_E2E_PAPER_FINAL_FROZEN_R2_SUPP1",
+  "frozen_zip_sha256": "75679ae035992565aed95292702b55a721d7f2b5f88b54c30c043ead58cd35b4",
+  "models": 12,
+  "contexts": 5,
+  "timings": 3,
+  "faults": 180,
+  "controls": 60,
+  "rp01": 15,
+  "historical_squash": 6,
+  "scope": "gem5 ARM O3CPU Syscall Emulation (SE) only"
+}

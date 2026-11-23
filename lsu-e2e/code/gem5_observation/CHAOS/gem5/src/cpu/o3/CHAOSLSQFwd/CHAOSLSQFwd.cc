@@ -1,0 +1,1464 @@
+#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // v3.2 FW02 trace
+#include "sim/sim_exit.hh"
+#include "sim/eventq.hh"
+#include "params/CHAOSLSQFwd.hh"
+
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <sstream>
+#include <iomanip>
+
+#include "base/output.hh"
+#include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"   // complete DynInst before lsq_unit.hh
+#include "cpu/o3/lsq_unit.hh"   // [V3.3.3][RP01] read-only LQ/SQ snapshot
+#include "cpu/o3/iew.hh"        // [STRICT-E2E] IQ/replay probes
+#include "cpu/o3/inst_queue.hh"
+#include "cpu/o3/rob.hh"
+#include "debug/LSQUnit.hh"
+
+namespace gem5
+{
+
+    CHAOSLSQFwd::CHAOSLSQFwd(const CHAOSLSQFwdParams &p)
+        : SimObject(p),
+          cpu(dynamic_cast<o3::CPU *>(p.cpu)),
+          probability(p.probability),
+          fault_type_enum(stringToFaultType(p.faultType)),
+          struct_mode(stringToStructMode(p.structMode)),
+          fault_mask(std::bitset<64>(p.faultMask)),
+          num_bits_to_change(p.bitsToChange),
+          byte_offset(p.byteOffset),
+          lane_skew_k(p.laneSkewK),
+          first_clock(Cycles(p.firstClock)),
+          last_clock(Cycles(p.lastClock)),
+          max_faults(p.maxFaults),
+          faults_injected_count(0),
+          rng_seed(p.rngSeed),
+          write_log(p.writeLog),
+          l03_mode(p.l03Mode),   // [LSU][SEM-B]
+          f6_event_ordinal(p.f6EventOrdinal),
+          fw05_event_ordinal(p.fw05EventOrdinal),
+          rp01_trace_file(p.rp01TraceFile),
+          rp01_probe_cycles(p.rp01ProbeCycles),
+          rp01_probe_dense_cycles(p.rp01ProbeDenseCycles),
+          rp01_probe_dense_count(p.rp01ProbeDenseCount),
+          rng(rng_seed != 0 ? rng_seed : rd()),
+          log_stream(nullptr),
+          stats(nullptr)
+    {
+        // LSU W2/W5: event-normalized trigger (05 r2-r8; off = legacy).
+        if (p.lsuTier != "off") {
+            auto tier = ChaOSLsuTier::F0;
+            if (p.lsuTier == "F1") tier = ChaOSLsuTier::F1;
+            else if (p.lsuTier == "F2") tier = ChaOSLsuTier::F2;
+            else if (p.lsuTier == "F3") tier = ChaOSLsuTier::F3;
+            else if (p.lsuTier == "F4") tier = ChaOSLsuTier::F4;
+            else if (p.lsuTier == "F5") tier = ChaOSLsuTier::F5;
+            else if (p.lsuTier == "F6") tier = ChaOSLsuTier::F6;
+            lsuTrigger = new ChaOSLsuTrigger(tier, rng_seed ? rng_seed : 1,
+                                             p.lsuWarmupEvents, p.lsuSpanEvents,
+                                             ChaOSLsuEvent::SqForward,
+                                             p.f6EventOrdinal);
+        }
+        if (lsuTrigger) {
+            // W5: funnel lines at exit (chaos_l0 discipline: log file, not
+            // stdout). activated = same near-tautological approximation as
+            // CHAOSAddrPath (the forwarded data is consumed by the load's
+            // writeback immediately after this hook).
+            registerExitCallback([this]() {
+                if (lsuTrigger)
+                    lsuTrigger->summary("CHAOSLSQFwd");
+                l0_funnel.attempted = lsuTrigger->attempted;
+                l0_funnel.eligible  = lsuTrigger->eligible;
+                l0_funnel.injected  = faults_injected_count;
+                l0_funnel.activated = faults_injected_count;
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << l0_funnel.line("CHAOSLSQFwd")
+                                            << std::endl;
+                }
+            });
+        }
+        if (!cpu) {
+            throw std::runtime_error(
+                "CHAOSLSQFwd: cpu is not an O3CPU. CHAOSLSQFwd only supports "
+                "O3CPU (it hooks the O3 LSQ store->load forwarding path). "
+                "Cast failed.");
+        }
+        if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
+                struct_mode == StructMode::Da04BeBit0 ||
+                struct_mode == StructMode::Sq03CanWB ||
+                struct_mode == StructMode::Sp05Complete ||
+                struct_mode == StructMode::Fw05OlderSrc ||
+                struct_mode == StructMode::Rp01CountOnly ||
+                struct_mode == StructMode::Rp01SkipReplay) {
+            log_stream = simout.create("lsq_fwd_injections.log", false, true);
+            if (!log_stream || !log_stream->stream()) {
+                panic("CHAOSLSQFwd: Could not open log file");
+            }
+            // Sampling-bias fix (findings.md Phase 2.2, same as
+            // CHAOSL1DForward): skip a geometric(p=0.1) number of eligible
+            // forwarding events before the first injection, so the single
+            // fault (maxFaults=1) lands on a seed-dependent event instead
+            // of always the first eligible one (same dynamic store->load
+            // pair every rep on a deterministic stream).
+            // v1.1 Phase 8.2: fixed uniform skip (driver-provided,
+            // chaos_event_sample.hh) overrides the legacy geometric(0.1)
+            // draw; UINT64_MAX sentinel keeps legacy behavior.
+            if (p.eventsToSkip != ~0ULL)
+                events_to_skip = p.eventsToSkip;
+            else {
+                std::geometric_distribution<uint64_t> skip_dist(0.1);
+                events_to_skip = skip_dist(rng);
+            }
+            count_only = p.countOnly;
+            // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
+            // destructor may not run before gem5's exit path; the exit
+            // callback always fires). Registered here because CHAOSLSQFwd
+            // self-attaches in the ctor (no startup() override).
+            if (count_only) {
+                registerExitCallback([this]() {
+                    if (log_stream && log_stream->stream())
+                        *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                            << eligible_count << std::endl;
+                });
+            }
+            stats = std::make_unique<CHAOSLSQFwdStats>(this);
+            random_fault_distribution = std::discrete_distribution<int>(
+                {0.9, 0.05, 0.05});  // bit_flip / stuck0 / stuck1
+            // Register self with the CPU so lsq_unit.cc can reach this
+            // injector via cpu->lsqFwd. cpu is guaranteed constructed first
+            // (it was passed as a Param). Safe because lsq_unit only reads
+            // lsqFwd during execute(), long after SimObject construction.
+            cpu->lsqFwd = this;
+        }
+        if (struct_mode == StructMode::Da04BeBit0) {
+            // DA04: deterministic F0 one-shot; attach even when the caller
+            // leaves probability at 0 (the fault is an explicit mask change).
+            if (!cpu->lsqFwd) cpu->lsqFwd = this;
+            if (max_faults == 0) max_faults = 1;
+        }
+        if (struct_mode == StructMode::F6Fw02) {
+            // FW02: attach even with probability==0 (this mode suppresses a
+            // forwarding match, it does not corrupt forwarded bytes).
+            if (!cpu->lsqFwd) cpu->lsqFwd = this;
+            if (max_faults == 0) max_faults = 1;
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_FW02_SUMMARY: observed=" << f6_observed
+                        << " suppressed=" << (f6_fired ? 1 : 0)
+                        << " load_seq=" << f6_load_seq
+                        << " store_seq=" << f6_store_seq << std::endl;
+                }
+            });
+        }
+        if (struct_mode == StructMode::Sq03CanWB) {
+            // SQ03 is one-shot; max_faults==0 must not mean unlimited.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            // L-A06: never arm a watchdog when mounted at p=0 (control).
+            if (probability > 0.0f && p.sq03WatchdogCycles) {
+                sq03_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->sq03Watchdog(); }, "SQ03 watchdog",
+                    true);
+                schedule(sq03_watchdog_event,
+                         cpu->clockEdge(Cycles(p.sq03WatchdogCycles)));
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_SQ03_STATUS: fired=" << (sq03_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count << std::endl;
+                }
+            });
+        }
+        if (struct_mode == StructMode::Sp05Complete) {
+            // SP05 is one-shot; max_faults==0 must not mean unlimited.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            sp05_event_ordinal = p.sp05EventOrdinal;
+            // L-A06: never arm a watchdog when mounted at p=0 (control).
+            if (probability > 0.0f && p.sp05WatchdogCycles) {
+                sp05_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->sp05Watchdog(); }, "SP05 watchdog",
+                    true);
+                schedule(sp05_watchdog_event,
+                         cpu->clockEdge(Cycles(p.sp05WatchdogCycles)));
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_SP05_STATUS: selected="
+                        << (sp05_selected ? 1 : 0)
+                        << " fired=" << (sp05_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count
+                        << " target_seq=" << sp05_target_seq
+                        << " sq_idx=" << sp05_target_idx
+                        << " sq_gen=" << sp05_target_gen << std::endl;
+                }
+            });
+        }
+        if (struct_mode == StructMode::Rp01CountOnly ||
+            struct_mode == StructMode::Rp01SkipReplay) {
+            // RP01 (LSU v3.2.12): attach even with probability==0; the fault
+            // is a skipped rescheduleMemInst call, not a byte corruption
+            // (same rationale as F6Fw02/Da04BeBit0). One-shot by rule; the
+            // ordinal alone selects the event.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            rp01_event_ordinal = p.rp01EventOrdinal;
+            // L-A06: RP01 count-only may still attach for observation, but a
+            // p=0 mount must never arm the watchdog.
+            if (probability > 0.0f && p.rp01WatchdogCycles) {
+                rp01_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->rp01Watchdog(); }, "RP01 watchdog",
+                    true);
+                // [V3.3.3][RP01] Record the armed time/period for the
+                // terminal snapshot (read-only).
+                rp01_watchdog_cycles = p.rp01WatchdogCycles;
+                rp01_watchdog_armed_tick =
+                    cpu->clockEdge(Cycles(p.rp01WatchdogCycles));
+                schedule(rp01_watchdog_event, rp01_watchdog_armed_tick);
+            }
+            // [LSU][STRICT-E2E] Open the read-only stall trace.  This file
+            // does not exist unless the caller opts in; when it does, every
+            // row is gzflush()ed so a fatal watchdog exit cannot lose the
+            // post-injection history.
+            if (!rp01_trace_file.empty()) {
+                const std::string path = simout.resolve(rp01_trace_file);
+                rp01_gz = gzopen(path.c_str(), "wb");
+                if (!rp01_gz)
+                    panic("CHAOSLSQFwd: cannot open RP01 trace %s",
+                          path.c_str());
+                const char *hdr =
+                    "# rp01_stall v1: probe,phase,tick,cycle,target_seq,"
+                    "target_pc,target_in_rob,target_issued,target_executed,"
+                    "target_completed,target_result_ready,target_squashed,"
+                    "target_in_iq,target_in_ready_list,target_in_replay_list,"
+                    "target_lq_present,target_lq_valid,target_lq_has_request,"
+                    "target_lq_outstanding,target_lq04_corrupt,"
+                    "target_lq_gen,target_lq_size,target_lq_addr,"
+                    "target_replay_generation,rob_occ,rob_head,rob_tail,"
+                    "iq_occ,lq_loads,lq_head,sq_stores,lsq_stalled,"
+                    "last_commit_dyn_seq,last_commit_tick,no_progress_ticks,"
+                    "no_progress_cycles,watchdog_armed_tick,"
+                    "watchdog_deadline_cycles,reason\n";
+                const int hlen = (int)strlen(hdr);
+                if (gzwrite(rp01_gz, hdr, hlen) != hlen)
+                    panic("CHAOSLSQFwd: RP01 trace header write failed");
+                gzflush(rp01_gz, Z_SYNC_FLUSH);
+                rp01_trace_open = true;
+                registerExitCallback([this]() {
+                    if (rp01_gz) {
+                        gzflush(rp01_gz, Z_SYNC_FLUSH);
+                        gzclose(rp01_gz);
+                        rp01_gz = nullptr;
+                    }
+                });
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_RP01_STATUS: fired=" << (rp01_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count
+                        << " load_seq=" << rp01_fired_id.dyn_inst_seq
+                        << " load_pc=" << rp01_fired_pc
+                        << " lq_idx=" << rp01_fired_id.lq_idx
+                        << " lq_gen=" << rp01_fired_id.lq_gen
+                        << " store_seq=" << rp01_fired_id.store_seq
+                        << " replay_gen=" << rp01_fired_id.replay_gen
+                        << std::endl;
+                }
+            });
+        }
+    }
+
+    CHAOSLSQFwd::~CHAOSLSQFwd()
+    {
+        // [LSU][STRICT-E2E] Backstop for normal exits (the exit callback is
+        // primary; fatal() paths already zflush'ed their last row).
+        if (rp01_gz) {
+            gzflush(rp01_gz, Z_SYNC_FLUSH);
+            gzclose(rp01_gz);
+            rp01_gz = nullptr;
+        }
+        // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+        // N_eligible from this line (campaign.py parses the log).
+        if (count_only && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
+                << std::endl;
+        }
+    }
+
+    CHAOSLSQFwd::FaultType
+    CHAOSLSQFwd::stringToFaultType(const std::string &s) {
+        if (s == "bit_flip") return FaultType::BitFlip;
+        else if (s == "stuck_at_zero") return FaultType::StuckAtZero;
+        else if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        return FaultType::Random;
+    }
+
+    const char*
+    CHAOSLSQFwd::faultTypeToString(FaultType f) {
+        switch (f) {
+            case FaultType::BitFlip: return "bit_flip";
+            case FaultType::StuckAtZero: return "stuck_at_zero";
+            case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // §2.4: clear -Wswitch
+        }
+        return "random";
+    }
+
+    // §2.4 structured fault mode (fi-h6-h7 branch, H5 closed).
+    CHAOSLSQFwd::StructMode
+    CHAOSLSQFwd::stringToStructMode(const std::string &s) {
+        if (s == "byte_lane_skew") return StructMode::ByteLaneSkew;
+        if (s == "all_zero") return StructMode::AllZero;
+        if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
+        if (s == "phase_offset") return StructMode::PhaseOffset;
+        if (s == "f6_fw02") return StructMode::F6Fw02;
+        if (s == "sq01_bit3") return StructMode::Sq01Bit3;
+        if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
+        if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
+        if (s == "sq03_canwb") return StructMode::Sq03CanWB;
+        if (s == "sp05_complete") return StructMode::Sp05Complete;
+        if (s == "rp01_count_only") return StructMode::Rp01CountOnly;
+        if (s == "rp01_skip_replay") return StructMode::Rp01SkipReplay;
+        return StructMode::ByteFlip;  // default / unknown
+    }
+
+    int
+    CHAOSLSQFwd::generateRandomMask(int bits_to_change)
+    {
+        // 8-bit mask (applied to one byte of the forwarded buffer)
+        int mask = 0;
+        std::uniform_int_distribution<int> bitDist(0, 7);
+        while (bits_to_change-- > 0) mask |= (1 << bitDist(rng));
+        return mask;
+    }
+
+    void
+    CHAOSLSQFwd::writeLog(const char *type, unsigned size, Addr vaddr,
+                          int byte_off, int mask)
+    {
+        if (!write_log) return;
+        *(log_stream->stream())
+            << "Cycle: " << cpu->curCycle()
+            << ", CPU: " << cpu->name()
+            << ", Site: store->load_forward"
+            << ", FaultType: " << type
+            << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+            << ", FwdSize: " << size
+            << ", ByteOffset: " << byte_off
+            << ", Mask: " << std::bitset<8>(mask)
+            << std::endl;
+    }
+
+    void
+    CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr)
+    {
+        // Hot-path short-circuit: no injection configured.
+        if (probability <= 0.0f) return;
+        // [LSU][WHEN-V2] census controls are observation-only on every path.
+        if (count_only) return;
+        // fwd_source_sub injects at the DECISION point (maybeSubstituteSource,
+        // called before the memcpy); this post-forward corrupt hook must NOT
+        // also fire in that mode (double-injection bug found in Phase 4.2
+        // verification: an unlimited-faults run showed bit_flip lines while
+        // in fwd_source_sub mode — the old hook was still active).
+        // phase_offset likewise acts at the WRITEBACK-SCHEDULE point
+        // (maybeDelayForward) — no data mutation there either.
+        if (struct_mode == StructMode::FwdSourceSub) return;
+        if (struct_mode == StructMode::Fw05OlderSrc) return;
+        // SQ01's frozen target is the SQ entry data (lsq_write_sq_entry), not
+        // forwarded load bytes.  The legacy post-forward hook must not consume
+        // the shared F0 trigger either: otherwise it pollutes the eligible
+        // ordinal stream and the selected store ordinal no longer matches the
+        // count-only census.
+        if (struct_mode == StructMode::Sq01Bit3) return;
+        if (struct_mode == StructMode::Sq03CanWB) return;
+        // SP05 (v3.2.9): the completion hook owns the shared one-shot budget;
+        // the legacy forwarding-corruption hook must stay inert or it would
+        // inject an untraced bit_flip and consume max_faults first.
+        if (struct_mode == StructMode::Sp05Complete) return;
+        // RP01 (v3.2.12): the partial-replay-reschedule hook owns the
+        // one-shot budget; the legacy forwarding-corruption hook must stay
+        // inert in both RP01 modes or it would inject an untraced bit_flip
+        // and consume max_faults first (same rationale as SP05 above).
+        if (struct_mode == StructMode::Rp01CountOnly) return;
+        if (struct_mode == StructMode::Rp01SkipReplay) return;
+        if (struct_mode == StructMode::PhaseOffset) return;
+        // FW02 acts only at the forwarding DECISION point (suppress one
+        // match); it must never also mutate the forwarded bytes.
+        if (struct_mode == StructMode::F6Fw02) return;
+        // DA04 acts only in LSQ::pushRequest (byte-enable construction); the
+        // forwarding post-copy hook must stay inert or it would consume the
+        // shared F0 trigger before the first eligible store.
+        if (struct_mode == StructMode::Da04BeBit0) return;
+        // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
+        // data path is NOT L03's event source — the trigger stream must be
+        // violation checks only (checkViolations site), not the mixed stream.
+        if (l03_mode) return;
+        if (lsuTrigger) {
+            // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
+            // warm-up/repetition semantics; the legacy cycle window,
+            // events_to_skip and the Bernoulli roll do NOT apply here.
+            lsuTrigger->onAttempt();
+            if (!lsuTrigger->onEligible()) return;
+        } else {
+            Cycles cur = cpu->curCycle();
+            if (cur < first_clock) return;
+            if (last_clock != Cycles(0) && cur > last_clock) return;
+            if (max_faults != 0 && faults_injected_count >= max_faults) return;
+
+            // Sampling-bias fix (findings.md Phase 2.2): skip the first N
+            // eligible forwarding events (N ~ geometric(0.1) from the seed)
+            // so the single fault lands on a seed-dependent event.
+            if (count_only) { ++eligible_count; return; }
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return;
+            }
+
+            // Bernoulli: does this forwarding event get corrupted?
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            if (dist(rng) >= probability) return;
+        }
+        if (size == 0) return;
+
+        // §2.4 structured fault modes (fi-h6-h7 branch, H5 closed):
+        if (struct_mode == StructMode::ByteLaneSkew) {
+            // Rotate the whole forwarded buffer by k bytes (rol_k) —
+            // core179 D1 byte-lane phase signature (method2).
+            int k = lane_skew_k % (int)size;
+            if (k < 0) k += (int)size;
+            if (k != 0) {
+                uint8_t tmp[16];
+                for (unsigned i = 0; i < size; i++) tmp[i] = data[i];
+                for (unsigned i = 0; i < size; i++)
+                    data[i] = tmp[(i + k) % size];
+            }
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0);
+            DPRINTF(LSQUnit, "CHAOSLSQFwd: byte_lane_skew rol %d (vaddr=%#x)\n",
+                    lane_skew_k, vaddr);
+            return;
+        }
+        if (struct_mode == StructMode::AllZero) {
+            for (unsigned i = 0; i < size; i++) data[i] = 0;
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            writeLog("all_zero", size, vaddr, 0, 0);
+            DPRINTF(LSQUnit, "CHAOSLSQFwd: all_zero (vaddr=%#x size=%u)\n",
+                    vaddr, size);
+            return;
+        }
+
+        // Choose byte to corrupt.
+        int off = byte_offset;
+        if (off < 0) {
+            std::uniform_int_distribution<int> bdist(0, (int)size - 1);
+            off = bdist(rng);
+        }
+        if (off >= (int)size) off = (int)size - 1;
+
+        int mask = fault_mask.any()
+            ? (int)(fault_mask.to_ulong() & 0xff)
+            : generateRandomMask(num_bits_to_change);
+
+        FaultType chosen = fault_type_enum;
+        if (fault_type_enum == FaultType::Random) {
+            int idx = random_fault_distribution(rng);
+            chosen = static_cast<FaultType>(idx);
+        }
+
+        switch (chosen) {
+            case FaultType::StuckAtZero:
+                data[off] &= ~(uint8_t)mask;
+                stats->numStuckAtZero++;
+                break;
+            case FaultType::StuckAtOne:
+                data[off] |= (uint8_t)mask;
+                stats->numStuckAtOne++;
+                break;
+            case FaultType::BitFlip:
+                data[off] ^= (uint8_t)mask;
+                stats->numBitFlips++;
+                break;
+            default: break;
+        }
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        writeLog(faultTypeToString(chosen), size, vaddr, off, mask);
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
+                "mask=%#x type=%s)\n", off, vaddr, mask,
+                faultTypeToString(chosen));
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSubstituteSource(uint8_t *load_data,
+                                       const uint8_t *true_src,
+                                       unsigned copy_size,
+                                       const uint8_t *alt_src,
+                                       unsigned alt_size, Addr vaddr)
+    {
+        // §2.4 fwd_source_sub (F5): wrong-source store->load forwarding.
+        // Only active in FwdSourceSub mode; other modes return false and the
+        // caller does its normal memcpy (zero regression).
+        if (struct_mode != StructMode::FwdSourceSub) return false;
+        if (probability <= 0.0f) return false;
+        if (!load_data || !true_src || !alt_src) return false;
+        if (copy_size == 0 || alt_size == 0) return false;
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+
+        // sampling-bias fix: consume skip only on eligible wrong-source
+        // opportunities (an older SQ entry exists with data)
+        if (count_only) { ++eligible_count; return false; }
+        if (events_to_skip > 0) { --events_to_skip; return false; }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return false;
+
+        // Copy the WRONG store's data into the load buffer. If the wrong
+        // source is smaller than the load, copy what it has (the tail keeps
+        // whatever the caller's buffer held — the mismatch IS the fault).
+        unsigned n = copy_size < alt_size ? copy_size : alt_size;
+        memcpy(load_data, alt_src, n);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: fwd_source_sub"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", TrueSrcSize: " << copy_size
+                << ", AltSrcSize: " << alt_size
+                << ", Copied: " << n
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
+                "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
+        return true;
+    }
+
+    void
+    CHAOSLSQFwd::sq03Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_SQ03_WATCHDOG=EXPIRED fired="
+                << (sq03_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        // A watchdog expiry is a failed simulation, not a normal MAX_TICK
+        // exit: abort loudly so the process exit status is non-zero and the
+        // runner cannot classify it as MASKED.
+        fatal("CHAOS_SQ03_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
+    void
+    CHAOSLSQFwd::sp05Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_SP05_WATCHDOG=EXPIRED selected="
+                << (sp05_selected ? 1 : 0)
+                << " fired=" << (sp05_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        fatal("CHAOS_SP05_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx,
+                                 uint64_t sq_gen, uint32_t size,
+                                 bool is_prefetch)
+    {
+        if (struct_mode != StructMode::Sp05Complete)
+            return false;
+        if (probability <= 0.0f || sp05_fired || sp05_selected)
+            return false;
+        if (!chaos_sp05::isSelectable(size, is_prefetch))
+            return false;
+        ++eligible_count;
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SP05;ordinal=" << eligible_count
+                    << ";store_seq=" << store_seq
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << sq_gen
+                    << ";size=" << size << std::endl;
+            }
+            return false;
+        }
+        if (!chaos_sp05::shouldSelect(eligible_count, sp05_event_ordinal))
+            return false;
+        sp05_selected = true;
+        sp05_target_seq = store_seq;
+        sp05_target_idx = sq_idx;
+        sp05_target_gen = sq_gen;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: commitStores_select, store_seq=" << store_seq
+                << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", eligible_ordinal=" << eligible_count << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::consumeSP05Trace(uint64_t seq)
+    {
+        if (!sp05_pending_trace || seq != sp05_target_seq)
+            return false;
+        sp05_pending_trace = false;
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
+                                   uint64_t sq_gen, bool request_sent)
+    {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
+        if (struct_mode != StructMode::Sp05Complete)
+            return false;
+        if (sp05_fired || !sp05_selected)
+            return false;
+        if (request_sent)
+            return false;
+
+        if (sq_idx != sp05_target_idx || sq_gen != sp05_target_gen)
+            return false;
+        if (!chaos_sp05::shouldComplete(sq_idx, sq_gen, sp05_target_idx,
+                                        sp05_target_gen, faults_injected_count,
+                                        max_faults))
+            return false;
+        sp05_fired = true;
+        sp05_pending_trace = true;
+        ++faults_injected_count;
+        assert(faults_injected_count == 1 && "SP05 must inject exactly once");
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: writebackStores_prematureComplete, store_seq="
+                << store_seq << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", mem_sent=0, eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: premature completion for [sn:%llu] "
+                "idx %llu gen %llu\n", (unsigned long long)store_seq,
+                (unsigned long long)sq_idx, (unsigned long long)sq_gen);
+        return true;
+    }
+
+    // [LSU][STRICT-E2E] One read-only post-injection state row.  Every field
+    // is a copy of an existing gem5/CHAOS accessor; nothing is written back.
+    void
+    CHAOSLSQFwd::rp01Emit(const char *phase, const char *reason)
+    {
+        if (!rp01_gz)
+            return;
+
+        const uint64_t tseq = rp01_fired_id.dyn_inst_seq;
+        bool in_rob = false, issued = false, executed = false;
+        bool completed = false, result_ready = false, squashed = false;
+        uint64_t replay_gen = 0;
+        o3::DynInstPtr ti = nullptr;
+        uint64_t rob_occ = 0, rob_head = 0, rob_tail = 0;
+        uint64_t iq_occ = 0;
+        bool in_iq = false, in_ready = false, in_replay = false;
+        uint64_t lq_loads = 0, lq_head = 0, sq_stores = 0;
+        bool lsq_stalled = false;
+        bool lq_present = false, lq_valid = false, lq_has_req = false;
+        bool lq_outstanding = false, lq04_corrupt = false;
+        uint64_t lq_gen = 0;
+        unsigned lq_size = 0;
+        Addr lq_addr = 0;
+        uint64_t last_commit_seq = 0;
+        Tick last_commit_tick = 0;
+
+        if (cpu) {
+            ti = cpu->o3ROB().findInst(0, (InstSeqNum)tseq);
+            in_rob = static_cast<bool>(ti);
+            if (ti) {
+                issued = ti->isIssued();
+                executed = ti->isExecuted();
+                completed = ti->isCompleted();
+                result_ready = ti->isResultReady();
+                squashed = ti->isSquashed();
+                replay_gen = ti->replayGeneration;
+            }
+            rob_occ = (uint64_t)cpu->o3ROB().countInsts();
+            const o3::DynInstPtr rh = cpu->o3ROB().readHeadInst(0);
+            const o3::DynInstPtr rt = cpu->o3ROB().readTailInst(0);
+            rob_head = rh ? (uint64_t)rh->seqNum : 0;
+            rob_tail = rt ? (uint64_t)rt->seqNum : 0;
+            iq_occ = (uint64_t)cpu->o3IEW().instQueue.getCount(0);
+            in_iq = cpu->o3IEW().instQueue.chaosInIQ(0, (InstSeqNum)tseq);
+            in_ready = cpu->o3IEW().instQueue.chaosInReadyList(
+                0, (InstSeqNum)tseq);
+            in_replay = cpu->o3IEW().instQueue.chaosInReplayList(
+                0, (InstSeqNum)tseq);
+            auto &ldst = cpu->o3IEW().ldstQueue;
+            if (ldst.numLSQUnits() > 0) {
+                auto &unit = ldst.getLSQUnit(0);
+                lq_loads = (uint64_t)unit.numLoads();
+                sq_stores = (uint64_t)unit.numStores();
+                lsq_stalled = unit.isStalled();
+                if (lq_loads)
+                    lq_head = (uint64_t)unit.getLoadHeadSeqNum();
+                lq_present = unit.chaosLoadState(
+                    (InstSeqNum)tseq, lq_valid, lq_has_req, lq_outstanding,
+                    lq04_corrupt, lq_gen, lq_size, lq_addr);
+            }
+            if (cpu->chaosPropagation) {
+                last_commit_seq =
+                    cpu->chaosPropagation->lastCommitDynSeq();
+                last_commit_tick = cpu->chaosPropagation->lastCommitTick();
+            }
+        }
+
+        const Tick now = curTick();
+        const Tick no_prog = (last_commit_tick && now > last_commit_tick)
+            ? now - last_commit_tick : 0;
+        const double period = cpu ? (double)cpu->clockPeriod() : 1.0;
+        const uint64_t no_prog_cyc =
+            period > 0.0 ? (uint64_t)(no_prog / period) : 0;
+
+        std::ostringstream row;
+        row << rp01_probe_seq++ << ',' << phase << ',' << now << ','
+            << (uint64_t)(now / period) << ','
+            << tseq << ',' << rp01_fired_pc << ','
+            << (in_rob ? 1 : 0) << ',' << (issued ? 1 : 0) << ','
+            << (executed ? 1 : 0) << ',' << (completed ? 1 : 0) << ','
+            << (result_ready ? 1 : 0) << ',' << (squashed ? 1 : 0) << ','
+            << (in_iq ? 1 : 0) << ',' << (in_ready ? 1 : 0) << ','
+            << (in_replay ? 1 : 0) << ','
+            << (lq_present ? 1 : 0) << ',' << (lq_valid ? 1 : 0) << ','
+            << (lq_has_req ? 1 : 0) << ',' << (lq_outstanding ? 1 : 0) << ','
+            << (lq04_corrupt ? 1 : 0) << ',' << lq_gen << ',' << lq_size
+            << ",0x" << std::hex << lq_addr << std::dec << ','
+            << replay_gen << ',' << rob_occ << ',' << rob_head << ','
+            << rob_tail << ',' << iq_occ << ',' << lq_loads << ','
+            << lq_head << ',' << sq_stores << ',' << (lsq_stalled ? 1 : 0)
+            << ',' << last_commit_seq << ',' << last_commit_tick << ','
+            << no_prog << ',' << no_prog_cyc << ','
+            << rp01_watchdog_armed_tick << ',' << rp01_watchdog_cycles
+            << ',' << (reason ? reason : "") << '\n';
+        const std::string s = row.str();
+        if (gzwrite(rp01_gz, s.data(), (unsigned)s.size())
+                != (int)s.size())
+            panic("CHAOSLSQFwd: RP01 trace row write failed");
+        // Eager durability: a fatal() path must not lose the last samples.
+        gzflush(rp01_gz, Z_SYNC_FLUSH);
+    }
+
+    void
+    CHAOSLSQFwd::rp01Probe()
+    {
+        rp01Emit("PROBE", "");
+        ++rp01_probe_count;
+
+        // Stop once the target is no longer in flight (it cannot commit
+        // under the skip, but a squash/corrective path would show here).
+        bool in_rob = false;
+        if (cpu && rp01_fired_id.dyn_inst_seq)
+            in_rob = static_cast<bool>(cpu->o3ROB().findInst(
+                0, (InstSeqNum)rp01_fired_id.dyn_inst_seq));
+        if (cpu && !in_rob && rp01_probe_count > 2)
+            return;
+        if (rp01_probe_count >= rp01_probe_dense_count
+                && rp01_probe_cycles == 0)
+            return;
+        const uint64_t period = (rp01_probe_count < rp01_probe_dense_count)
+            ? rp01_probe_dense_cycles : rp01_probe_cycles;
+        if (!period || !cpu)
+            return;
+        if (!rp01_probe_event)
+            rp01_probe_event = new EventFunctionWrapper(
+                [this]() { this->rp01Probe(); }, "RP01 stall probe", true);
+        schedule(rp01_probe_event,
+                 curTick() + Cycles(period) * cpu->clockPeriod());
+    }
+
+    void
+    CHAOSLSQFwd::rp01Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_RP01_WATCHDOG=EXPIRED fired=" << (rp01_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        // [LSU][V3.3.3][RP01] Write the terminal record set BEFORE fatal():
+        // fatal -> ::exit(1) skips gem5's Python atexit exit callbacks, so
+        // without this the terminal metadata and the gzip trailer are lost.
+        // The snapshot is read-only and does not touch any replay decision,
+        // event schedule or RNG state.
+        if (cpu && cpu->chaosPropagation) {
+            CHAOSPropagation::WatchdogTerminalInfo info;
+            info.armed_tick = rp01_watchdog_armed_tick;
+            info.fired_tick = curTick();
+            info.deadline_cycles = rp01_watchdog_cycles;
+            info.fault_id = faults_injected_count;
+            info.injected = faults_injected_count;
+            info.eligible_count = eligible_count;
+            info.event_ordinal = rp01_event_ordinal;
+            info.replay_eligible = rp01_fired;
+            info.replay_decision_skip = rp01_fired;
+            info.replay_skip = rp01_fired;
+            info.last_eligible_seq = last_eligible_seq;
+            info.last_eligible_pc = last_eligible_pc;
+            info.last_lq_idx = last_eligible_lq_idx;
+            info.last_lq_gen = last_eligible_lq_gen;
+            info.last_store_seq = last_eligible_store_seq;
+            info.last_replay_gen = last_eligible_replay_gen;
+            info.last_eligible_tick = last_eligible_tick;
+            info.commit_seq = cpu->chaosPropagation->traceCommitSeq();
+            info.last_commit_dyn_seq =
+                cpu->chaosPropagation->lastCommitDynSeq();
+            info.last_commit_tick = cpu->chaosPropagation->lastCommitTick();
+
+            // Read-only LQ/SQ head/occupancy snapshot (guarded getters: the
+            // head accessors require a non-empty queue).
+            auto &ldst = cpu->o3IEW().ldstQueue;
+            if (ldst.numLSQUnits() > 0) {
+                auto &unit = ldst.getLSQUnit(0);
+                info.lq_loads = (uint64_t)unit.numLoads();
+                info.lq_free = (uint64_t)unit.numFreeLoadEntries();
+                info.sq_stores = (uint64_t)unit.numStores();
+                info.sq_free = (uint64_t)unit.numFreeStoreEntries();
+                if (info.lq_loads)
+                    info.lq_head_seq = (uint64_t)unit.getLoadHeadSeqNum();
+                if (info.sq_stores)
+                    info.sq_head_seq = (uint64_t)unit.getStoreHeadSeqNum();
+                info.lsu_stalled = unit.isStalled();
+            }
+            cpu->chaosPropagation->flushWatchdogTerminal(info);
+        }
+        // A watchdog expiry is a failed simulation, not a normal MAX_TICK
+        // exit: abort loudly so the process exit status is non-zero and the
+        // runner cannot classify the stalled run as MASKED (design gate
+        // condition 4 — a skipped replay reschedule that hangs the ROB is
+        // the RP01 expected terminal, never a normal completion).
+        // [LSU][STRICT-E2E] Emit the watchdog row before fatal(): fatal()
+        // exits the process and skips gem5's exit callbacks.
+        rp01Emit("WATCHDOG", "INTERNAL_WATCHDOG_DEADLINE");
+        fatal("CHAOS_RP01_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSkipPartialReplay(uint64_t load_seq, uint64_t lq_idx,
+                                        uint64_t lq_gen, uint64_t store_seq,
+                                        uint64_t replay_gen, uint64_t load_pc)
+    {
+        // RP01 (LSU v3.2.12): consulted immediately before the
+        // iewStage->rescheduleMemInst(load_inst) call at lsq_unit.cc:2016
+        // (PartialAddrRangeCoverage branch of LSQUnit::read()). Inert in
+        // every other mode/config (one null check on a path that already
+        // calls cpu->chaosPropagation there).
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
+        if (!rp01CountOnlyMode() && !rp01SkipMode())
+            return false;
+        // A squashed load never consumes an ordinal (its replay would be
+        // discarded anyway and would shift the ordinal space). The call
+        // site guarantees the remaining eligibility: coverage is partial,
+        // the store is not completed (the branch panics otherwise) and the
+        // store is older than the load.
+        if (!chaos_rp01::isEligible(false /* load_squashed: site-guaranteed */))
+            return false;
+        ++eligible_count;
+        // [V3.3.3][RP01] Read-only last-eligible bookkeeping for the
+        // watchdog terminal snapshot. It never feeds shouldSkip().
+        last_eligible_seq = load_seq;
+        last_eligible_pc = load_pc;
+        last_eligible_lq_idx = lq_idx;
+        last_eligible_lq_gen = lq_gen;
+        last_eligible_store_seq = store_seq;
+        last_eligible_replay_gen = replay_gen;
+        last_eligible_tick = curTick();
+        const chaos_rp01::EventIdentity id{load_seq, lq_idx, lq_gen, store_seq,
+                                           replay_gen};
+        // instsToReplay membership, pre/post the call this hook guards
+        // (design gate §11 / condition 6). The suppressed call is this
+        // attempt's ONLY entry route into MemDepUnit::instsToReplay
+        // (IEW::rescheduleMemInst -> InstructionQueue::rescheduleMemInst ->
+        // MemDepUnit::reschedule, the sole push at mem_dep_unit.cc:383;
+        // task-14 wake-up audit P1 proved no stale membership exists), so
+        // pre=0 always holds at this point; post is 1 iff the call
+        // executes and inserts (0 when this hook skips it).
+        const unsigned in_list_pre = 0;
+        // One line per eligible event, stdout + log (the count-only
+        // preflight parses stdout: `... | grep -c RP01_ELIGIBLE`).
+        const bool count_path = rp01CountOnlyMode() || count_only;
+        const bool skip = !count_path &&
+            chaos_rp01::shouldSkip(eligible_count, rp01_event_ordinal,
+                                   false, rp01_fired);
+        const unsigned in_list_post = skip ? 0 : 1;
+        std::cout << "RP01_ELIGIBLE ordinal=" << eligible_count
+                  << " load_seq=" << load_seq
+                  << " load_pc=" << load_pc
+                  << " lq_idx=" << lq_idx
+                  << " lq_gen=" << lq_gen
+                  << " store_seq=" << store_seq
+                  << " replay_gen_pre=" << (replay_gen - 1)
+                  << " replay_gen_post=" << replay_gen
+                  << " in_instsToReplay_pre=" << in_list_pre
+                  << " in_instsToReplay_post=" << in_list_post
+                  << " tick=" << curTick() << std::endl;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: read_partial_reschedule, load_seq=" << load_seq
+                << ", load_pc=" << load_pc
+                << ", lq_idx=" << lq_idx << ", lq_gen=" << lq_gen
+                << ", store_seq=" << store_seq
+                << ", replay_gen_pre=" << (replay_gen - 1)
+                << ", replay_gen_post=" << replay_gen
+                << ", in_instsToReplay_pre=" << in_list_pre
+                << ", in_instsToReplay_post=" << in_list_post
+                << ", eligible_ordinal=" << eligible_count << std::endl;
+        }
+        // Count-only (and the generic countOnly param) observe, never act.
+        if (!skip)
+            return false;
+        rp01_fired = true;
+        rp01_fired_id = id;
+        rp01_fired_pc = load_pc;
+        ++faults_injected_count;
+        assert(faults_injected_count == 1 && "RP01 must fire exactly once");
+        std::cout << "RP01_SKIP_REPLAY ordinal=" << eligible_count
+                  << " load_seq=" << load_seq
+                  << " load_pc=" << load_pc
+                  << " lq_idx=" << lq_idx
+                  << " lq_gen=" << lq_gen
+                  << " store_seq=" << store_seq
+                  << " replay_gen_pre=" << (replay_gen - 1)
+                  << " replay_gen_post=" << replay_gen
+                  << " in_instsToReplay_pre=0"
+                  << " in_instsToReplay_post=0"
+                  << " tick=" << curTick() << std::endl;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: read_partial_reschedule, skipped_call=1"
+                << ", load_seq=" << load_seq
+                << ", load_pc=" << load_pc
+                << ", lq_idx=" << lq_idx << ", lq_gen=" << lq_gen
+                << ", store_seq=" << store_seq
+                << ", replay_gen_pre=" << (replay_gen - 1)
+                << ", replay_gen_post=" << replay_gen
+                << ", in_instsToReplay_pre=0"
+                << ", in_instsToReplay_post=0"
+                << ", eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd RP01: skipped partial-replay "
+                "reschedule for load [sn:%llu] stalling store [sn:%llu]\n",
+                (unsigned long long)load_seq, (unsigned long long)store_seq);
+        // [LSU][STRICT-E2E] Read-only post-injection sampling.  The first
+        // row is written at the exact injection tick, then dense sampling
+        // switches to sparse.  No replay decision is touched here.
+        rp01_inject_tick = curTick();
+        rp01Emit("INJECTION", "replay_reschedule_suppressed");
+        if (rp01_gz && cpu && rp01_probe_cycles) {
+            const uint64_t period = rp01_probe_dense_cycles
+                ? rp01_probe_dense_cycles : rp01_probe_cycles;
+            if (!rp01_probe_event)
+                rp01_probe_event = new EventFunctionWrapper(
+                    [this]() { this->rp01Probe(); }, "RP01 stall probe",
+                    true);
+            schedule(rp01_probe_event,
+                     curTick() + Cycles(period) * cpu->clockPeriod());
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
+                               uint64_t sq_gen)
+    {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
+        if (struct_mode != StructMode::Sq03CanWB)
+            return false;
+        if (sq03_fired)
+            return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        ++eligible_count;
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SQ03;ordinal=" << eligible_count
+                    << ";store_seq=" << store_seq
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << sq_gen << std::endl;
+            }
+            return false;
+        }
+        if (f6_event_ordinal != 0 && eligible_count != f6_event_ordinal)
+            return false;
+        if (!chaos_sq03::shouldSetCanWB(store_seq, store_seq,
+                                        faults_injected_count, max_faults))
+            return false;
+        sq03_fired = true;
+        ++faults_injected_count;
+        assert(faults_injected_count == 1 && "SQ03 must inject exactly once");
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: executeStore_canWB, store_seq=" << store_seq
+                << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd SQ03: premature _canWB for [sn:%llu] "
+                "idx %llu gen %llu\n", (unsigned long long)store_seq,
+                (unsigned long long)sq_idx, (unsigned long long)sq_gen);
+        return true;
+    }
+
+    namespace {
+        std::string
+        fw05Fnv(const uint8_t *p, unsigned n)
+        {
+            uint64_t h = 14695981039346656037ULL;  // FNV-1a 64 offset basis
+            for (unsigned i = 0; i < n; ++i) {
+                h ^= p[i];
+                h *= 1099511628211ULL;
+            }
+            std::ostringstream os;
+            os << std::hex << std::setw(16) << std::setfill('0') << h;
+            return os.str();
+        }
+    } // namespace
+
+    bool
+    CHAOSLSQFwd::maybeSubstituteFW05(uint8_t *load_data, unsigned copy_size,
+                                     Addr vaddr, uint64_t load_seq,
+                                     uint64_t load_pc, uint64_t true_seq,
+                                     Addr true_addr, unsigned true_size,
+                                     const uint8_t *true_data,
+                                     uint64_t alt_seq, Addr alt_addr,
+                                     unsigned alt_size, const uint8_t *alt_data,
+                                     uint64_t sq_idx, uint64_t sq_gen,
+                                     uint64_t lq_idx, uint64_t lq_gen,
+                                     uint64_t load_attempt)
+    {
+        if (struct_mode != StructMode::Fw05OlderSrc)
+            return false;
+        if (probability <= 0.0f || !load_data)
+            return false;
+        if (!true_data || !alt_data)
+            return false;
+
+        const chaos_fw05::Candidate tr{true_seq, true_addr, true_size,
+                                       true_data};
+        const chaos_fw05::Candidate al{alt_seq, alt_addr, alt_size, alt_data};
+        unsigned off = 0;
+        if (!chaos_fw05::isEligible(load_seq, vaddr, copy_size, tr, al, off))
+            return false;
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+
+        ++eligible_count;
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=FW05;ordinal=" << eligible_count
+                    << ";load_seq=" << load_seq
+                    << ";load_pc=0x" << std::hex << load_pc
+                    << ";addr=0x" << vaddr << std::dec
+                    << ";size=" << copy_size
+                    << ";true_seq=" << true_seq
+                    << ";alt_seq=" << alt_seq
+                    << ";lq_idx=" << lq_idx
+                    << ";sq_idx=" << sq_idx << std::endl;
+            }
+            return false;
+        }
+        if (fw05_event_ordinal != 0 && eligible_count != fw05_event_ordinal)
+            return false;
+        // An explicit ordinal is the sampler; the legacy geometric skip is
+        // only for the un-ordinaled probability mode.
+        if (fw05_event_ordinal == 0 && events_to_skip > 0) {
+            --events_to_skip;
+            return false;
+        }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability)
+            return false;
+
+        const uint8_t *tbytes = true_data + (vaddr - true_addr);
+        const uint8_t *abytes = alt_data + off;
+        const std::string true_fnv = fw05Fnv(tbytes, copy_size);
+        const std::string alt_fnv = fw05Fnv(abytes, copy_size);
+
+        std::memcpy(load_data, abytes, copy_size);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: fw05_older_src"
+                << ", LoadSeq: " << load_seq
+                << ", TrueSeq: " << true_seq
+                << ", AltSeq: " << alt_seq
+                << ", LoadAddr: 0x" << std::hex << vaddr
+                << ", TrueAddr: 0x" << true_addr
+                << ", AltAddr: 0x" << alt_addr << std::dec
+                << ", LoadSize: " << copy_size
+                << ", TrueSize: " << true_size
+                << ", AltSize: " << alt_size
+                << ", AltOffset: " << off
+                << ", TrueFnv: " << true_fnv
+                << ", AltFnv: " << alt_fnv
+                << ", LqEntry: " << lq_idx
+                << ", LqGen: " << lq_gen
+                << ", SqEntry: " << sq_idx
+                << ", SqGen: " << sq_gen
+                << ", EligibleOrdinal: " << eligible_count
+                << ", EventOrdinal: " << fw05_event_ordinal
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: fw05 wrong-source forward "
+                "(load=%llu true=%llu alt=%llu vaddr=%#x size=%u)\n",
+                (unsigned long long)load_seq, (unsigned long long)true_seq,
+                (unsigned long long)alt_seq, vaddr, copy_size);
+        if (cpu->chaosPropagation) {
+            cpu->chaosPropagation->noteFW05Injection(
+                load_seq, load_pc, true_seq, true_addr, true_size, true_fnv,
+                alt_seq, alt_addr, alt_size, alt_fnv, vaddr, copy_size,
+                sq_idx, sq_gen, lq_idx, lq_gen, load_attempt,
+                eligible_count, fw05_event_ordinal, rng_seed);
+        }
+        return true;
+    }
+
+    Cycles
+    CHAOSLSQFwd::maybeDelayForward(Addr vaddr, unsigned size)
+    {
+        // §2.4 F6 phase_offset (Phase 4.7, the REAL method3 forward-path
+        // phase proxy): delay ONE forward's WritebackEvent by phaseOffset
+        // CPU cycles. The method3 field signature ('add a no-op ALU ->
+        // trigger rate collapses') is a forward-path timing race — the
+        // load's writeback landing LATER than the dependent instruction's
+        // read window (or vice versa) changes what the consumer sees.
+        // Only active in PhaseOffset mode; other modes return Cycles(0)
+        // (zero regression — the caller schedules at curTick() as usual).
+        if (struct_mode != StructMode::PhaseOffset) return Cycles(0);
+        if (probability <= 0.0f) return Cycles(0);
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return Cycles(0);
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return Cycles(0);
+        if (last_clock != Cycles(0) && cur > last_clock) return Cycles(0);
+
+        // sampling-bias fix: skip budget consumed on eligible forwards
+        if (count_only) { ++eligible_count; return Cycles(0); }
+        if (events_to_skip > 0) { --events_to_skip; return Cycles(0); }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return Cycles(0);
+
+        faults_injected_count++;
+        stats->numFaultsInjected++;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_wb_schedule"
+                << ", FaultType: phase_offset"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << ", DelayCycles: +" << lane_skew_k
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: phase_offset delay +%d cycles "
+                "(vaddr=%#x)\n", lane_skew_k, vaddr);
+        // reuse lane_skew_k as the offset knob (the --lsq_lane_skew_k CLI
+        // arg; documented here as the phase offset in cycles)
+        return Cycles(lane_skew_k > 0 ? lane_skew_k : 1);
+    }
+
+    CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)
+        : statistics::Group(parent),
+          ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
+                   "Total forwarded-data faults injected"),
+          ADD_STAT(numBitFlips, statistics::units::Count::get(),
+                   "Bit-flip faults on forwarded data"),
+          ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
+                   "Stuck-at-0 faults on forwarded data"),
+          ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
+                   "Stuck-at-1 faults on forwarded data")
+    {}
+
+    bool
+    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size, Addr vaddr,
+                                       uint64_t dyn_seq, uint64_t store_idx,
+                                       uint64_t generation)
+    {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
+        if (struct_mode != StructMode::Sq01Bit3 || !data || size == 0)
+            return false;
+        // [LSU][WHEN-V2] census-only observation: count every eligible store
+        // in the same store stream the fault run's trigger counts, log one
+        // identity line, and never touch the trigger's fire state.
+        if (count_only) {
+            ++eligible_count;
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=SQ01;ordinal="
+                    << eligible_count
+                    << ";dyn_inst_seq=" << dyn_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size
+                    << ";sq_idx=" << store_idx
+                    << ";sq_gen=" << generation << std::endl;
+            }
+            return false;
+        }
+        if (lsuTrigger) {
+            lsuTrigger->onAttempt();
+            if (!lsuTrigger->onEligible())
+                return false;
+        } else if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return false;
+        }
+        const uint8_t old_byte = data[0];
+        const uint8_t new_byte = old_byte ^ 0x08;
+        data[0] = new_byte;
+        ++faults_injected_count;
+        if (auto *prop = CHAOSPropagation::instance()) {
+            prop->noteStoreDataInjection(dyn_seq, store_idx, generation,
+                                         vaddr, size, old_byte, new_byte,
+                                         "sq01_bit3");
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: lsq_write_sq_entry"
+                << ", FaultType: sq01_bit3_flip"
+                << ", seq: " << dyn_seq
+                << ", sq_idx: " << store_idx
+                << ", entry_generation: " << generation
+                << ", old_byte0: 0x" << std::hex << (unsigned)old_byte
+                << ", new_byte0: 0x" << (unsigned)new_byte << std::dec
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeCorruptStoreByteEnable(
+            std::vector<bool> &be, unsigned size, Addr vaddr,
+            uint64_t dyn_seq, uint64_t sq_idx, uint64_t generation,
+            const uint8_t *store_data)
+    {
+        // L-A06: mounted-at-p=0 control gate — probability<=0 is a true disable.
+        if (probability <= 0.0f)
+            return false;
+        if (struct_mode != StructMode::Da04BeBit0)
+            return false;
+        if (lsuTrigger)
+            lsuTrigger->onAttempt();
+        if (!chaos_da04::eligible(size, be))
+            return false;
+        // [LSU][WHEN-V2] census-only observation (no mask change, no trigger
+        // fire-state consumption).
+        if (count_only) {
+            ++eligible_count;
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=DA04;ordinal="
+                    << eligible_count
+                    << ";dyn_inst_seq=" << dyn_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size
+                    << ";sq_idx=" << sq_idx
+                    << ";sq_gen=" << generation
+                    << ";be=0x" << std::hex << chaos_da04::maskOf(be)
+                    << std::dec << std::endl;
+            }
+            return false;
+        }
+        if (lsuTrigger) {
+            if (!lsuTrigger->onEligible())
+                return false;
+        } else if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return false;
+        }
+        const uint64_t old_mask = chaos_da04::maskOf(be);
+        if (!chaos_da04::clearLane0(be))
+            return false;
+        const uint64_t new_mask = chaos_da04::maskOf(be);
+        ++faults_injected_count;
+        if (auto *prop = CHAOSPropagation::instance()) {
+            prop->noteStoreBEInjection(dyn_seq, sq_idx, generation, vaddr,
+                                       size, old_mask, new_mask, store_data);
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: lsq_pushRequest_byte_enable"
+                << ", FaultModel: DA04"
+                << ", seq: " << dyn_seq
+                << ", sq_idx: " << sq_idx
+                << ", entry_generation: " << generation
+                << ", old_addr: 0x" << std::hex << vaddr
+                << ", new_addr: 0x" << vaddr
+                << ", size: " << std::dec << size
+                << ", old_be: 0x" << std::hex << old_mask
+                << ", new_be: 0x" << new_mask
+                << ", changed_bit: 0" << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
+                                         Addr vaddr, unsigned size)
+    {
+        if (struct_mode != StructMode::F6Fw02) return false;
+        ++f6_observed;
+        // [LSU][WHEN-V2] census-only observation of the full-coverage pair.
+        if (count_only) {
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "CHAOS_ELIGIBLE: model=FW02;ordinal=" << f6_observed
+                    << ";load_seq=" << load_seq
+                    << ";store_seq=" << store_seq
+                    << ";addr=0x" << std::hex << vaddr << std::dec
+                    << ";size=" << size << std::endl;
+            }
+            return false;
+        }
+        // A mounted injector with probability 0.0 is the matched no-fault
+        // control: observe the pair (the funnel/summary still counts it) but
+        // never suppress the forwarding. Without this gate the decision never
+        // consults probability and SUPP-FW02-C01 misfires (v3.2.12 audit).
+        // Fault runs use probability 1.0, so this changes no frozen run.
+        if (probability <= 0.0f)
+            return false;
+        if (f6_fired) return false;
+        if (f6_event_ordinal && f6_observed != f6_event_ordinal) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        // The caller reaches this point only inside the FullAddrRangeCoverage
+        // branch, i.e. a real older-store/younger-load pair exists. That pair
+        // IS the F6 trigger; suppress exactly this forwarding match.
+        f6_fired = true;
+        f6_load_seq = load_seq;
+        f6_store_seq = store_seq;
+        ++faults_injected_count;
+        // v3.2 trace bridge: register the false-miss at the decision point.
+        // The subsequent memory request/response for this load is matched by
+        // (dyn_inst_seq, vaddr) and continues the normal L3 chain.
+        last_fwd_ptag = 0;
+        if (auto *prop = CHAOSPropagation::instance()) {
+            last_fwd_ptag = prop->registerInjection(
+                "lsq_fwd_decision", load_seq, vaddr, vaddr,
+                true, size, size);
+            // v3.2.12 (task 9): the dedicated fw02_decision record
+            // {load_seq, store_seq, normal_decision, fault_decision,
+            // memory_path, replay_count}. Read-only: reports the decision
+            // that was just made (suppressed -> the load takes the memory
+            // path); changes no state.
+            if (last_fwd_ptag)
+                prop->noteFW02Decision(last_fwd_ptag, load_seq, store_seq,
+                                       vaddr, size);
+        }
+        DPRINTF(LSQUnit,
+                "CHAOSFW02: suppress forwarding load_sn:%llu store_sn:%llu "
+                "addr:%#x size:%u\n",
+                (unsigned long long)load_seq, (unsigned long long)store_seq,
+                vaddr, size);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: f6_fw02_suppress"
+                << ", load_seq: " << load_seq
+                << ", store_seq: " << store_seq
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)
+    {
+        // [LSU][SEM-B] the violation site is L03's ONLY injection point;
+        // non-L03 runs must not inject here (was: mixed into any lsqfwd run).
+        if (!lsuTrigger || !l03_mode) return false;
+        lsuTrigger->onAttempt();
+        if (!lsuTrigger->onEligible()) return false;
+        const uint64_t bit = rng() % 20;
+        cmp_addr ^= (1ULL << bit);
+        ++faults_injected_count;
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
+                << ", Site: checkViolations_L03"
+                << ", FaultType: violation_addr_bitflip"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+} // namespace gem5

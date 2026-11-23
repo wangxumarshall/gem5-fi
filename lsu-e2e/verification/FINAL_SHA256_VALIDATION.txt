@@ -1,0 +1,4 @@
+Per-file SHA256 values are recorded in SHA256SUMS and in reports/FINAL_EVIDENCE_MANIFEST.csv.
+Package rows verified: 597/597
+Server raw-trace rows verified on the server: 735/735
+The final ZIP SHA256 is recorded externally in LSU_E2E_PAPER_FINAL_FROZEN_R2_SUPP1.zip.sha256 and in LSU_E2E_PAPER_FINAL_FROZEN_R2_SUPP1.final_extraction_verification.txt.
