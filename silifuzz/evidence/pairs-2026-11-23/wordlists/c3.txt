@@ -1,0 +1,213 @@
+# validated word list for c3 (c3_l3_128b.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b102650	ADD (shifted register)
+0x110024c0	ADD (immediate)
+0x11002680	ADD (immediate)
+0x110026f0	ADD (immediate)
+0x110029a0	ADD (immediate)
+0x11003060	ADD (immediate)
+0x110031b0	ADD (immediate)
+0x110032f0	ADD (immediate)
+0x28812700	STP
+0x288128a0	STP
+0x288267e0	STP
+0x2882a700	STP
+0x2882f2f0	STP
+0x28842c40	STP
+0x28872490	STP
+0x28876850	STP
+0x28c03200	LDP
+0x28c0e8b0	LDP
+0x28c22a80	LDP
+0x28c26650	LDP
+0x28c46c10	LDP
+0x28c6a820	LDP
+0x28c72910	LDP
+0x28c76620	LDP
+0x2900a7b0	STP
+0x2901e420	STP
+0x29026d10	STP
+0x2902e9e0	STP
+0x29042a90	STP
+0x29042e50	STP
+0x2906edc0	STP
+0x2907b3b0	STP
+0x29402860	LDP
+0x2941ae30	LDP
+0x2941b1a0	LDP
+0x2941b230	LDP
+0x2942a8a0	LDP
+0x2942b090	LDP
+0x29443200	LDP
+0x29477090	LDP
+0x298025e0	STP
+0x29812880	STP
+0x298231a0	STP
+0x29823200	STP
+0x2982e9a0	STP
+0x29832e50	STP
+0x2983b200	STP
+0x298731a0	STP
+0x29c12450	LDP
+0x29c1b000	LDP
+0x29c1e4c0	LDP
+0x29c1f270	LDP
+0x29c3b110	LDP
+0x29c424c0	LDP
+0x29c73010	LDP
+0x29c76fd0	LDP
+0x4a102de0	EOR (shifted register)
+0x4a502900	EOR (shifted register)
+0x52800010	MOV (wide immediate)
+0x52800070	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000a0	MOV (wide immediate)
+0x528000c0	MOV (wide immediate)
+0x528001a0	MOV (wide immediate)
+0x528001c0	MOV (wide immediate)
+0x72800000	MOVK
+0x72800020	MOVK
+0x72800070	MOVK
+0x72800110	MOVK
+0x728001a0	MOVK
+0x728001b0	MOVK
+0x8b0030b0	ADD (shifted register)
+0x8b102e20	ADD (shifted register)
+0x91002400	ADD (immediate)
+0x910024c0	ADD (immediate)
+0x910025c0	ADD (immediate)
+0x910025e0	ADD (immediate)
+0x910026a0	ADD (immediate)
+0x91002ad0	ADD (immediate)
+0x91002ba0	ADD (immediate)
+0x91003280	ADD (immediate)
+0xa8806fb0	STP
+0xa880b2d0	STP
+0xa88165e0	STP
+0xa881a910	STP
+0xa8827110	STP
+0xa8846d10	STP
+0xa8876a50	STP
+0xa8876a80	STP
+0xa8c0ed00	LDP
+0xa8c16d00	LDP
+0xa8c16dc0	LDP
+0xa8c270a0	LDP
+0xa8c36a80	LDP
+0xa8c3e600	LDP
+0xa8c7ace0	LDP
+0xa8c7aef0	LDP
+0xa9006680	STP
+0xa9012cd0	STP
+0xa901a4f0	STP
+0xa9042910	STP
+0xa9043050	STP
+0xa9072680	STP
+0xa9072ec0	STP
+0xa90771e0	STP
+0xa940a850	LDP
+0xa9416a80	LDP
+0xa941e610	LDP
+0xa942acb0	LDP
+0xa9436a80	LDP
+0xa9446fd0	LDP
+0xa9447310	LDP
+0xa94766c0	LDP
+0xa9802900	STP
+0xa980aaf0	STP
+0xa982b3d0	STP
+0xa98329b0	STP
+0xa9836f10	STP
+0xa983ebe0	STP
+0xa9872a70	STP
+0xa9c06c20	LDP
+0xa9c0ac90	LDP
+0xa9c171a0	LDP
+0xa9c1b250	LDP
+0xa9c22800	LDP
+0xa9c26860	LDP
+0xa9c465a0	LDP
+0xa9c7a4c0	LDP
+0xb8002640	STR (immediate)
+0xb80026d0	STR (immediate)
+0xb80026e0	STR (immediate)
+0xb8002c40	STR (immediate)
+0xb8002da0	STR (immediate)
+0xb8002dd0	STR (immediate)
+0xb8002ef0	STR (immediate)
+0xb8402420	LDR (immediate)
+0xb8402460	LDR (immediate)
+0xb84024d0	LDR (immediate)
+0xb84025b0	LDR (immediate)
+0xb8402690	LDR (immediate)
+0xb84026a0	LDR (immediate)
+0xb84026c0	LDR (immediate)
+0xb84026e0	LDR (immediate)
+0xb8402ea0	LDR (immediate)
+0xb90026e0	STR (immediate)
+0xb9002d10	STR (immediate)
+0xb9002e00	STR (immediate)
+0xb9002f00	STR (immediate)
+0xb90030a0	STR (immediate)
+0xb90030c0	STR (immediate)
+0xb9003230	STR (immediate)
+0xb90032b0	STR (immediate)
+0xb9402400	LDR (immediate)
+0xb94026a0	LDR (immediate)
+0xb9402c60	LDR (immediate)
+0xb9402db0	LDR (immediate)
+0xb9402ee0	LDR (immediate)
+0xb9403020	LDR (immediate)
+0xb94030a0	LDR (immediate)
+0xb9403230	LDR (immediate)
+0xca1032b0	EOR (shifted register)
+0xcad02e00	EOR (shifted register)
+0xcad032b0	EOR (shifted register)
+0xd2800030	MOV (wide immediate)
+0xd2800050	MOV (wide immediate)
+0xd2800070	MOV (wide immediate)
+0xd2800090	MOV (wide immediate)
+0xd28000a0	MOV (wide immediate)
+0xd28001a0	MOV (wide immediate)
+0xf2800000	MOVK
+0xf2800020	MOVK
+0xf2800070	MOVK
+0xf2800080	MOVK
+0xf28000c0	MOVK
+0xf2800110	MOVK
+0xf8002400	STR (immediate)
+0xf8002430	STR (immediate)
+0xf8002460	STR (immediate)
+0xf8002510	STR (immediate)
+0xf8002c30	STR (immediate)
+0xf8002c80	STR (immediate)
+0xf8002cd0	STR (immediate)
+0xf8002dd0	STR (immediate)
+0xf8002fa0	STR (immediate)
+0xf8402490	LDR (immediate)
+0xf8402660	LDR (immediate)
+0xf8402680	LDR (immediate)
+0xf84026d0	LDR (immediate)
+0xf84026e0	LDR (immediate)
+0xf8402c30	LDR (immediate)
+0xf8402d10	LDR (immediate)
+0xf8402de0	LDR (immediate)
+0xf8402e10	LDR (immediate)
+0xf8402e30	LDR (immediate)
+0xf8402e90	LDR (immediate)
+0xf9002480	STR (immediate)
+0xf90025d0	STR (immediate)
+0xf90028e0	STR (immediate)
+0xf9002ab0	STR (immediate)
+0xf9002ae0	STR (immediate)
+0xf9002b10	STR (immediate)
+0xf9002de0	STR (immediate)
+0xf90031e0	STR (immediate)
+0xf9402910	LDR (immediate)
+0xf9402a70	LDR (immediate)
+0xf9402a90	LDR (immediate)
+0xf9402c20	LDR (immediate)
+0xf9402e20	LDR (immediate)
+0xf9402e80	LDR (immediate)
+0xf9403220	LDR (immediate)
+0xf94033d0	LDR (immediate)

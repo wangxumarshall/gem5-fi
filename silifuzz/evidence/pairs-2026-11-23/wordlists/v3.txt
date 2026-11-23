@@ -1,0 +1,56 @@
+# validated word list for v3 (v3_prf_mispredict.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x1b016dc0	MADD
+0x1e260000	FMOV (general)
+0x1e270000	FMOV (general)
+0x2a0003e0	MOV (register)
+0x2b102e20	ADDS (shifted register)
+0x52800010	MOV (wide immediate)
+0x52800040	MOV (wide immediate)
+0x52800060	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000d0	MOV (wide immediate)
+0x528001c0	MOV (wide immediate)
+0x54000000	B.cond
+0x54000040	B.cond
+0x54000061	B.cond
+0x54000080	B.cond
+0x6b002a1f	CMP (shifted register)
+0x6b00301f	CMP (shifted register)
+0x6b102fd0	SUBS (shifted register)
+0x6b103310	SUBS (shifted register)
+0x72800000	MOVK
+0x72800050	MOVK
+0x72800060	MOVK
+0x72800090	MOVK
+0x728000a0	MOVK
+0x728000c0	MOVK
+0x728001a0	MOVK
+0x728001b0	MOVK
+0x8b102650	ADD (shifted register)
+0x9b0724c0	MADD
+0x9e660000	FMOV (general)
+0x9e670000	FMOV (general)
+0x9eae0000	FMOV (general)
+0x9eaf0000	FMOV (general)
+0xaa0003e0	MOV (register)
+0xab002fa0	ADDS (shifted register)
+0xab0030b0	ADDS (shifted register)
+0xab102ac0	ADDS (shifted register)
+0xd2800020	MOV (wide immediate)
+0xd2800050	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd2800090	MOV (wide immediate)
+0xd28000d0	MOV (wide immediate)
+0xd28001a0	MOV (wide immediate)
+0xeb000000	SUBS (shifted register)
+0xeb10281f	CMP (shifted register)
+0xf2800030	MOVK
+0xf2800040	MOVK
+0xf2800060	MOVK
+0xf2800080	MOVK
+0xf28000a0	MOVK
+0xf28000c0	MOVK
+0xf28000d0	MOVK
+0xf28001d0	MOVK

@@ -39,8 +39,11 @@ namespace {
 
 constexpr uint32_t kBrk = 0xD4200000u;
 constexpr size_t kMaxCodeBytes = 1024;
-constexpr size_t kMaxMappings = 32;
+// The snapshot format allows 64 mappings.  The default layout needs 3
+// (code, trampoline, stack) plus the data window.
+constexpr size_t kMaxMappings = 64;
 constexpr uint64_t kTrampolineBase = 0x10001000;
+constexpr int kMaxDataPages = 60;
 
 struct Args {
   std::vector<std::string> in;
@@ -54,7 +57,9 @@ struct Args {
   int timeout_ms = 3000;
   int repeat = 3;
   int keep_rejected_limit = 200;
+  int data_pages = 4;
   bool spread = false;
+  bool centered_data = false;
 };
 
 struct Stats {
@@ -82,16 +87,26 @@ bool IsSyscall(uint32_t w) {
   return op == 0xD4000001u || op == 0xD4000002u || op == 0xD4000003u;
 }
 
-RegState InitRegs(const std::vector<uint8_t>& code) {
+RegState InitRegs(const std::vector<uint8_t>& code, int data_pages,
+                  bool centered_data) {
   uint64_t s = Fnv1a64(code.data(), code.size());
   RegState r;
   r.pc = kCodeBase;
   r.sp = kStackTop;
+  const uint64_t data_bytes = (uint64_t)data_pages * kPageSize;
+  // Middle of the data window.  A stream whose fixed operand templates use
+  // [x0, #imm] with |imm| up to half the window keeps every access mapped.
+  const uint64_t center = kDataBase + data_bytes / 2;
   for (int i = 0; i < 31; ++i) {
-    if (i % 2 == 0) {
+    if (centered_data) {
+      // Targeting policy for streams whose fixed operands are memory bases:
+      // every GPR points into the middle of a large zero-filled window.  This
+      // is not the default random initial state; it is recorded in metadata.
+      r.x[i] = center;
+    } else if (i % 2 == 0) {
       // Half of the registers point into the (zero-filled) data window so
-      // loads/stores usually complete; the rest exerciseALU/FP values.
-      r.x[i] = kDataBase + (SplitMix64(&s) % (4 * kPageSize));
+      // loads/stores usually complete; the rest exercise ALU/FP values.
+      r.x[i] = kDataBase + (SplitMix64(&s) % data_bytes);
     } else {
       r.x[i] = SplitMix64(&s) % 0x10000;
     }
@@ -119,8 +134,9 @@ MemoryMapping Page(uint64_t start, uint32_t perms,
   return m;
 }
 
-bool InWindow(uint64_t addr) {
-  return (addr >= kDataBase && addr < kDataBase + 0x10000) ||
+bool InWindow(uint64_t addr, int data_pages) {
+  return (addr >= kDataBase &&
+          addr < kDataBase + (uint64_t)data_pages * kPageSize) ||
          (addr >= kStackBase && addr < kStackBase + 0x10000);
 }
 
@@ -137,13 +153,23 @@ std::string NowUnix() {
 
 std::string MetaJson(const Args& args, uint64_t cand_hash, size_t code_bytes,
                      size_t mappings, size_t attempts) {
-  char buf[512];
-  snprintf(buf, sizeof(buf),
-           "{\"source\":\"%s\",\"candidate\":\"0x%016llx\",\"code_bytes\":%zu,"
-           "\"mappings\":%zu,\"attempts\":%zu,\"created_unix\":%s,"
-           "\"fixer\":\"sf_fix\"}",
-           JsonEscape(args.source).c_str(), (unsigned long long)cand_hash,
-           code_bytes, mappings, attempts, NowUnix().c_str());
+  char buf[640];
+  if (args.data_pages == 4 && !args.centered_data) {
+    snprintf(buf, sizeof(buf),
+             "{\"source\":\"%s\",\"candidate\":\"0x%016llx\",\"code_bytes\":%zu,"
+             "\"mappings\":%zu,\"attempts\":%zu,\"created_unix\":%s,"
+             "\"fixer\":\"sf_fix\"}",
+             JsonEscape(args.source).c_str(), (unsigned long long)cand_hash,
+             code_bytes, mappings, attempts, NowUnix().c_str());
+  } else {
+    snprintf(buf, sizeof(buf),
+             "{\"source\":\"%s\",\"candidate\":\"0x%016llx\",\"code_bytes\":%zu,"
+             "\"mappings\":%zu,\"attempts\":%zu,\"created_unix\":%s,"
+             "\"data_pages\":%d,\"centered_data\":%s,\"fixer\":\"sf_fix\"}",
+             JsonEscape(args.source).c_str(), (unsigned long long)cand_hash,
+             code_bytes, mappings, attempts, NowUnix().c_str(), args.data_pages,
+             args.centered_data ? "true" : "false");
+  }
   return buf;
 }
 
@@ -267,10 +293,10 @@ struct Fixer {
     std::vector<uint8_t> tramp = {0x00, 0x00, 0x20, 0xd4};  // brk #0
     maps.push_back(Page(kTrampolineBase, kPermRead | kPermExec, tramp));
     maps.push_back(Page(kStackBase, kPermRead | kPermWrite));
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < args.data_pages; ++i) {
       maps.push_back(Page(kDataBase + i * kPageSize, kPermRead | kPermWrite));
     }
-    RegState regs = InitRegs(code);
+    RegState regs = InitRegs(code, args.data_pages, args.centered_data);
     const bool debug = getenv("SF_DEBUG") != nullptr;
 
     if (!w->Ensure(0, w->cores, args.timeout_ms, nullptr)) {
@@ -297,7 +323,8 @@ struct Fixer {
                 (unsigned long long)out.sig_addr);
       }
       if ((out.signal == SIGSEGV || out.signal == SIGBUS) &&
-          InWindow(out.sig_addr) && !HasPage(maps, out.sig_addr & ~0xfffULL) &&
+          InWindow(out.sig_addr, args.data_pages) &&
+          !HasPage(maps, out.sig_addr & ~0xfffULL) &&
           maps.size() < kMaxMappings) {
         maps.push_back(Page(out.sig_addr & ~0xfffULL, kPermRead | kPermWrite));
         continue;
@@ -474,7 +501,8 @@ int Usage() {
   fprintf(stderr,
           "usage: sf_fix --in DIR [--in DIR...] --out DIR --source TAG\n"
           "       [--rejected DIR] [--stats FILE] [--jobs N] [--limit N]\n"
-          "       [--ref-cores 0,32,64,96] [--repeat 3] [--timeout-ms 3000]\n");
+          "       [--ref-cores 0,32,64,96] [--repeat 3] [--timeout-ms 3000]\n"
+          "       [--data-pages N] [--centered-data]\n");
   return 2;
 }
 
@@ -496,6 +524,8 @@ bool ParseArgs(int argc, char** argv, Args* a) {
     else if (k == "--timeout-ms") a->timeout_ms = atoi(next().c_str());
     else if (k == "--keep-rejected-limit")
       a->keep_rejected_limit = atoi(next().c_str());
+    else if (k == "--data-pages") a->data_pages = atoi(next().c_str());
+    else if (k == "--centered-data") a->centered_data = true;
     else if (k == "--spread") a->spread = true;
     else if (k == "--ref-cores") {
       a->ref_cores.clear();
@@ -525,6 +555,7 @@ int main(int argc, char** argv) {
   Args args;
   if (!ParseArgs(argc, argv, &args)) return Usage();
   if (args.ref_cores.empty() || args.jobs < 1) return Usage();
+  if (args.data_pages < 1 || args.data_pages > kMaxDataPages) return Usage();
   Fixer fixer;
   fixer.args = args;
   fixer.Run();

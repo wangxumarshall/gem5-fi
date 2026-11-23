@@ -1,0 +1,45 @@
+# validated word list for e2 (e2_mul_extreme.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x1b008000	MSUB
+0x1b012ad0	MADD
+0x1b146ee0	MADD
+0x4a903300	EOR (shifted register)
+0x4ac024f0	EOR (shifted register)
+0x52800000	MOV (wide immediate)
+0x52800030	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000a0	MOV (wide immediate)
+0x528000c0	MOV (wide immediate)
+0x528000f0	MOV (wide immediate)
+0x528001e0	MOV (wide immediate)
+0x72800000	MOVK
+0x72800010	MOVK
+0x72800040	MOVK
+0x72800070	MOVK
+0x728000c0	MOVK
+0x728000d0	MOVK
+0x728001b0	MOVK
+0x8b102650	ADD (shifted register)
+0x9b008000	MSUB
+0x9b1225d0	MADD
+0x9b200000	SMADDL
+0x9ba466a0	UMADDL
+0x9ba466e0	UMADDL
+0x9ba46ba0	UMADDL
+0xca102de0	EOR (shifted register)
+0xca502900	EOR (shifted register)
+0xd2800030	MOV (wide immediate)
+0xd2800060	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd28000a0	MOV (wide immediate)
+0xd28000d0	MOV (wide immediate)
+0xd2800100	MOV (wide immediate)
+0xf2800050	MOVK
+0xf2800070	MOVK
+0xf28000d0	MOVK
+0xf28000e0	MOVK
+0xf2800100	MOVK
+0xf2800110	MOVK
+0xf28001d0	MOVK
+0xf28001e0	MOVK

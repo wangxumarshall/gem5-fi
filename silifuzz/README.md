@@ -24,6 +24,7 @@ SiliFuzz 的完整流水线。目标架构为 ARM64（仓库 `AGENTS.md` 约束�
 | 端态修复（§2.4.4） | `src/sf_fix.cc` |
 | Checker（§2.5） | `src/sf_checker.cc` |
 | 机群窗口与反馈闭环（§2.5.2/§2.6） | `tools/fleet.py`、`tools/quarantine.py` |
+| 模板配对语料（本项目新增） | `tools/pairgen.py` |
 
 ## 构建
 
@@ -93,6 +94,33 @@ FUZZ_SECONDS=180 ./scripts/run_scale.sh
 - 95k 语料：12,211,456 次 sweep、5,160,039 次 4 核窗口，均 0 不匹配；
   505k 语料：**64,642,560 次 sweep、5,168,126 次 4 核窗口，均 0 不匹配**。
 - 没有发现真实硬件缺陷；检测/隔离闭环用合成注入验证。
+
+## 模板配对语料（2026-11-23）
+
+`tools/pairgen.py` 为 `sdcfuzz/upstream/seeds/` 的 20 个微架构模板各生成 **1 条**
+SiliFuzz 指令流，并走完 `ifuzz → sf_fix → sf_player → sf_checker → fleet` 全流水线：
+
+- 判据是 **ifuzz 编码类**（`arm64.ParseInsn`），不是 objdump 助记符；
+  模板的每个指令类都必须在流里出现（覆盖率 1.0），且流不引入模板外的类。
+- 每条流的最终 `.sfs` 都被重新审计：代码段逐字节等于被选候选，端态 PC 落在末尾
+  `BRK`（`SIGTRAP`），即整条流被执行完；中途夭折的候选一律丢弃换下一个。
+- 机群校验：128 核 sweep 2560 次、50/1000 采样 764,152 次、4 核窗口 2×60 s，
+  全部 0 不匹配。
+
+产物与逐配对证据见 [`evidence/pairs-2026-11-23/`](evidence/pairs-2026-11-23/)，
+方法与边界见 [`docs/pairs-2026-11-23.md`](docs/pairs-2026-11-23.md)。
+`tools/ifuzzgen` 新增 `-lse` / `-branch-ext` / `-vec-ext` / `-words` /
+`-balance-classes` 五个**默认关闭**的开关；不加开关时指令集与上游逐字节一致。
+
+复现：
+
+```bash
+python3 tools/pairgen.py analyze  --work work/pairs-20261123 --variants 8 --seed 1
+python3 tools/pairgen.py generate --work work/pairs-20261123 --n 400 --keep 200 --seed 1
+python3 tools/pairgen.py fix      --work work/pairs-20261123
+python3 tools/pairgen.py verify   --work work/pairs-20261123 --cores 0-127
+python3 tools/pairgen.py report   --work work/pairs-20261123 --copy-to <dir>
+```
 
 ## 目录
 

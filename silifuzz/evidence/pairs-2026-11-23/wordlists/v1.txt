@@ -1,0 +1,80 @@
+# validated word list for v1 (v1_fsu_vdroop.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x0e010641	DUP (element)
+0x0e010688	DUP (element)
+0x0e0106fa	DUP (element)
+0x0e01070a	DUP (element)
+0x0e01071a	DUP (element)
+0x0e010720	DUP (element)
+0x0e010731	DUP (element)
+0x0e013ea1	MOV (to general)
+0x0e013ea7	MOV (to general)
+0x0e013edc	MOV (to general)
+0x0e013eef	MOV (to general)
+0x0e013ef0	MOV (to general)
+0x0e013f0a	MOV (to general)
+0x0e013f27	MOV (to general)
+0x0e013f3d	MOV (to general)
+0x0e053e63	MOV (to general)
+0x0e053e70	MOV (to general)
+0x0e053ea9	MOV (to general)
+0x0e053ed1	MOV (to general)
+0x0e053ede	MOV (to general)
+0x0e053ee5	MOV (to general)
+0x0e053f3b	MOV (to general)
+0x0e20cc00	FMLA (vector)
+0x0ea01c00	MOV (vector)
+0x1b012ad0	MADD
+0x1b146ee0	MADD
+0x1e204000	FMOV (register)
+0x1e260000	FMOV (general)
+0x1e270000	FMOV (general)
+0x1e604000	FMOV (register)
+0x4a903300	EOR (shifted register)
+0x4ac024f0	EOR (shifted register)
+0x4e010667	DUP (element)
+0x4e010684	DUP (element)
+0x4e010690	DUP (element)
+0x4e01069a	DUP (element)
+0x4e0106c8	DUP (element)
+0x4e010705	DUP (element)
+0x4e01071a	DUP (element)
+0x4e010720	DUP (element)
+0x52800000	MOV (wide immediate)
+0x52800030	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000a0	MOV (wide immediate)
+0x528000c0	MOV (wide immediate)
+0x528000f0	MOV (wide immediate)
+0x528001e0	MOV (wide immediate)
+0x72800000	MOVK
+0x72800010	MOVK
+0x72800040	MOVK
+0x72800070	MOVK
+0x728000c0	MOVK
+0x728000d0	MOVK
+0x728001b0	MOVK
+0x8b102650	ADD (shifted register)
+0x9b1225d0	MADD
+0x9e660000	FMOV (general)
+0x9e670000	FMOV (general)
+0x9eae0000	FMOV (general)
+0x9eaf0000	FMOV (general)
+0xca102de0	EOR (shifted register)
+0xca502900	EOR (shifted register)
+0xd2800030	MOV (wide immediate)
+0xd2800060	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd28000a0	MOV (wide immediate)
+0xd28000d0	MOV (wide immediate)
+0xd2800100	MOV (wide immediate)
+0xd503201f	HINT
+0xf2800050	MOVK
+0xf2800070	MOVK
+0xf28000d0	MOVK
+0xf28000e0	MOVK
+0xf2800100	MOVK
+0xf2800110	MOVK
+0xf28001d0	MOVK
+0xf28001e0	MOVK

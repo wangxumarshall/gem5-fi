@@ -1,0 +1,12 @@
+# validated word list for i1 (i1_icache_boundary.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x1b012ad0	MADD
+0x1b146ee0	MADD
+0x4a903300	EOR (shifted register)
+0x4ac024f0	EOR (shifted register)
+0x8b102650	ADD (shifted register)
+0x9b1225d0	MADD
+0xca102de0	EOR (shifted register)
+0xca502900	EOR (shifted register)
+0xd503201f	HINT

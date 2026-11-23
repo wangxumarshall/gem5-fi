@@ -1,0 +1,62 @@
+# validated word list for e3 (e3_toggle_rate.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0a903300	AND (shifted register)
+0x0ab03280	BIC (shifted register)
+0x0ac024f0	AND (shifted register)
+0x0b000000	ADD (shifted register)
+0x2a002490	ORR (shifted register)
+0x2a703240	ORN (shifted register)
+0x2a902de0	ORR (shifted register)
+0x2aa02690	ORN (shifted register)
+0x2aa027b0	ORN (shifted register)
+0x2ad02830	ORR (shifted register)
+0x2ad03110	ORR (shifted register)
+0x4a102c20	EOR (shifted register)
+0x4a3028b0	EON (shifted register)
+0x4a5031a0	EOR (shifted register)
+0x4a802800	EOR (shifted register)
+0x4a902860	EOR (shifted register)
+0x4af02600	EON (shifted register)
+0x4b000000	SUB (shifted register)
+0x52800000	MOV (wide immediate)
+0x52800040	MOV (wide immediate)
+0x52800050	MOV (wide immediate)
+0x52800060	MOV (wide immediate)
+0x528000a0	MOV (wide immediate)
+0x528000d0	MOV (wide immediate)
+0x528001a0	MOV (wide immediate)
+0x72800010	MOVK
+0x72800020	MOVK
+0x72800040	MOVK
+0x72800070	MOVK
+0x728000f0	MOVK
+0x72800110	MOVK
+0x8a102de0	AND (shifted register)
+0x8a200000	BIC (shifted register)
+0x8a502900	AND (shifted register)
+0x8b102650	ADD (shifted register)
+0xaa202cb0	ORN (shifted register)
+0xaa602ba0	ORN (shifted register)
+0xaa802bb0	ORR (shifted register)
+0xaac02ec0	ORR (shifted register)
+0xca000000	EOR (shifted register)
+0xca302d00	EON (shifted register)
+0xca603000	EON (shifted register)
+0xca7024c0	EON (shifted register)
+0xca703270	EON (shifted register)
+0xcae03110	EON (shifted register)
+0xcb102620	SUB (shifted register)
+0xd2800030	MOV (wide immediate)
+0xd2800060	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd28000b0	MOV (wide immediate)
+0xd28000c0	MOV (wide immediate)
+0xd2800110	MOV (wide immediate)
+0xd28001d0	MOV (wide immediate)
+0xf2800050	MOVK
+0xf2800060	MOVK
+0xf2800080	MOVK
+0xf28000a0	MOVK
+0xf2800100	MOVK
+0xf2800110	MOVK
+0xf28001b0	MOVK

@@ -1,0 +1,2032 @@
+{
+  "generated": "2026-11-23T15:13:59",
+  "host": "localhost.localdomain",
+  "machine": "aarch64",
+  "ifuzzgen_sha256": "f74da78eabca235604de2ab488b517406b83b5868a355fe802108386cc15a4c1",
+  "sf_fix_sha256": "96ee7483a2cd7949da7c5c631d9d15e56cd69782f0d9efb0dd4ed13d311a5b63",
+  "sf_player_sha256": "6fa69b54084020a259a1c342d7f8e1514053efb172998a2c2e3f9feb78b5b9e9",
+  "sf_checker_sha256": "b08f3779a8169d9ae14f2cd0b101724d0ddfb7c17765d9d2c7bc4ccd792a89df",
+  "pair_count": 20,
+  "policy": {
+    "isa": "AArch64 (arm64 user mode)",
+    "generator": "syzkaller ifuzz table + opt-in ARMv8.1 LSE and forward-branch forms",
+    "registers": "Rn draws from x18-x25 which no instruction writes; other register fields randomized (6 clones per encoding); every variant must still decode to the same class",
+    "correspondence": "identical instruction encoding classes (ifuzz ParseInsn); every word validated as allocated and re-classified as labelled",
+    "selection": "class coverage 1.0, minimum Jensen-Shannon divergence, then end-state PC landing on the trailer BRK",
+    "fix": "--centered-data --data-pages 16 --ref-cores 0,32,64,96 --repeat 3; candidates ending before their trailer are discarded",
+    "check": {
+      "cores": "0-127",
+      "sweep_seconds": 30
+    }
+  },
+  "corpus_checks": {
+    "sweep": {
+      "mode": "sweep",
+      "corpus_files": 20,
+      "cores": 128,
+      "seconds": 30,
+      "elapsed_s": 0.219,
+      "executions": 2560,
+      "exec_per_s": 11687.9,
+      "mismatches": 0,
+      "timeouts": 0,
+      "errors": 0,
+      "batches": 1,
+      "snapshot_loads": 20,
+      "bytes_read": 59862,
+      "io_bytes_per_exec": 23.4,
+      "batch_size": 50,
+      "execs_per_batch": 1000,
+      "seed": 1
+    },
+    "sampled": {
+      "mode": "sampled",
+      "corpus_files": 20,
+      "cores": 128,
+      "seconds": 30,
+      "elapsed_s": 30.053,
+      "executions": 764152,
+      "exec_per_s": 25427.0,
+      "mismatches": 0,
+      "timeouts": 0,
+      "errors": 0,
+      "batches": 865,
+      "snapshot_loads": 43250,
+      "bytes_read": 129456125,
+      "io_bytes_per_exec": 169.4,
+      "batch_size": 50,
+      "execs_per_batch": 1000,
+      "seed": 1
+    },
+    "fleet": {
+      "stdout_tail": "window 1/2 cores=[0, 1, 2, 3] seconds=60\n  executions=80 rate=6713.7/s mismatches=0\nwindow 2/2 cores=[4, 5, 6, 7] seconds=60\n  executions=80 rate=6952.3/s mismatches=0\n{\"windows\": 2, \"executions\": 160, \"mismatches\": 0, \"db\": \"work/pairs-20261123/verify/fleet.db\"}\n",
+      "stderr_tail": ""
+    }
+  },
+  "pairs": [
+    {
+      "template": {
+        "id": "c1",
+        "module": "cache / L2-L3 eviction",
+        "source": "c1_l2_eviction.S",
+        "source_sha256": "da62120eb09698782afa27422630edf933988f2b194f9eac92fa69991ae46235",
+        "insns": 26,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 5,
+          "EOR (shifted register)": 2,
+          "LDR (immediate)": 7,
+          "MOV (wide immediate)": 3,
+          "MOVK": 7,
+          "STR (immediate)": 2
+        },
+        "allowed_encodings": 98
+      },
+      "stream": {
+        "candidate_sha256": "2dc95bcab457270730c236d459764a9f1bb3ed73b52ac527d09e150b7d820c01",
+        "snapshot": "a28f49d34255c0bea24c0e284ddde3d476660ff5dc5c7e8341a5b41e7a7d3b69.sfs",
+        "snapshot_sha256": "aa4f604d4ec8f4b5d839a3285648edfd8c5b4b8881dd31f175e28263aeb3fdf3",
+        "insns": 27,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 6,
+          "EOR (shifted register)": 3,
+          "LDR (immediate)": 6,
+          "MOV (wide immediate)": 3,
+          "MOVK": 7,
+          "STR (immediate)": 2
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.004774,
+        "length_ratio": 1.038,
+        "pc_offset": 108,
+        "code_bytes": 108,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 78,
+        "shallow_candidates": 122
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.266,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 108,
+        "code_bytes": 108,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 78,
+        "candidates_ending_early": 122
+      }
+    },
+    {
+      "template": {
+        "id": "c3",
+        "module": "cache / L2-L3 eviction",
+        "source": "c3_l3_128b.S",
+        "source_sha256": "6d4d144eecf6abe1cf8761baa8bd45439012c414c57ec83cafca9c3921b99d0d",
+        "insns": 31,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDP",
+          "LDR (immediate)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 2,
+          "ADD (shifted register)": 2,
+          "EOR (shifted register)": 3,
+          "LDP": 1,
+          "LDR (immediate)": 3,
+          "MOV (wide immediate)": 4,
+          "MOVK": 12,
+          "STP": 1,
+          "STR (immediate)": 3
+        },
+        "allowed_encodings": 211
+      },
+      "stream": {
+        "candidate_sha256": "f06eb6ecba8a15237231f0d7baf8a1b04a1f1bd579f2454d8c03c859185985da",
+        "snapshot": "59e6e9eb49e7bc4b225fd9d322caf9c71e664050e1615bb8efa691b5e66cd103.sfs",
+        "snapshot_sha256": "ba41c9250883c94119a25dd1764262c122a8dd65d401ddb87ebd1687d007cef3",
+        "insns": 33,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDP",
+          "LDR (immediate)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 4,
+          "ADD (shifted register)": 1,
+          "EOR (shifted register)": 3,
+          "LDP": 2,
+          "LDR (immediate)": 2,
+          "MOV (wide immediate)": 6,
+          "MOVK": 10,
+          "STP": 1,
+          "STR (immediate)": 4
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.025124,
+        "length_ratio": 1.065,
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 83,
+        "shallow_candidates": 117
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.264,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 83,
+        "candidates_ending_early": 117
+      }
+    },
+    {
+      "template": {
+        "id": "e1",
+        "module": "execution unit carry chains",
+        "source": "e1_carry_chain.S",
+        "source_sha256": "017ae755a1f66cfdab4f4df655d1639c524e193e1c5eb480c66aeae4b7f6fb10",
+        "insns": 29,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "EOR (shifted register)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 1,
+          "ADDS (shifted register)": 5,
+          "EOR (shifted register)": 1,
+          "MOV (wide immediate)": 10,
+          "MOVK": 12
+        },
+        "allowed_encodings": 38
+      },
+      "stream": {
+        "candidate_sha256": "964f9602ab7e2cc7bc3886710a9d98420efcb9279302277f267adbfd8269dd7f",
+        "snapshot": "231b60a759f425ada0bf06c3058dbb67026dcb239275ff5c0c421ae68ad3f783.sfs",
+        "snapshot_sha256": "43f4b74ad335938ff63e06c4b1029ae899d0da80790135e5933144c7dd77fc6c",
+        "insns": 33,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "EOR (shifted register)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "ADDS (shifted register)": 7,
+          "EOR (shifted register)": 2,
+          "MOV (wide immediate)": 9,
+          "MOVK": 12
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.01781,
+        "length_ratio": 1.138,
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.26,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "e2",
+        "module": "execution unit carry chains",
+        "source": "e2_mul_extreme.S",
+        "source_sha256": "53c79833109cb3faa1c1492b7f0da1dd09b818f7f8172081fb3363a68a59a100",
+        "insns": 28,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "MSUB",
+          "SMADDL",
+          "UMADDL"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 1,
+          "EOR (shifted register)": 1,
+          "MADD": 3,
+          "MOV (wide immediate)": 5,
+          "MOVK": 15,
+          "MSUB": 1,
+          "SMADDL": 1,
+          "UMADDL": 1
+        },
+        "allowed_encodings": 43
+      },
+      "stream": {
+        "candidate_sha256": "50e66e15f7a882c4a91b356e27a3e41be9ec94cb720192ada54d562ce93c1d6a",
+        "snapshot": "23f7127866f567819325cfd7ccaee6b64f5ce61a8010504cb00e4631808b984b.sfs",
+        "snapshot_sha256": "020231ac523b95653900031ece4cf1b5aae8ad76e28252684d9d949134318a31",
+        "insns": 30,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "MSUB",
+          "SMADDL",
+          "UMADDL"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "EOR (shifted register)": 1,
+          "MADD": 5,
+          "MOV (wide immediate)": 5,
+          "MOVK": 8,
+          "MSUB": 3,
+          "SMADDL": 4,
+          "UMADDL": 2
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.077999,
+        "length_ratio": 1.071,
+        "pc_offset": 120,
+        "code_bytes": 120,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.262,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 120,
+        "code_bytes": 120,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "e3",
+        "module": "execution unit carry chains",
+        "source": "e3_toggle_rate.S",
+        "source_sha256": "47fab53aa7851fbd74ce2c180681cc483997c4d690ecde253e46d7ba3dfdc0cc",
+        "insns": 24,
+        "classes": [
+          "ADD (shifted register)",
+          "AND (shifted register)",
+          "BIC (shifted register)",
+          "EON (shifted register)",
+          "EOR (shifted register)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "ORN (shifted register)",
+          "ORR (shifted register)",
+          "SUB (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 4,
+          "AND (shifted register)": 2,
+          "BIC (shifted register)": 1,
+          "EON (shifted register)": 1,
+          "EOR (shifted register)": 4,
+          "MOV (wide immediate)": 2,
+          "MOVK": 6,
+          "ORN (shifted register)": 1,
+          "ORR (shifted register)": 2,
+          "SUB (shifted register)": 1
+        },
+        "allowed_encodings": 60
+      },
+      "stream": {
+        "candidate_sha256": "ba4b98c28365e32a0537fe63f22ddbe8eaf9404ec1af5bbb83b5324daa23173c",
+        "snapshot": "b8e297ae26d3cfa7b4713f9173a473dee77168d86317f9de2aed517637660c5e.sfs",
+        "snapshot_sha256": "00b3def249fc9b6a87a86521b3caf13da529f2bcb7cc96bd6e0fb96ab1ab5cb1",
+        "insns": 28,
+        "classes": [
+          "ADD (shifted register)",
+          "AND (shifted register)",
+          "BIC (shifted register)",
+          "EON (shifted register)",
+          "EOR (shifted register)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "ORN (shifted register)",
+          "ORR (shifted register)",
+          "SUB (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 4,
+          "AND (shifted register)": 3,
+          "BIC (shifted register)": 2,
+          "EON (shifted register)": 1,
+          "EOR (shifted register)": 4,
+          "MOV (wide immediate)": 1,
+          "MOVK": 5,
+          "ORN (shifted register)": 1,
+          "ORR (shifted register)": 4,
+          "SUB (shifted register)": 3
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.033439,
+        "length_ratio": 1.167,
+        "pc_offset": 112,
+        "code_bytes": 112,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.261,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 112,
+        "code_bytes": 112,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "f1",
+        "module": "FSU special operands",
+        "source": "f1_subnormal_nan.S",
+        "source_sha256": "cd75814de599301e342b6c2e48bf2ce42db6f57c05cb1b83864367de6a849559",
+        "insns": 40,
+        "classes": [
+          "BIC (vector, immediate)",
+          "FADD (scalar)",
+          "FCMP",
+          "FDIV (scalar)",
+          "FMOV (general)",
+          "FMUL (scalar)",
+          "FSUB (scalar)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "BIC (vector, immediate)": 1,
+          "FADD (scalar)": 5,
+          "FCMP": 2,
+          "FDIV (scalar)": 2,
+          "FMOV (general)": 9,
+          "FMUL (scalar)": 3,
+          "FSUB (scalar)": 1,
+          "MOV (wide immediate)": 5,
+          "MOVK": 12
+        },
+        "allowed_encodings": 56
+      },
+      "stream": {
+        "candidate_sha256": "8753f5c7da6097ee083b5230ee3c2327ceec0dfd733aa86203386475961b1523",
+        "snapshot": "427394367b91c8a0fe0c309f6df0ccf632ad294a6d3329cb829d60f1c548c71d.sfs",
+        "snapshot_sha256": "72cc826af07594915e1206c52438d2397b018926090b7391e36bd04981eadf84",
+        "insns": 43,
+        "classes": [
+          "BIC (vector, immediate)",
+          "FADD (scalar)",
+          "FCMP",
+          "FDIV (scalar)",
+          "FMOV (general)",
+          "FMUL (scalar)",
+          "FSUB (scalar)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "BIC (vector, immediate)": 2,
+          "FADD (scalar)": 5,
+          "FCMP": 4,
+          "FDIV (scalar)": 4,
+          "FMOV (general)": 7,
+          "FMUL (scalar)": 5,
+          "FSUB (scalar)": 4,
+          "MOV (wide immediate)": 4,
+          "MOVK": 8
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.045294,
+        "length_ratio": 1.075,
+        "pc_offset": 172,
+        "code_bytes": 172,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.262,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 172,
+        "code_bytes": 172,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "i1",
+        "module": "instruction fetch / branch",
+        "source": "i1_icache_boundary.S",
+        "source_sha256": "2a095368eb8bb698b5cdaeaf1343599993fd487a104784dee1e40414219e8391",
+        "insns": 81,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "HINT",
+          "MADD"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "EOR (shifted register)": 2,
+          "HINT": 75,
+          "MADD": 1
+        },
+        "allowed_encodings": 10
+      },
+      "stream": {
+        "candidate_sha256": "c07d90e6f60c956179bac01cb423b19d6a3207d8fa10f9004266935b98d2f2ee",
+        "snapshot": "608d55d43df081fc0467c2333aaa3dcd37aeaff17f2164336ab585cd97642336.sfs",
+        "snapshot_sha256": "ea4916760f6fe1a813f073cd87ec4fcd6a0a0265b68d340bb755bfe1a581509d",
+        "insns": 84,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "HINT",
+          "MADD"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 15,
+          "EOR (shifted register)": 18,
+          "HINT": 37,
+          "MADD": 14
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.21935,
+        "length_ratio": 1.037,
+        "pc_offset": 336,
+        "code_bytes": 336,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.258,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 336,
+        "code_bytes": 336,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "i2",
+        "module": "instruction fetch / branch",
+        "source": "i2_branch_dense.S",
+        "source_sha256": "d00ddb7cab821c7843d578bed27393636768022697afc2d44528dfa8b0d84ae2",
+        "insns": 31,
+        "classes": [
+          "ADD (shifted register)",
+          "B",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 1,
+          "B": 20,
+          "EOR (shifted register)": 1,
+          "MADD": 1,
+          "MOV (wide immediate)": 2,
+          "MOVK": 6
+        },
+        "allowed_encodings": 41
+      },
+      "stream": {
+        "candidate_sha256": "3cb34e4b8bd675bd6ad5383979c709e4f724bcf817239e1776cae509c5c578de",
+        "snapshot": "cadab4646a263e71f048eb0be55c6e4114f582751f044c2b779b56cf3ad900b7.sfs",
+        "snapshot_sha256": "2654afea89474a61418a949827ef494ee3e4f20ca5c0309da51fc67760ebb760",
+        "insns": 35,
+        "classes": [
+          "ADD (shifted register)",
+          "B",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 6,
+          "B": 10,
+          "EOR (shifted register)": 6,
+          "MADD": 5,
+          "MOV (wide immediate)": 3,
+          "MOVK": 5
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.157729,
+        "length_ratio": 1.129,
+        "pc_offset": 140,
+        "code_bytes": 140,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 34,
+        "shallow_candidates": 29
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 63,
+        "duplicates": 0,
+        "executions": 515,
+        "elapsed_s": 54.272,
+        "reasons": {
+          "timeout": 137
+        }
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 140,
+        "code_bytes": 140,
+        "reached_trailer": true,
+        "candidates_fixed": 63,
+        "candidates_reaching_trailer": 34,
+        "candidates_ending_early": 29
+      }
+    },
+    {
+      "template": {
+        "id": "l1",
+        "module": "load-store disambiguation",
+        "source": "l1_disambig.S",
+        "source_sha256": "54c9d976ad3e51dc9ce51871db799a7e48deb1f5c758b871839250e1fdd1fadf",
+        "insns": 21,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 1,
+          "ADD (shifted register)": 2,
+          "EOR (shifted register)": 2,
+          "LDR (immediate)": 2,
+          "MADD": 1,
+          "MOV (wide immediate)": 4,
+          "MOVK": 6,
+          "STR (immediate)": 3
+        },
+        "allowed_encodings": 116
+      },
+      "stream": {
+        "candidate_sha256": "6c4dc472bdd18e71f08fdbe6927b21b9870b59c5769a245056494739c01da837",
+        "snapshot": "201e765f10cdfe4f6c7166312f2b178563811095014126d229f7445855387105.sfs",
+        "snapshot_sha256": "cd937d40b82dabd02bcba651263eef94ec9e5b8c38d5c142a19701b2619ad045",
+        "insns": 26,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 2,
+          "ADD (shifted register)": 3,
+          "EOR (shifted register)": 4,
+          "LDR (immediate)": 3,
+          "MADD": 1,
+          "MOV (wide immediate)": 3,
+          "MOVK": 6,
+          "STR (immediate)": 4
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.018252,
+        "length_ratio": 1.238,
+        "pc_offset": 104,
+        "code_bytes": 104,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 142,
+        "shallow_candidates": 58
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.265,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 104,
+        "code_bytes": 104,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 142,
+        "candidates_ending_early": 58
+      }
+    },
+    {
+      "template": {
+        "id": "l2",
+        "module": "load-store disambiguation",
+        "source": "l2_dualagu_split.S",
+        "source_sha256": "b3129fbcde28b3222cbd65d2fb3e1ad4f103afe6c6f3852b77c91bfdb055f034",
+        "insns": 29,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDP",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 2,
+          "ADD (shifted register)": 3,
+          "EOR (shifted register)": 4,
+          "LDP": 2,
+          "MOV (wide immediate)": 4,
+          "MOVK": 12,
+          "STP": 2
+        },
+        "allowed_encodings": 146
+      },
+      "stream": {
+        "candidate_sha256": "19a1541c0f64e2c971f02f79bb0f6a127bdc32552a7af3f203cc5914d2609f8c",
+        "snapshot": "54951a3c7df5251f1f404f8ba67fbd3770666104a7bd3da06f0c5a2ccc278535.sfs",
+        "snapshot_sha256": "6db121c43f317303326fddd0fadb98582d708ddb13cd5075e6fbaddcf68a7574",
+        "insns": 33,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDP",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 5,
+          "EOR (shifted register)": 6,
+          "LDP": 2,
+          "MOV (wide immediate)": 4,
+          "MOVK": 10,
+          "STP": 3
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.014429,
+        "length_ratio": 1.138,
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 84,
+        "shallow_candidates": 116
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.265,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 132,
+        "code_bytes": 132,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 84,
+        "candidates_ending_early": 116
+      }
+    },
+    {
+      "template": {
+        "id": "m1",
+        "module": "MMU / TLB / cross-page",
+        "source": "m1_tlb_thrash.S",
+        "source_sha256": "ecefdd3c5be499756046ec18eaa8d93dc8d6269d226361fc887319360bb38ef6",
+        "insns": 15,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "EOR (shifted register)": 3,
+          "LDR (immediate)": 8,
+          "STR (immediate)": 2
+        },
+        "allowed_encodings": 73
+      },
+      "stream": {
+        "candidate_sha256": "406a2671626e1317b62bb460bf3b620914315dac1b0eb9d6cbdb050d5520fefa",
+        "snapshot": "94edae8c0a10eb5c86cfb24f8856039bbf4bc62ab5ef126f9c68e2e31d691e93.sfs",
+        "snapshot_sha256": "3a67c10854c385cb1f7cc9e2e109e337839ab408c7dfd126acb61b188d1e600d",
+        "insns": 16,
+        "classes": [
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "STR (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "EOR (shifted register)": 4,
+          "LDR (immediate)": 8,
+          "STR (immediate)": 2
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.00259,
+        "length_ratio": 1.067,
+        "pc_offset": 64,
+        "code_bytes": 64,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 81,
+        "shallow_candidates": 119
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.264,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 64,
+        "code_bytes": 64,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 81,
+        "candidates_ending_early": 119
+      }
+    },
+    {
+      "template": {
+        "id": "m3",
+        "module": "MMU / TLB / cross-page",
+        "source": "m3_cross_page.S",
+        "source_sha256": "5a2e3d60138697ee9ae97bcf58564517227374a3346d4aaee00496afe915aa9e",
+        "insns": 30,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "LDP",
+          "LDUR (SIMD&FP)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STUR (SIMD&FP)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 1,
+          "EOR (shifted register)": 2,
+          "FMOV (general)": 2,
+          "LDP": 2,
+          "LDUR (SIMD&FP)": 1,
+          "MOV (wide immediate)": 4,
+          "MOVK": 12,
+          "STP": 2,
+          "STUR (SIMD&FP)": 1
+        },
+        "allowed_encodings": 176
+      },
+      "stream": {
+        "candidate_sha256": "8ba161b65f66c524dcefd5d64522c669bd5a2a6fdee0f49805374f100bbb9b5e",
+        "snapshot": "dabff69dbcdf96e5dcd79507a3f9128fefd0e076b98160d81714284f8a214c73.sfs",
+        "snapshot_sha256": "4f9e20d8ab6cf2d945996724c6b159010cba9232f54b5795ae0ed730b52661db",
+        "insns": 31,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "LDP",
+          "LDUR (SIMD&FP)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STUR (SIMD&FP)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 2,
+          "ADD (shifted register)": 3,
+          "EOR (shifted register)": 2,
+          "FMOV (general)": 6,
+          "LDP": 2,
+          "LDUR (SIMD&FP)": 2,
+          "MOV (wide immediate)": 2,
+          "MOVK": 8,
+          "STP": 3,
+          "STUR (SIMD&FP)": 1
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.063361,
+        "length_ratio": 1.033,
+        "pc_offset": 124,
+        "code_bytes": 124,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 60,
+        "shallow_candidates": 140
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.262,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 124,
+        "code_bytes": 124,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 60,
+        "candidates_ending_early": 140
+      }
+    },
+    {
+      "template": {
+        "id": "o1",
+        "module": "out-of-order ROB / mispredict",
+        "source": "o1_rob_full_wakeup.S",
+        "source_sha256": "221c979219f1e0341c4e6607797a4e652bf4c4c65ef81fa18690856ef17f1916",
+        "insns": 34,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "AND (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MADD",
+          "ORR (shifted register)",
+          "SUB (shifted register)",
+          "SUBS (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 7,
+          "ADDS (shifted register)": 4,
+          "AND (shifted register)": 4,
+          "EOR (shifted register)": 4,
+          "LDR (immediate)": 1,
+          "MADD": 1,
+          "ORR (shifted register)": 3,
+          "SUB (shifted register)": 4,
+          "SUBS (shifted register)": 3
+        },
+        "allowed_encodings": 79
+      },
+      "stream": {
+        "candidate_sha256": "457d7f2b7c4055a9e7475d8c3170510e5d419cded2c3241a3a8287b7ee5a529a",
+        "snapshot": "8865e4345775d933755d7badf94e33a9234ba66b976788892dbecadd24a2edf7.sfs",
+        "snapshot_sha256": "5ea8f7ad80e5f8dc46b2208486b11b5285d3be00537a693445a78c3d8df166f5",
+        "insns": 39,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "AND (shifted register)",
+          "EOR (shifted register)",
+          "LDR (immediate)",
+          "MADD",
+          "ORR (shifted register)",
+          "SUB (shifted register)",
+          "SUBS (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 6,
+          "ADDS (shifted register)": 4,
+          "AND (shifted register)": 3,
+          "EOR (shifted register)": 5,
+          "LDR (immediate)": 2,
+          "MADD": 2,
+          "ORR (shifted register)": 4,
+          "SUB (shifted register)": 7,
+          "SUBS (shifted register)": 3
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.016312,
+        "length_ratio": 1.147,
+        "pc_offset": 156,
+        "code_bytes": 156,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.261,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 156,
+        "code_bytes": 156,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "o2",
+        "module": "out-of-order ROB / mispredict",
+        "source": "o2_mispredict_rollback.S",
+        "source_sha256": "aa260bb2407226bbc6a5131f821a75a372d9339dfc6fcbe40cdaee349528d112",
+        "insns": 17,
+        "classes": [
+          "ADD (shifted register)",
+          "B.cond",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SUBS (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "B.cond": 1,
+          "EOR (shifted register)": 2,
+          "MADD": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 6,
+          "SUBS (immediate)": 1
+        },
+        "allowed_encodings": 57
+      },
+      "stream": {
+        "candidate_sha256": "3ac21585720dd1daa4723926077c5f0774a6145cb585b350fe5b44bf5b79e9ba",
+        "snapshot": "39caf94861fe3e498c5923267fbfa4edd2dbb67e5fb789e5ea57e26488813919.sfs",
+        "snapshot_sha256": "c58fc79b189abf342a2fe3bd0584c8a7e62de1b1b696863c9e104791e56c65eb",
+        "insns": 18,
+        "classes": [
+          "ADD (shifted register)",
+          "B.cond",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SUBS (immediate)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "B.cond": 2,
+          "EOR (shifted register)": 3,
+          "MADD": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 5,
+          "SUBS (immediate)": 1
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.012469,
+        "length_ratio": 1.059,
+        "pc_offset": 72,
+        "code_bytes": 72,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 186,
+        "shallow_candidates": 14
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.262,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 72,
+        "code_bytes": 72,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 186,
+        "candidates_ending_early": 14
+      }
+    },
+    {
+      "template": {
+        "id": "v1",
+        "module": "vector FSU power stress",
+        "source": "v1_fsu_vdroop.S",
+        "source_sha256": "54fa6b2de400130c7238fcdabd40593cf03025aa09af5e9401852dd176ea04e3",
+        "insns": 73,
+        "classes": [
+          "ADD (shifted register)",
+          "DUP (element)",
+          "EOR (shifted register)",
+          "FMLA (vector)",
+          "FMOV (general)",
+          "FMOV (register)",
+          "HINT",
+          "MADD",
+          "MOV (to general)",
+          "MOV (vector)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 1,
+          "DUP (element)": 6,
+          "EOR (shifted register)": 1,
+          "FMLA (vector)": 15,
+          "FMOV (general)": 6,
+          "FMOV (register)": 3,
+          "HINT": 16,
+          "MADD": 1,
+          "MOV (to general)": 2,
+          "MOV (vector)": 1,
+          "MOV (wide immediate)": 6,
+          "MOVK": 15
+        },
+        "allowed_encodings": 78
+      },
+      "stream": {
+        "candidate_sha256": "58647a23f6cd017b835bbd40b0dd0450dde71335949e7f69ed0bd6f585eac46f",
+        "snapshot": "6a742fbcded4e604c4e7f5530ff0eacd6cb7eaf4e154e8e14a5aceb7797b8a6d.sfs",
+        "snapshot_sha256": "00e3deb314ac05062e5388070bc41314a5846b0a81cc0158134c3b0c03fbd512",
+        "insns": 76,
+        "classes": [
+          "ADD (shifted register)",
+          "DUP (element)",
+          "EOR (shifted register)",
+          "FMLA (vector)",
+          "FMOV (general)",
+          "FMOV (register)",
+          "HINT",
+          "MADD",
+          "MOV (to general)",
+          "MOV (vector)",
+          "MOV (wide immediate)",
+          "MOVK"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 5,
+          "DUP (element)": 8,
+          "EOR (shifted register)": 5,
+          "FMLA (vector)": 7,
+          "FMOV (general)": 7,
+          "FMOV (register)": 4,
+          "HINT": 9,
+          "MADD": 3,
+          "MOV (to general)": 5,
+          "MOV (vector)": 5,
+          "MOV (wide immediate)": 8,
+          "MOVK": 10
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.086413,
+        "length_ratio": 1.041,
+        "pc_offset": 304,
+        "code_bytes": 304,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.263,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 304,
+        "code_bytes": 304,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "v2",
+        "module": "vector FSU power stress",
+        "source": "v2_alu_complex_saturation.S",
+        "source_sha256": "4f6aeba40268f1104a4cb7f6b293b440bc56014efb13450967e74e57b563680b",
+        "insns": 43,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "AND (shifted register)",
+          "BIC (shifted register)",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "MSUB",
+          "ORN (shifted register)",
+          "ORR (shifted register)",
+          "SMADDL",
+          "SUB (shifted register)",
+          "SUBS (shifted register)",
+          "UMADDL"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 6,
+          "ADDS (shifted register)": 1,
+          "AND (shifted register)": 1,
+          "BIC (shifted register)": 1,
+          "EOR (shifted register)": 3,
+          "MADD": 3,
+          "MOV (wide immediate)": 5,
+          "MOVK": 15,
+          "MSUB": 1,
+          "ORN (shifted register)": 1,
+          "ORR (shifted register)": 1,
+          "SMADDL": 2,
+          "SUB (shifted register)": 1,
+          "SUBS (shifted register)": 1,
+          "UMADDL": 1
+        },
+        "allowed_encodings": 75
+      },
+      "stream": {
+        "candidate_sha256": "3828f12ef4e9675f732c7d2361504c12e9c472a33fb7e6b79f63fda81f86e227",
+        "snapshot": "70b685e51229b44482ee0cb34c4164b20f91a95e63eb8b95dfb424215bad7366.sfs",
+        "snapshot_sha256": "bed8b209b751c6e8dd32d6d45c40d6e0d5a9a0bd3e0d16cc7cc1bd613785cc5f",
+        "insns": 47,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "AND (shifted register)",
+          "BIC (shifted register)",
+          "EOR (shifted register)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "MSUB",
+          "ORN (shifted register)",
+          "ORR (shifted register)",
+          "SMADDL",
+          "SUB (shifted register)",
+          "SUBS (shifted register)",
+          "UMADDL"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "ADDS (shifted register)": 2,
+          "AND (shifted register)": 3,
+          "BIC (shifted register)": 3,
+          "EOR (shifted register)": 3,
+          "MADD": 3,
+          "MOV (wide immediate)": 5,
+          "MOVK": 7,
+          "MSUB": 2,
+          "ORN (shifted register)": 4,
+          "ORR (shifted register)": 1,
+          "SMADDL": 1,
+          "SUB (shifted register)": 2,
+          "SUBS (shifted register)": 3,
+          "UMADDL": 5
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.105892,
+        "length_ratio": 1.093,
+        "pc_offset": 188,
+        "code_bytes": 188,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 181,
+        "deep_candidates": 181,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 181,
+        "accepted": 181,
+        "duplicates": 0,
+        "executions": 1086,
+        "elapsed_s": 0.239,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 188,
+        "code_bytes": 188,
+        "reached_trailer": true,
+        "candidates_fixed": 181,
+        "candidates_reaching_trailer": 181,
+        "candidates_ending_early": 0
+      }
+    },
+    {
+      "template": {
+        "id": "v3",
+        "module": "vector FSU power stress",
+        "source": "v3_prf_mispredict.S",
+        "source_sha256": "697405507f082a9652ceed6a1e9600f31522d28af95de4b761cec24ff4275a06",
+        "insns": 64,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "B.cond",
+          "CMP (shifted register)",
+          "FMOV (general)",
+          "MADD",
+          "MOV (register)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SUBS (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "ADDS (shifted register)": 3,
+          "B.cond": 1,
+          "CMP (shifted register)": 1,
+          "FMOV (general)": 8,
+          "MADD": 1,
+          "MOV (register)": 24,
+          "MOV (wide immediate)": 5,
+          "MOVK": 15,
+          "SUBS (shifted register)": 3
+        },
+        "allowed_encodings": 54
+      },
+      "stream": {
+        "candidate_sha256": "c95e6de4a699332587d8f85c1b5a1788e45f9504cd7513ec7d510ac144a5e39f",
+        "snapshot": "232bac8c40e0841dc3dac670262e9428fd44b84371db736a5546ea4159473b28.sfs",
+        "snapshot_sha256": "8f9b7ca9c9460fd588ef126e8850735854154fb0f4d0c4dab6b906f1cca1f48c",
+        "insns": 68,
+        "classes": [
+          "ADD (shifted register)",
+          "ADDS (shifted register)",
+          "B.cond",
+          "CMP (shifted register)",
+          "FMOV (general)",
+          "MADD",
+          "MOV (register)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SUBS (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 2,
+          "ADDS (shifted register)": 5,
+          "B.cond": 6,
+          "CMP (shifted register)": 5,
+          "FMOV (general)": 8,
+          "MADD": 5,
+          "MOV (register)": 16,
+          "MOV (wide immediate)": 7,
+          "MOVK": 9,
+          "SUBS (shifted register)": 5
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.078729,
+        "length_ratio": 1.062,
+        "pc_offset": 272,
+        "code_bytes": 272,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 159,
+        "shallow_candidates": 12
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 171,
+        "duplicates": 0,
+        "executions": 1055,
+        "elapsed_s": 12.365,
+        "reasons": {
+          "timeout": 29
+        }
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 272,
+        "code_bytes": 272,
+        "reached_trailer": true,
+        "candidates_fixed": 171,
+        "candidates_reaching_trailer": 159,
+        "candidates_ending_early": 12
+      }
+    },
+    {
+      "template": {
+        "id": "v4",
+        "module": "vector FSU power stress",
+        "source": "v4_lsu_cross_boundary.S",
+        "source_sha256": "db17c27cdeef3509da2fd835bec7ed8420b5baf9e5692db549bbdc1fc792dea6",
+        "insns": 37,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "LDP",
+          "LDUR (SIMD&FP)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STUR (SIMD&FP)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 6,
+          "ADD (shifted register)": 1,
+          "EOR (shifted register)": 2,
+          "FMOV (general)": 2,
+          "LDP": 5,
+          "LDUR (SIMD&FP)": 1,
+          "MOV (wide immediate)": 4,
+          "MOVK": 12,
+          "STP": 3,
+          "STUR (SIMD&FP)": 1
+        },
+        "allowed_encodings": 176
+      },
+      "stream": {
+        "candidate_sha256": "7f6f8613d5125cdc85d5603c3601fcf8d6b4852679e5159c96c35407435c9a5b",
+        "snapshot": "15aa39df81abad5e38dbd16df3f164f4daa4755b658f716e856284373c086d00.sfs",
+        "snapshot_sha256": "036f19f0757017d2c905f5cf30d138741d45b808b31753f0b078aeab65b3a7f4",
+        "insns": 38,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "LDP",
+          "LDUR (SIMD&FP)",
+          "MOV (wide immediate)",
+          "MOVK",
+          "STP",
+          "STUR (SIMD&FP)"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 3,
+          "EOR (shifted register)": 6,
+          "FMOV (general)": 4,
+          "LDP": 4,
+          "LDUR (SIMD&FP)": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 8,
+          "STP": 4,
+          "STUR (SIMD&FP)": 1
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.061314,
+        "length_ratio": 1.027,
+        "pc_offset": 152,
+        "code_bytes": 152,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 45,
+        "shallow_candidates": 155
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.267,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 152,
+        "code_bytes": 152,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 45,
+        "candidates_ending_early": 155
+      }
+    },
+    {
+      "template": {
+        "id": "v5",
+        "module": "vector FSU power stress",
+        "source": "v5_lse_cross_die.S",
+        "source_sha256": "22e99a2f3bd408711433a4437131965cbf08a72c265b9a113a0e82ba98798c48",
+        "insns": 42,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "CASA",
+          "CASAL",
+          "EOR (shifted register)",
+          "LDADD",
+          "LDADDA",
+          "LDADDL",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SWP",
+          "SWPAL"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 1,
+          "ADD (shifted register)": 2,
+          "CASA": 1,
+          "CASAL": 9,
+          "EOR (shifted register)": 1,
+          "LDADD": 9,
+          "LDADDA": 1,
+          "LDADDL": 1,
+          "MOV (wide immediate)": 3,
+          "MOVK": 9,
+          "SWP": 1,
+          "SWPAL": 4
+        },
+        "allowed_encodings": 57
+      },
+      "stream": {
+        "candidate_sha256": "2e9a4f93c148888c9ec0962fdadf5f65e9e58220a6f37fe1265fda120b272df9",
+        "snapshot": "ff47ede84913d86116139ba5f96d5f5f08ab06093330412f77f443f27baa10ce.sfs",
+        "snapshot_sha256": "c52502906a9424c297729457fc6cede382918434f15b7018be1a283aeb037323",
+        "insns": 42,
+        "classes": [
+          "ADD (immediate)",
+          "ADD (shifted register)",
+          "CASA",
+          "CASAL",
+          "EOR (shifted register)",
+          "LDADD",
+          "LDADDA",
+          "LDADDL",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SWP",
+          "SWPAL"
+        ],
+        "class_counts": {
+          "ADD (immediate)": 3,
+          "ADD (shifted register)": 2,
+          "CASA": 3,
+          "CASAL": 9,
+          "EOR (shifted register)": 2,
+          "LDADD": 6,
+          "LDADDA": 3,
+          "LDADDL": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 4,
+          "SWP": 3,
+          "SWPAL": 2
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.069754,
+        "length_ratio": 1.0,
+        "pc_offset": 168,
+        "code_bytes": 168,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 84,
+        "shallow_candidates": 116
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.267,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 168,
+        "code_bytes": 168,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 84,
+        "candidates_ending_early": 116
+      }
+    },
+    {
+      "template": {
+        "id": "v6",
+        "module": "vector FSU power stress",
+        "source": "v6_crypto_toggle.S",
+        "source_sha256": "6c73e17891d93ca2f63511f98a1ef36b8dd3997c80072dbd579d9f7ec3a98fce",
+        "insns": 38,
+        "classes": [
+          "ADD (shifted register)",
+          "AESE",
+          "AESMC",
+          "CRC32CB, CRC32CH, CRC32CW, CRC32CX",
+          "DUP (element)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SHA1C",
+          "SHA256H",
+          "SUB (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "AESE": 3,
+          "AESMC": 3,
+          "CRC32CB, CRC32CH, CRC32CW, CRC32CX": 3,
+          "DUP (element)": 3,
+          "EOR (shifted register)": 2,
+          "FMOV (general)": 3,
+          "MADD": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 9,
+          "SHA1C": 1,
+          "SHA256H": 2,
+          "SUB (shifted register)": 1
+        },
+        "allowed_encodings": 68
+      },
+      "stream": {
+        "candidate_sha256": "81b073de183528b1c1dc72b64725f5e6d4749e9a0bd6ff832e0cef78ebcfc9f3",
+        "snapshot": "8f8de1ac5ea8d1750fd185a604e88587e5dbd7648606b5ee0f2777a7a52e648c.sfs",
+        "snapshot_sha256": "777035f1a6076b2130b54ee520baa3de57dc4a99493357eb22a080b9883acea7",
+        "insns": 39,
+        "classes": [
+          "ADD (shifted register)",
+          "AESE",
+          "AESMC",
+          "CRC32CB, CRC32CH, CRC32CW, CRC32CX",
+          "DUP (element)",
+          "EOR (shifted register)",
+          "FMOV (general)",
+          "MADD",
+          "MOV (wide immediate)",
+          "MOVK",
+          "SHA1C",
+          "SHA256H",
+          "SUB (shifted register)"
+        ],
+        "class_counts": {
+          "ADD (shifted register)": 3,
+          "AESE": 3,
+          "AESMC": 2,
+          "CRC32CB, CRC32CH, CRC32CW, CRC32CX": 4,
+          "DUP (element)": 3,
+          "EOR (shifted register)": 2,
+          "FMOV (general)": 3,
+          "MADD": 2,
+          "MOV (wide immediate)": 3,
+          "MOVK": 6,
+          "SHA1C": 2,
+          "SHA256H": 3,
+          "SUB (shifted register)": 3
+        },
+        "coverage": 1.0,
+        "js_divergence": 0.023663,
+        "length_ratio": 1.026,
+        "pc_offset": 156,
+        "code_bytes": 156,
+        "generator": "ifuzz (arm64 user mode, -lse -branch-ext)",
+        "pool_size": 200,
+        "deep_candidates": 200,
+        "shallow_candidates": 0
+      },
+      "fix": {
+        "source": "ifuzz-pair-lse",
+        "candidates": 200,
+        "accepted": 200,
+        "duplicates": 0,
+        "executions": 1200,
+        "elapsed_s": 0.261,
+        "reasons": {}
+      },
+      "replay": {
+        "cores": [
+          0,
+          32,
+          64,
+          96
+        ],
+        "runs_per_core": 3
+      },
+      "end_state": {
+        "signal": 5,
+        "records": 1
+      },
+      "execution": {
+        "pc_offset": 156,
+        "code_bytes": 156,
+        "reached_trailer": true,
+        "candidates_fixed": 200,
+        "candidates_reaching_trailer": 200,
+        "candidates_ending_early": 0
+      }
+    }
+  ]
+}

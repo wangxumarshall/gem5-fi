@@ -1,0 +1,77 @@
+# validated word list for v2 (v2_alu_complex_saturation.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0a1032b0	AND (shifted register)
+0x0a3028b0	BIC (shifted register)
+0x0ad02e00	AND (shifted register)
+0x0ad032b0	AND (shifted register)
+0x0af02600	BIC (shifted register)
+0x0b000000	ADD (shifted register)
+0x1b008000	MSUB
+0x1b022ea0	MADD
+0x2a0025e0	ORR (shifted register)
+0x2a402880	ORR (shifted register)
+0x2a8031a0	ORR (shifted register)
+0x2a803200	ORR (shifted register)
+0x2aa02700	ORN (shifted register)
+0x2ab032f0	ORN (shifted register)
+0x2ac02e50	ORR (shifted register)
+0x2b102e20	ADDS (shifted register)
+0x4a102c20	EOR (shifted register)
+0x4a5031a0	EOR (shifted register)
+0x4a802800	EOR (shifted register)
+0x4a902860	EOR (shifted register)
+0x4b002910	SUB (shifted register)
+0x52800010	MOV (wide immediate)
+0x52800030	MOV (wide immediate)
+0x52800080	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000e0	MOV (wide immediate)
+0x52800110	MOV (wide immediate)
+0x528001a0	MOV (wide immediate)
+0x6b000000	SUBS (shifted register)
+0x72800030	MOVK
+0x72800050	MOVK
+0x72800060	MOVK
+0x72800070	MOVK
+0x728000d0	MOVK
+0x728000e0	MOVK
+0x728001a0	MOVK
+0x8a003200	AND (shifted register)
+0x8a302d00	BIC (shifted register)
+0x8a603000	BIC (shifted register)
+0x8a7024c0	BIC (shifted register)
+0x8a703270	BIC (shifted register)
+0x8a802a80	AND (shifted register)
+0x8ae03110	BIC (shifted register)
+0x8b102650	ADD (shifted register)
+0x9b000000	MADD
+0x9b008000	MSUB
+0x9b200000	SMADDL
+0x9bb42ae0	UMADDL
+0x9bb431e0	UMADDL
+0xaa002900	ORR (shifted register)
+0xaa2032d0	ORN (shifted register)
+0xaa602910	ORN (shifted register)
+0xaac029b0	ORR (shifted register)
+0xaad02f10	ORR (shifted register)
+0xab002fa0	ADDS (shifted register)
+0xab0030b0	ADDS (shifted register)
+0xab102ac0	ADDS (shifted register)
+0xca000000	EOR (shifted register)
+0xcb000000	SUB (shifted register)
+0xd2800000	MOV (wide immediate)
+0xd2800010	MOV (wide immediate)
+0xd2800020	MOV (wide immediate)
+0xd2800030	MOV (wide immediate)
+0xd28000d0	MOV (wide immediate)
+0xd28001b0	MOV (wide immediate)
+0xd28001d0	MOV (wide immediate)
+0xeb002fa0	SUBS (shifted register)
+0xf2800030	MOVK
+0xf2800050	MOVK
+0xf2800070	MOVK
+0xf2800090	MOVK
+0xf28000c0	MOVK
+0xf28000d0	MOVK
+0xf2800110	MOVK
+0xf28001d0	MOVK

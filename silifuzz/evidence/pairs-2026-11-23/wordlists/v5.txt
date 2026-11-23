@@ -1,0 +1,59 @@
+# validated word list for v5 (v5_lse_cross_die.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b102650	ADD (shifted register)
+0x110024c0	ADD (immediate)
+0x11002680	ADD (immediate)
+0x110026f0	ADD (immediate)
+0x110029a0	ADD (immediate)
+0x11003060	ADD (immediate)
+0x110031b0	ADD (immediate)
+0x110032f0	ADD (immediate)
+0x4a102de0	EOR (shifted register)
+0x4a502900	EOR (shifted register)
+0x52800020	MOV (wide immediate)
+0x52800050	MOV (wide immediate)
+0x52800080	MOV (wide immediate)
+0x52800110	MOV (wide immediate)
+0x528001a0	MOV (wide immediate)
+0x528001c0	MOV (wide immediate)
+0x72800020	MOVK
+0x72800030	MOVK
+0x72800050	MOVK
+0x72800070	MOVK
+0x72800080	MOVK
+0x72800090	MOVK
+0x728000b0	MOVK
+0x728001b0	MOVK
+0x8b0030b0	ADD (shifted register)
+0x8b102e20	ADD (shifted register)
+0x91002400	ADD (immediate)
+0x910024c0	ADD (immediate)
+0x910025c0	ADD (immediate)
+0x910025e0	ADD (immediate)
+0x910026a0	ADD (immediate)
+0x91002ad0	ADD (immediate)
+0x91002ba0	ADD (immediate)
+0x91003280	ADD (immediate)
+0xc8e17cc2	CASA
+0xc8e1fcc2	CASAL
+0xca1032b0	EOR (shifted register)
+0xcad02e00	EOR (shifted register)
+0xcad032b0	EOR (shifted register)
+0xd2800000	MOV (wide immediate)
+0xd2800010	MOV (wide immediate)
+0xd2800020	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd28000e0	MOV (wide immediate)
+0xd28001d0	MOV (wide immediate)
+0xf2800050	MOVK
+0xf2800080	MOVK
+0xf2800100	MOVK
+0xf28001c0	MOVK
+0xf28001d0	MOVK
+0xf82000c3	LDADD
+0xf82080c8	SWP
+0xf82100c9	LDADD
+0xf82200eb	LDADD
+0xf86000c5	LDADDL
+0xf8a000c4	LDADDA
+0xf8e080c7	SWPAL

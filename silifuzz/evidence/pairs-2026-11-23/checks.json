@@ -1,0 +1,44 @@
+{
+  "sweep": {
+    "mode": "sweep",
+    "corpus_files": 20,
+    "cores": 128,
+    "seconds": 30,
+    "elapsed_s": 0.219,
+    "executions": 2560,
+    "exec_per_s": 11687.9,
+    "mismatches": 0,
+    "timeouts": 0,
+    "errors": 0,
+    "batches": 1,
+    "snapshot_loads": 20,
+    "bytes_read": 59862,
+    "io_bytes_per_exec": 23.4,
+    "batch_size": 50,
+    "execs_per_batch": 1000,
+    "seed": 1
+  },
+  "sampled": {
+    "mode": "sampled",
+    "corpus_files": 20,
+    "cores": 128,
+    "seconds": 30,
+    "elapsed_s": 30.053,
+    "executions": 764152,
+    "exec_per_s": 25427.0,
+    "mismatches": 0,
+    "timeouts": 0,
+    "errors": 0,
+    "batches": 865,
+    "snapshot_loads": 43250,
+    "bytes_read": 129456125,
+    "io_bytes_per_exec": 169.4,
+    "batch_size": 50,
+    "execs_per_batch": 1000,
+    "seed": 1
+  },
+  "fleet": {
+    "stdout_tail": "window 1/2 cores=[0, 1, 2, 3] seconds=60\n  executions=80 rate=6713.7/s mismatches=0\nwindow 2/2 cores=[4, 5, 6, 7] seconds=60\n  executions=80 rate=6952.3/s mismatches=0\n{\"windows\": 2, \"executions\": 160, \"mismatches\": 0, \"db\": \"work/pairs-20261123/verify/fleet.db\"}\n",
+    "stderr_tail": ""
+  }
+}

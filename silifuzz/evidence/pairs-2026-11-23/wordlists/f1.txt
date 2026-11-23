@@ -1,0 +1,58 @@
+# validated word list for f1 (f1_subnormal_nan.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x1e200800	FMUL (scalar)
+0x1e201800	FDIV (scalar)
+0x1e202000	FCMP
+0x1e202008	FCMP
+0x1e202800	FADD (scalar)
+0x1e203800	FSUB (scalar)
+0x1e260000	FMOV (general)
+0x1e270000	FMOV (general)
+0x1e600800	FMUL (scalar)
+0x1e601800	FDIV (scalar)
+0x1e602000	FCMP
+0x1e602008	FCMP
+0x1e602800	FADD (scalar)
+0x1e603800	FSUB (scalar)
+0x2f000400	BIC (vector, immediate)
+0x2f000460	BIC (vector, immediate)
+0x2f000470	BIC (vector, immediate)
+0x2f000490	BIC (vector, immediate)
+0x2f0004b0	BIC (vector, immediate)
+0x2f0004d0	BIC (vector, immediate)
+0x2f0004e0	BIC (vector, immediate)
+0x2f0004f0	BIC (vector, immediate)
+0x2f000500	BIC (vector, immediate)
+0x2f000510	BIC (vector, immediate)
+0x2f0005d0	BIC (vector, immediate)
+0x52800020	MOV (wide immediate)
+0x52800030	MOV (wide immediate)
+0x52800040	MOV (wide immediate)
+0x52800080	MOV (wide immediate)
+0x528000e0	MOV (wide immediate)
+0x528000f0	MOV (wide immediate)
+0x528001a0	MOV (wide immediate)
+0x72800000	MOVK
+0x72800030	MOVK
+0x72800070	MOVK
+0x72800080	MOVK
+0x728000e0	MOVK
+0x728001a0	MOVK
+0x728001b0	MOVK
+0x728001e0	MOVK
+0x9e660000	FMOV (general)
+0x9e670000	FMOV (general)
+0x9eae0000	FMOV (general)
+0x9eaf0000	FMOV (general)
+0xd2800000	MOV (wide immediate)
+0xd2800030	MOV (wide immediate)
+0xd2800060	MOV (wide immediate)
+0xd28000c0	MOV (wide immediate)
+0xd28000d0	MOV (wide immediate)
+0xd28000f0	MOV (wide immediate)
+0xd28001c0	MOV (wide immediate)
+0xf2800000	MOVK
+0xf28000a0	MOVK
+0xf28000c0	MOVK
+0xf2800110	MOVK
+0xf28001c0	MOVK

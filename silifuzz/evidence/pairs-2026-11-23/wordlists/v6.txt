@@ -1,0 +1,70 @@
+# validated word list for v6 (v6_crypto_toggle.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x0e010640	DUP (element)
+0x0e010646	DUP (element)
+0x0e01066d	DUP (element)
+0x0e0106ac	DUP (element)
+0x0e0106c8	DUP (element)
+0x0e010703	DUP (element)
+0x0e010726	DUP (element)
+0x0e01073a	DUP (element)
+0x1ac05000	CRC32CB, CRC32CH, CRC32CW, CRC32CX
+0x1ac05400	CRC32CB, CRC32CH, CRC32CW, CRC32CX
+0x1ac05800	CRC32CB, CRC32CH, CRC32CW, CRC32CX
+0x1b000000	MADD
+0x1e260000	FMOV (general)
+0x1e270000	FMOV (general)
+0x4a502d00	EOR (shifted register)
+0x4a502dc0	EOR (shifted register)
+0x4a902650	EOR (shifted register)
+0x4a9030a0	EOR (shifted register)
+0x4b000000	SUB (shifted register)
+0x4e0106a5	DUP (element)
+0x4e0106a8	DUP (element)
+0x4e0106c4	DUP (element)
+0x4e0106da	DUP (element)
+0x4e0106dd	DUP (element)
+0x4e0106ef	DUP (element)
+0x4e010725	DUP (element)
+0x4e284800	AESE
+0x4e286910	AESMC
+0x52800020	MOV (wide immediate)
+0x52800070	MOV (wide immediate)
+0x528000b0	MOV (wide immediate)
+0x528000f0	MOV (wide immediate)
+0x52800110	MOV (wide immediate)
+0x528001d0	MOV (wide immediate)
+0x5e000000	SHA1C
+0x5e004000	SHA256H
+0x72800030	MOVK
+0x72800080	MOVK
+0x728000a0	MOVK
+0x728000b0	MOVK
+0x72800100	MOVK
+0x728001b0	MOVK
+0x8b102650	ADD (shifted register)
+0x9ac05c00	CRC32CB, CRC32CH, CRC32CW, CRC32CX
+0x9b000000	MADD
+0x9e660000	FMOV (general)
+0x9e670000	FMOV (general)
+0x9eae0000	FMOV (general)
+0x9eaf0000	FMOV (general)
+0xca402450	EOR (shifted register)
+0xcad02a80	EOR (shifted register)
+0xcb000000	SUB (shifted register)
+0xd2800010	MOV (wide immediate)
+0xd2800020	MOV (wide immediate)
+0xd2800040	MOV (wide immediate)
+0xd2800050	MOV (wide immediate)
+0xd2800060	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd2800110	MOV (wide immediate)
+0xf2800040	MOVK
+0xf2800070	MOVK
+0xf2800090	MOVK
+0xf28000f0	MOVK
+0xf2800110	MOVK
+0xf28001a0	MOVK
+0xf28001b0	MOVK
+0xf28001e0	MOVK

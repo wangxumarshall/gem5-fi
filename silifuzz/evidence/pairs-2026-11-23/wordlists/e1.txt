@@ -1,0 +1,40 @@
+# validated word list for e1 (e1_carry_chain.S)
+# <hex word>	<ifuzz class>; every word decodes and classifies as labelled
+0x0b000000	ADD (shifted register)
+0x2b102e20	ADDS (shifted register)
+0x4a1032b0	EOR (shifted register)
+0x4ad02e00	EOR (shifted register)
+0x4ad032b0	EOR (shifted register)
+0x52800020	MOV (wide immediate)
+0x52800030	MOV (wide immediate)
+0x52800050	MOV (wide immediate)
+0x52800090	MOV (wide immediate)
+0x528000b0	MOV (wide immediate)
+0x528001b0	MOV (wide immediate)
+0x72800000	MOVK
+0x72800030	MOVK
+0x72800090	MOVK
+0x728000a0	MOVK
+0x728000e0	MOVK
+0x728000f0	MOVK
+0x728001e0	MOVK
+0x8b102650	ADD (shifted register)
+0xab002fa0	ADDS (shifted register)
+0xab0030b0	ADDS (shifted register)
+0xab102ac0	ADDS (shifted register)
+0xca003200	EOR (shifted register)
+0xca802a80	EOR (shifted register)
+0xd2800050	MOV (wide immediate)
+0xd2800080	MOV (wide immediate)
+0xd2800090	MOV (wide immediate)
+0xd2800100	MOV (wide immediate)
+0xd28001c0	MOV (wide immediate)
+0xd28001d0	MOV (wide immediate)
+0xd28001e0	MOV (wide immediate)
+0xf2800030	MOVK
+0xf2800060	MOVK
+0xf2800080	MOVK
+0xf28000a0	MOVK
+0xf28000c0	MOVK
+0xf28000d0	MOVK
+0xf2800100	MOVK
