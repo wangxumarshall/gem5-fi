@@ -82,13 +82,36 @@ def stats(name):
     return values
 
 
+def first_dump_num_cycles(name):
+    """numCycles of the first stats dump (ROI-scoped after work-begin reset)."""
+    first = None
+    dump = 0
+    for line in (root / name / 'stats.txt').read_text().splitlines():
+        if 'Begin Simulation Statistics' in line:
+            dump += 1
+            continue
+        if dump != 1:
+            continue
+        fields = line.split()
+        if len(fields) >= 2 and fields[0].endswith('.numCycles'):
+            first = float(fields[1])
+    return first
+
+
 resources = ['rob', 'iq', 'lq', 'sq', 'intPrf', 'vecPrf', 'fu']
 
 for name in ['nop', 'rob', 'lsq', 'prf']:
     s = stats(name)
+    assert s['enabled'] == 1, (name, s)
     assert s['windowBegins'] == s['windowEnds'] == 1, (name, s)
     assert s['samples'] > 0, (name, s)
+    assert s['activeCycles'] == s['samples'], (name, s)
     assert s['measuredCycles'] == s['samples'], (name, s)
+    assert s['roiCycles'] > 0, (name, s)
+    assert s['samples'] + s['idleCycles'] == s['roiCycles'], (name, s)
+    roi_cycles = first_dump_num_cycles(name)
+    assert roi_cycles is not None and abs(s['roiCycles'] - roi_cycles) <= 1, (
+        name, s['roiCycles'], roi_cycles)
     assert s['issuedOps'] > 0, (name, s)
     for resource in resources:
         ratio = s[f'ratio::{resource}']
@@ -100,6 +123,7 @@ for name in ['nop', 'rob', 'lsq', 'prf']:
     expected = s['issuedOps'] / (s['samples'] * s['issueWidth'])
     assert abs(s['issueRatio'] - expected) < 1e-7, (name, s)
     print(f"{name:13s} samples={s['samples']:.0f} "
+          f"roi={s['roiCycles']:.0f} idle={s['idleCycles']:.0f} "
           f"rob={s['ratio::rob']:.6f} lq={s['ratio::lq']:.6f} "
           f"sq={s['ratio::sq']:.6f} prf={s['ratio::intPrf']:.6f} "
           f"fu={s['ratio::fu']:.6f} issue={s['issueRatio']:.6f}")
@@ -118,13 +142,23 @@ assert prf['ratio::intPrf'] > nop['ratio::intPrf'], (
 for name in ['nop-disabled', 'rob-unmatched']:
     s = stats(name)
     assert s['samples'] == 0 and s['windowBegins'] == 0, (name, s)
+    assert s['roiCycles'] == 0 and s['idleCycles'] == 0, (name, s)
     assert all(s[f'ratio::{resource}'] == 0 for resource in resources), (name, s)
+    if name == 'nop-disabled':
+        # No --sad: the group is still dumped, so consumers must use enabled=0.
+        assert s['enabled'] == 0, (name, s)
+    else:
+        # --sad is on but the requested work id never started an ROI.
+        assert s['enabled'] == 1, (name, s)
 
 cycle = stats('rob-cycle')
-assert 0 < cycle['samples'] <= 100, cycle
+assert cycle['enabled'] == 1, cycle
+assert cycle['roiCycles'] == 100, cycle
+assert cycle['samples'] + cycle['idleCycles'] == 100, cycle
+assert 0 < cycle['samples'] < 100, cycle
 assert cycle['windowBegins'] == cycle['windowEnds'] == 0
 print(f"SAD window, formula, direction, disabled and cycle-mode checks passed "
-      f"(cycle samples={cycle['samples']:.0f})")
+      f"(cycle samples={cycle['samples']:.0f}, roi={cycle['roiCycles']:.0f})")
 PY
 
 printf 'outputs: %s\n' "$out_root"

@@ -62,6 +62,8 @@ class SADTracker
         "rob", "iq", "lq", "sq", "intPrf", "vecPrf", "fu"};
 
     uint64_t currentCycle() const;
+    uint64_t roiCycles() const;
+    uint64_t idleCycles() const;
     bool cycleWindowActive(uint64_t cycle) const;
     bool selected(uint64_t id) const;
     void sample();
@@ -108,6 +110,10 @@ class SADTracker
         statistics::Value measuredCycles;
         statistics::Value windowBegins;
         statistics::Value windowEnds;
+        statistics::Value enabled;
+        statistics::Value roiCycles;
+        statistics::Value idleCycles;
+        statistics::Value activeCycles;
         statistics::Vector usedSum;
         statistics::Vector capacity;
         statistics::Vector ratio;

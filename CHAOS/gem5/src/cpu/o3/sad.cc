@@ -46,6 +46,32 @@ SADTracker::currentCycle() const
     return static_cast<uint64_t>(cpu->curCycle());
 }
 
+uint64_t
+SADTracker::roiCycles() const
+{
+    if (!enabled)
+        return 0;
+
+    const uint64_t now = currentCycle();
+    if (useWorkItems) {
+        if (!started)
+            return 0;
+        const uint64_t end = complete ? windowEnd : now;
+        return end > windowStart ? end - windowStart : 0;
+    }
+
+    const uint64_t start = std::max(startCycle, resetCycle);
+    const uint64_t end = endCycle ? std::min(endCycle, now) : now;
+    return end > start ? end - start : 0;
+}
+
+uint64_t
+SADTracker::idleCycles() const
+{
+    const uint64_t roi = roiCycles();
+    return roi > samples ? roi - samples : 0;
+}
+
 bool
 SADTracker::selected(uint64_t id) const
 {
@@ -175,19 +201,32 @@ SADTracker::issueRatio() const
 SADTracker::Stats::Stats(SADTracker &t, CPU *cpu)
     : statistics::Group(cpu, "sad"), tracker(t),
       ADD_STAT(samples, statistics::units::Cycle::get(),
-               "Cycles sampled inside the SAD ROI"),
+               "Active CPU cycles sampled inside the SAD ROI (excludes idle)"),
       ADD_STAT(issueWidth, statistics::units::Count::get(),
                "Configured O3 issue width used as the issue-slot capacity"),
       ADD_STAT(issuedOps, statistics::units::Count::get(),
-               "Instructions issued inside the SAD ROI"),
+               "Issue-path events (same condition as IQ instsIssued; "
+               "includes replays; not retired instructions)"),
       ADD_STAT(issueRatio, statistics::units::Ratio::get(),
-               "Issue-width slots used / (samples * issue width)"),
+               "Issue-path events per issue-width slot (not retired "
+               "instructions per slot)"),
       ADD_STAT(measuredCycles, statistics::units::Cycle::get(),
-               "Alias of samples, kept consistent with ACE/IBR reporting"),
+               "Deprecated alias of activeCycles; NOT the ROI length; "
+               "use roiCycles for ACE/IBR comparison"),
       ADD_STAT(windowBegins, statistics::units::Count::get(),
                "Selected work-item windows started"),
       ADD_STAT(windowEnds, statistics::units::Count::get(),
                "Selected work-item windows completed"),
+      ADD_STAT(enabled, statistics::units::Count::get(),
+               "SAD measurement enabled (1) or disabled (0)"),
+      ADD_STAT(roiCycles, statistics::units::Cycle::get(),
+               "ROI length in CPU cycles including idle/unscheduled cycles "
+               "(matches ACE/IBR measuredCycles)"),
+      ADD_STAT(idleCycles, statistics::units::Cycle::get(),
+               "ROI cycles not sampled (idle plus the exclusive end "
+               "boundary); samples + idleCycles == roiCycles"),
+      ADD_STAT(activeCycles, statistics::units::Cycle::get(),
+               "Alias of samples: active CPU cycles in the SAD ROI"),
       ADD_STAT(usedSum, statistics::units::Count::get(),
                "Sum of used resource entries over sampled cycles"),
       ADD_STAT(capacity, statistics::units::Count::get(),
@@ -209,6 +248,10 @@ SADTracker::Stats::Stats(SADTracker &t, CPU *cpu)
     measuredCycles.functor([this]() { return tracker.samples; });
     windowBegins.functor([this]() { return tracker.windowBegins; });
     windowEnds.functor([this]() { return tracker.windowEnds; });
+    enabled.functor([this]() { return tracker.enabled ? 1.0 : 0.0; });
+    roiCycles.functor([this]() { return tracker.roiCycles(); });
+    idleCycles.functor([this]() { return tracker.idleCycles(); });
+    activeCycles.functor([this]() { return tracker.samples; });
 }
 
 void
