@@ -14,6 +14,8 @@ Outputs:
 """
 from __future__ import annotations
 
+import os
+
 import collections
 import csv
 import glob

@@ -11,6 +11,8 @@ No causal edge is created in this module: it only exposes facts.
 """
 from __future__ import annotations
 
+import os
+
 import bisect
 import collections
 import gzip

@@ -28,6 +28,8 @@ stamped SUPERSEDED; they are never deleted.
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import collections
 import csv
