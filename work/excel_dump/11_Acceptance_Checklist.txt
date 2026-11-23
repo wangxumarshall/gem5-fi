@@ -1,0 +1,18 @@
+SHEET 11_Acceptance_Checklist dims=A1:D17 rows=17 cols=4
+R1: CheckID | Requirement | Status | Evidence/Notes
+R2: A01 | All v2 MMU functional areas assessed | PASS | Coverage matrix includes ITLB/DTLB/L2/maintenance/PTW/translation/permission/attributes/fault detection
+R3: A02 | ARM concept distinguished from gem5 implementation | PASS | Architecture sheet records actual classes/functions
+R4: A03 | Every selected model source mapped | PASS | Source mapping includes path/function/line
+R5: A04 | One unique operation per model | PASS | 8 models, one operation each
+R6: A05 | M01 target layer/lifetime | PASS_WITH_PILOT_GATE | l2_shared target based on W9; pilot must prove stale L2 hit after all matching TLBIs
+R7: A06 | M02/M04/M08 distinct | PASS | refill payload vs resident entry vs one-request PA
+R8: A07 | ITLB explicitly covered | PASS | R05 Execute contexts in generic TLB models
+R9: A08 | L2 partial walk-cache semantics | PASS_SOURCE | M05 source path proven; W13 pending
+R10: A09 | Permission model oracle | DESIGN_PROPOSAL | W14 RO/RW alias pending
+R11: A10 | Memory attributes assessed | PASS | Trace-only with reason
+R12: A11 | 5 contexts per model | PASS_DESIGN | 40 proposed rows; not executed
+R13: A12 | Seed policy respected | PASS | No Seed generated
+R14: A13 | W9/W10 preserved | PASS | Existing binaries and logs unchanged
+R15: A14 | C++ hooks implemented | NOT_DONE | Out of scope
+R16: A15 | W11-W14 baseline complete | NOT_DONE | Out of scope
+R17: A16 | Formal injection complete | NOT_DONE | No formal fault runs

@@ -1,0 +1,27 @@
+# MMU WHEN-5X3 (120-condition) final experiment — git-ignore policy
+# Tracked: source + configs + scripts + frozen delivery + machine-readable results.
+# Ignored: build artifacts, raw run outputs, and external runtime assets
+# (kernel / disk template / bootloader / checkpoint), which are documented as
+# EXTERNAL and archived in frozen_delivery/.
+
+# vendored gem5: nested upstream .git + build artifacts
+CHAOS/gem5/.git/
+CHAOS/gem5/build/
+build/
+m5out/
+
+# external runtime assets (kernel, disk template, bootloader, checkpoint)
+gem5-fs/
+runs/
+*.img
+
+# python
+__pycache__/
+*.pyc
+
+# logs
+*.log
+*.err
+# regenerable chain-derivation caches (canonical data in frozen_delivery ZIPs)
+analysis/_chains_cache.json
+analysis/chain_branches.csv

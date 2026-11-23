@@ -1,0 +1,111 @@
+# CHAOSLSQFwd — store-to-load forwarding-path fault injector for O3CPU.
+#
+# Injects bit-flips / stuck-at faults into the data forwarded from the store
+# queue to a load (the memcpy at lsq_unit.cc FullAddrRangeCoverage branch),
+# modeling the store-buffer forwarding-path corruption that reproduce-method2
+# v3 localized to core 179's load/store unit (the reload `ldr` of just-read
+# input, multi-bit, mantissa-concentrated, sign-immune). This is the only
+# injection point that directly exercises method2's mechanism — CHAOSPhysReg
+# corrupts a register cell; CHAOSLSQFwd corrupts the forwarding datapath.
+#
+# O3-only: attaches via a cpu-side hook (cpu->lsqFwd accessor in cpu.hh,
+# called from lsq_unit.cc after the forward memcpy).
+from m5.params import *
+from m5.SimObject import SimObject
+
+
+class CHAOSLSQFwd(SimObject):
+    type = "CHAOSLSQFwd"
+    cxx_class = "gem5::CHAOSLSQFwd"
+    cxx_header = "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+
+    cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
+
+    probability = Param.Float(0.0,
+        "Per-forwarding-event probability of corrupting the forwarded data. "
+        "0 = no injection; use e.g. 0.001 to corrupt ~1/1000 forwards.")
+
+    faultType = Param.String("bit_flip",
+        "bit_flip | stuck_at_zero | stuck_at_one | random")
+    faultMask = Param.UInt64(0,
+        "§2.4: 64-bit (was UInt32 — truncated bit>=32). Per-byte bitmask "
+        "applied to the forwarded data (0 = random, bitsToChange bits). "
+        "Applied to ONE byte selected by byteOffset (-1 = random byte).")
+    bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
+    byteOffset = Param.Int(-1,
+        "Which byte of the forwarded buffer to corrupt (-1 = random within "
+        "[0, size-1]). method2's mantissa concentration comes from corrupting "
+        "the low bytes of IEEE754 data.")
+    # §2.4 structured fault mode (from fi-h6-h7 branch, H5 closed):
+    structMode = Param.String("byte_flip",
+        "byte_flip (default, orig) | byte_lane_skew (rol_k rotate the whole "
+        "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
+        "signature) | all_zero (zero the whole 8-byte buffer) | "
+        "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+        "entry — method1 wrong-source store->load forwarding)")
+    laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
+    l03Mode = Param.Bool(False,
+        "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
+        "data-path hook is excluded from the trigger stream (hook split); without "
+        "it, the violation hook stays silent (data-path structMode models only)")
+    l04Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.3] W5 L04: response-pairing target exchange (L04-b) — "
+        "the injector's stream is the response-pairing point "
+        "(LSQUnit::completeDataAccess, maybeSwapResponseTarget); the SQ-forward "
+        "data-path hook is excluded (hook split, L03 discipline). Requires "
+        "lsuTier != off (the ctor panics otherwise — trigger-native model).")
+    s10Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值 (S10-a) — the "
+        "injector's stream is the StoreSet SSIT-training point "
+        "(StoreSet::violation's new-SSID assignment arm, via the chaosS10* "
+        "hooks); the substituted value is ANOTHER LEGAL live store-set ID "
+        "(candidates = valid SSIT entries' SSIDs, no random bit strings — "
+        "workbook 07 实施细则). The SQ-forward data-path hook is excluded "
+        "(hook split, L03/L04 discipline). Requires lsuTier != off AND the "
+        "standard mount (probability > 0) — the ctor panics otherwise "
+        "(trigger-native model).")
+
+    firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
+    lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
+    maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited")
+    rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    # v1.1 Phase 8.2 uniform sampling (design doc §1.7 rule 4): FIXED skip
+    # from the driver's chaosPickSkip(seed, N_eligible) overrides the
+    # legacy geometric(p=0.1) draw. UINT64_MAX sentinel = legacy behavior.
+    eventsToSkip = Param.UInt64(0xFFFFFFFFFFFFFFFF,
+        "FIXED number of eligible events to skip before the first "
+        "injection (uniform-sampling mode). Default UINT64_MAX = legacy "
+        "geometric(0.1) draw from rngSeed.")
+    countOnly = Param.Bool(False,
+        "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
+        "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # [MDSPEC][R4-9-FSMC] O06 barrier-completion / O07 order-tag modes. Node =
+    # the O3 MemDepUnit's barrier-SN bookkeeping (the ONLY barrier-completion
+    # structure on this platform; DMB/DSB themselves carry no memory access —
+    # see cpu/o3/chaos_barrier_hook.hh). Requires lsuTier != off (the ctor
+    # panics otherwise — trigger-native model, L04/S10 discipline).
+    o06Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O06: barrier-completion tracking fault. The "
+        "injector hooks MemDepUnit::insertBarrierSN / completeInst and, on "
+        "the trigger's consent, either releases the barrier early "
+        "(o06BarrierDone=early) or never releases it (stuck). The SQ-forward "
+        "data-path hook is NOT part of this stream.")
+    o06BarrierDone = Param.String("early",
+        "O06 sub-rule: early (O06-a 提前 done — the barrier SN is not "
+        "tracked, so later memory ops issue past the barrier; a litmus "
+        "violation => SDC) | stuck (O06-b 延后/丢失 done — the SN is never "
+        "released, every later memory op waits forever => Timeout). Inert "
+        "unless o06Mode.")
+    o07Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O07: order-tag 换值. HONEST PROXY — gem5 O3 has "
+        "no explicit ordering queue; the barrier-SN set is the structural "
+        "analogue (InstSeqNum = the order tag, the release point = the "
+        "handoff). On consent the injector releases ANOTHER live barrier SN "
+        "in this one's place (always a legal live value, never fabricated); "
+        "with no other live SN the injection is honestly skipped.")
+    # LSU W2/W5 (05 r2-r8): event-normalized trigger tier; "off" = legacy
+    # cycle-window + geometric-skip path (byte-identical).
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
+    writeLog = Param.Bool(True, "Write a fault_injections.log file")

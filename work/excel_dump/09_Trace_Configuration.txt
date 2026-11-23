@@ -1,0 +1,37 @@
+SHEET 09_Trace_Configuration dims=A1:F36 rows=36 cols=6
+R1: Field | Type | Scope | CurrentStatus | SourceOrInsertionPoint | Semantics
+R2: FaultID | string/u64 | global | EXISTS | CHAOSPropagation | One initial fault source
+R3: SampleRunID | string | global | EXISTS | runner/CHAOSPropagation | Must be authoritative Excel; current IDs proposed
+R4: EventID | u64 | global | EXISTS | CHAOSPropagation | Monotonic event identity
+R5: ParentEventID | u64/string | global | EXISTS | CHAOSPropagation | Explicit causal parent/fan-out
+R6: DynamicInstSeqNum | u64 | CPU | EXISTS | DynInst seqNum | Instruction identity, not request ID
+R7: PC | Addr | CPU/MMU | PARTIAL | Request/DynInst PC | Required for IFU and consumer
+R8: TLBIID | u64 | MMU | MISSING | new counter at performTlbi/flush | One per TLBI operation
+R9: LookupID | u64 | MMU | MISSING | new counter in TLB::lookup | One per lookup including levels/retries
+R10: TranslationID | u64 | MMU | MISSING | new counter in MMU::getTE | One per translation attempt
+R11: WalkID | u64 | PTW | EXISTS | WalkerState::chaosWalkId | One walk may serve multiple requests
+R12: WalkLevel | enum | PTW | PARTIAL | longDesc.lookupLevel | Structured L0-L3
+R13: TLBInstance | string | MMU | PARTIAL | itb/dtb/l2_shared/stage2_* | Disambiguate level
+R14: TLBEntryID | u64 | MMU | MISSING | new stable slot ID | Never use raw pointer/index alone
+R15: EntryGeneration | u32 | MMU | MISSING | increment on slot reuse/invalidate | Distinguish entry lifetimes
+R16: ASID | u16 | MMU | MISSING_STRUCTURED | TlbEntry/WalkerState | Actual runtime value
+R17: VMID | vmid_t | MMU | MISSING_STRUCTURED | TlbEntry/WalkerState | Stage-2 only
+R18: VA | Addr | MMU/LSU | EXISTS | Request VA | Keep tagged and canonical VA distinct
+R19: PA | Addr | MMU/LSU | EXISTS | TlbEntry::pAddr/Request | Record before/after
+R20: PTEAddress | Addr | PTW | MISSING | fetchDescriptor request | Descriptor physical address
+R21: PTEValueBefore/After | u64 pair | PTW | MISSING | longDesc.data around hook | Prove local descriptor mutation and memory PTE unchanged
+R22: TranslationResult | struct | MMU | PARTIAL | translateMmuOn/noteTlbTranslationResult | Source, PFN, N, PA, Fault
+R23: PermissionResult | bool/enum | MMU | MISSING | checkPermissions64 grant + Fault | Record before/after
+R24: MemoryAttribute | struct | MMU | PARTIAL | TlbEntry attrs and Request flags | Record mtype/nonCacheable/shareability
+R25: RequestID | u64 | LSQ | PARTIAL_ALIAS | Request::getReqInstSeqNum | Legacy alias of dyn seq; not unique
+R26: UniqueRequestID | u64 | LSQ | MISSING | new per LSQ request | Unique memory request identity
+R27: RequestFragmentID | u32 | LSQ | MISSING | split request fragment | One instruction may split
+R28: ResponseID | u64 | cache/LSQ | MISSING | new response counter | Pair request/response
+R29: execution_attempt_id | u32 | LSQ | MISSING | increment on translation retry | Execution attempt
+R30: replay_generation | u32 | CPU/LSQ | MISSING | per instruction replay counter | Re-execution generation
+R31: commit_seq | u64 | CPU | EXISTS | CHAOSPropagation | Join commit to instruction
+R32: CommitStatus/SquashStatus | enum | CPU | EXISTS | commit/squash events | Keep distinct
+R33: FaultStatus/ExceptionClass | enum/string | MMU | MISSING | Fault object / abort | Translation/permission/access flag
+R34: TraceIntegrity | enum | quality | NEW | post-run validator | PASS/FAIL/UNKNOWN
+R35: TraceCompleteness | enum | quality | NEW | expected event edges | COMPLETE/PARTIAL/INCOMPLETE
+R36: PropagationCoverage | enum | quality | NEW | path validator | FULL/PARTIAL/NOT_OBSERVED

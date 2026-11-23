@@ -1,0 +1,105 @@
+# gem5 observation-only patch — W5X3-OBS-0222 (M07-C02 squash-discard terminal)
+
+Round 0222 · `gem5-fi-mmu-when5x3` · 2026-11-19
+New build hash: `ce80a9c983b31f77c9b4a6626012505fd3484d5c00df5b9399a9d6975ab2b73d`
+
+Purpose: prove, at runtime, the COMPLETE fault->terminal lifecycle of the
+M07-C02-T01/T02 squashed loads.  Previously the chain was inferred to stop at
+`lsu_request` (no downstream events = "request pending at ROI end").  This
+patch adds pure-observation events in the O3 LSQ translation-completion path
+so the actual discard branch is visible in the trace.
+
+Observation-only: nothing changes translation/dispatch behavior.  The 8
+matching Controls reproduce frozen N (M07-C02 N=6) and the guest SIGSEGV
+pattern is byte-identical to the historical runs.
+
+## New event kinds (fault_id joins the whole chain; parent_event_id chains them)
+
+  translation_response_received
+  squash_translation_decision     (decision=continue_normal|discard_due_to_prior_squash)
+  squash_translation_invoked      (released=1 -> self-destruct)
+  translation_request_discarded   (terminal_reason=prior_squash_before_translation_completion)
+  cache_dispatch_decision         (dispatch_decision=cache_dispatch_blocked_by_squash)
+
+## Change 1 — src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+
+(a) add 7 fields to PROP_EVT_EXT_FIELDS (family keys; do not touch the shared
+    PROP_EVT_FIELDS registry):
+
+@@ PROP_EVT_EXT_FIELDS, before closing `};` @@
+-        "faulting_inst_squashed", "faulting_inst_squash_event_id",
+-        "masked_reason",
++        "faulting_inst_squashed", "faulting_inst_squash_event_id",
++        "masked_reason",
++        // [W5X3-OBS-0222] LSQ translation-lifecycle terminal evidence
++        // (M07-C02-T01/T02 squash-discard chain). released = LSQ entry already
++        // freed when squashTranslation() runs; decision = continue_normal vs
++        // discard_due_to_prior_squash; terminal_reason =
++        // prior_squash_before_translation_completion; dispatch_decision =
++        // cache_dispatch_blocked_by_squash.
++        "released", "squash_cause", "decision", "terminal_reason",
++        "cleanup_completed", "dispatch_decision", "rejection_reason",
+
+(b) new method declaration after mmuNoteLsuRequest:
+
+@@ @@
+     void mmuNoteLsuRequest(const RequestPtr &req, Addr va, Addr pa,
+                            const char *mode, bool is_fetch, bool has_pa);
++    // [W5X3-OBS-0222] Runtime observation of the LSQ translation-response
++    // handoff and the squash-discard decision, emitted from
++    // LSQ::SingleDataRequest::finish.  Parent-chained emission:
++    //   translation_response_received -> squash_translation_decision ->
++    //   [if prior_squash] squash_translation_invoked ->
++    //   translation_request_discarded -> cache_dispatch_decision.
++    // Pure observation; never changes translation/dispatch behaviour.
++    void mmuNoteLsqTranslationFinish(const RequestPtr &req,
++                                     o3::DynInst *inst,
++                                     const char *fault_status, Addr pa,
++                                     bool prior_squash, bool released);
+
+## Change 2 — src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+
+Add CHAOSPropagation::mmuNoteLsqTranslationFinish (after mmuNoteLsuRequest).
+It resolves tid via mmuTxnForSeqVa(seq,va)/mmuTxnForSeq(seq), then emits the
+parent-chained event sequence.  Identity fields: fault_id (ftid),
+translation_id, unique_request_id, dyn_inst_seq, request_id, va, pc, asid,
+fault_status, lq_idx, pa; plus decision/released/squash_cause/
+terminal_reason/cleanup_completed/dispatch_decision/rejection_reason.
+
+  - translation_response_received  parent = txn.last_event (the open lsu_request)
+  - squash_translation_decision    decision = continue_normal | discard_due_to_prior_squash
+  - [if prior_squash]
+      squash_translation_invoked   released = isReleased()
+      translation_request_discarded terminal_reason = prior_squash_before_translation_completion
+      cache_dispatch_decision      dispatch_decision = cache_dispatch_blocked_by_squash
+
+## Change 3 — src/cpu/o3/lsq.cc  (LSQ::SingleDataRequest::finish)
+
+@@ after `numTranslatedFragments = 1;`, before the isSquashed() branch @@
++    /* [W5X3-OBS-0222] Observe the translation-response handoff and the
++     * squash-discard decision so the fault->LSU->squash-terminal chain is
++     * proven at runtime (not inferred from the absence of a cache_request).
++     * Pure observation; never changes translation/dispatch behaviour. */
++    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation) {
++        const bool prior_squash = _inst->isSquashed();
++        const bool released = isReleased();
++        const char *fs = (fault == NoFault) ? "NoFault"
++                          : (fault ? fault->name() : "NoFault");
++        const Addr pa = request->hasPaddr() ? request->getPaddr() : 0;
++        _inst->cpu->chaosPropagation->mmuNoteLsqTranslationFinish(
++            request, _inst.get(), fs, pa, prior_squash, released);
++    }
+
+No other change.  The `if (_inst->isSquashed()) { squashTranslation(); }`
+branch and the normal `setState(State::Request)` branch are unchanged.
+
+## Modified file SHA256 (post-build)
+
+  src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh  bd2704f604d15d5d89831a3da1efb1fb08d2e9bde5f077d240169c872d36bd4d
+  src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc  0f49d990e4dd1445102ffcab7f3dc059811f1fb097f79515bdf5c31d7d9f9441
+  src/cpu/o3/lsq.cc                                 c6a6febf0fc2c8f916087b4979f2023c125c1fd5ce85cc94a2d10b1ad4e0d9b0
+
+## Re-run
+
+  python3 work/rerun_m07_c02_obs.py    # CTRL-OBS-M07-C02 + T01 + T02
+  build: cd CHAOS/gem5 && scons -j64 build/ARM/gem5.opt  (gem5 25.1.0.1)

@@ -1,0 +1,6 @@
+# -*- mode:python -*-
+# CHAOSBPU — O3 branch-prediction fault injector (§2.13, S3 P3).
+Import('*')
+SimObject('CHAOSBPU.py', sim_objects=['CHAOSBPU'], enums=[])
+Source('CHAOSBPU.cc')
+DebugFlag('CHAOSBPU')

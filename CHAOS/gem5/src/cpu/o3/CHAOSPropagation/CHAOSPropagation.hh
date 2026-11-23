@@ -1,0 +1,2013 @@
+#ifndef __CPU_O3_CHAOS_PROPAGATION_HH__
+#define __CPU_O3_CHAOS_PROPAGATION_HH__
+
+// CHAOSPropagation — [LSU][OBS-L3] real L3 propagation-chain tracer for LSU
+// non-PRF faults (central correction directive 2026-10-13: L3 must be a REAL
+// propagation correlation, not commit-divergence counting and not a PRF
+// liveness proxy). Observation-only for architectural state: it READS the
+// fault-injection call path, the LSQ request/response path and the commit
+// stream, and never writes any CPU state. The only writes are to
+// prop_trace.csv.gz and its own registries/taint set.
+//
+// COVERED FAMILIES (v1): addrpath (CHAOSAddrPath, both the sendFragment
+// post hook and the pushRequest PRE family) and cache (CHAOSCache data /
+// data_shift field faults). lsqfwd / prefetch / exmod families are NOT
+// wired — the driver does not pass --chaos_propagation for them and
+// tools/lsu_l3_propagation.py reports them unsupported (honest).
+//
+// ============================ prop_trace.csv.gz v1 =========================
+// First line (comment, exactly):
+//   # lsu-propagation v1: node_id,tick,ptag,kind,dyn_inst_seq,request_id,
+//   (continued) addr,phys_reg,arch_reg,detail
+// Every following line is one CSV node:
+//   node_id      sequential node counter, starts at 0
+//   tick         curTick()
+//   ptag         propagation tag (per-fault chain id, 1-based; 0 = rows not
+//                bound to one chain, i.e. funnel rows)
+//   kind         inj | addr_form | mem_req | resp | taint_reg | consumer |
+//                errant_commit | funnel
+//   dyn_inst_seq DynInst::seqNum of the involved dynamic instruction
+//                ("" when not applicable)
+//   request_id   Request::getReqInstSeqNum() — the request→dyn-inst binding
+//                gem5 v25 actually maintains (gem5 v25 Request has NO unique
+//                id(); CONTRACT DEVIATION, documented in the design doc)
+//                ("" when not applicable / not stamped)
+//   addr         hex, lowercase, no 0x prefix ("" when not applicable)
+//   phys_reg     physical register index within its class
+//                ("" when not applicable; the class is in detail k=v)
+//   arch_reg     architectural register index ("" when not applicable)
+//   detail       compact "k=v;k=v" fields, NO commas; numeric values are
+//                decimal, address-bearing values are bare hex (no 0x)
+// Numeric columns with no value are EMPTY STRINGS (never placeholders).
+//
+// kind semantics:
+//   inj            the fault was injected (injector call site); detail
+//                  carries site=, family=, mode/field=, old/new addrs...
+//   addr_form      the erroneous address was formed (addrpath): addr column
+//                  = new (corrupted) address; detail carries old_addr/new_addr
+//   mem_req        a memory Request carrying the fault left the LSQ toward
+//                  translation/memory (sendFragmentToTranslation); matched
+//                  against the addr registry (addrpath: range overlap +
+//                  dyn_inst_seq match) or the faulted-byte registry (cache:
+//                  range overlap, SE vaddr==paddr assumption)
+//   resp           the memory response delivering the fault returned to the
+//                  CPU (completeDataAccess, pre-writeback); detail carries
+//                  data_fnv (FNV-1a-64 of the response bytes) and fault=
+//                  when the inst carries a fault
+//   taint_reg      a load destination physical register received data
+//                  delivered through the fault path and entered the taint
+//                  set (resp + register writeback, completeDataAccess)
+//   consumer       a committed instruction read a source phys reg in the
+//                  taint set (Commit::commitHead anchor)
+//   errant_commit  the FIRST commit on a fault path — either the faulting
+//                  load itself committing its tainted dest, or the first
+//                  consumer. Field-level "first wrong architectural commit"
+//                  remains L2 commit_diff.first_errant_commit (authoritative);
+//                  this node is the propagation-view alignment point.
+//   funnel         attempted/eligible/injected funnel row (one per injection
+//                  + one final per injector at exit); ptag=0. Written
+//                  Z_SYNC_FLUSH-per-node so ABORTED runs keep the funnel
+//                  (central requirement: abort samples must carry
+//                  attempted/eligible).
+//
+// Crash durability (W2.1/W2.4 contract, CHAOSMicroSnap/CHAOSCommitTrace
+// pattern): raw zlib gzFile at simout.resolve(trace_file) — NOT
+// simout.create's gz streambuf. EVERY node is followed by
+// gzflush(Z_SYNC_FLUSH), so an aborted run leaves every completed node
+// readable (the file then lacks only the gzip trailer; the Python parser
+// salvages the prefix and flags truncated=true). The trailer is written by
+// gzclose in an exit callback (destructor is a backstop only — gem5's exit
+// path does not reliably run SimObject destructors).
+//
+// Attachment (setter pattern, CHAOSCommitTrace/CHAOSMicroSnap): startup()
+// dynamic_casts p.cpu to o3::CPU and sets BOTH
+//   cpu->setChaosPropagation(this)          (LSQ-side hooks: lsq.cc,
+//                                            lsq_unit.cc read it via
+//                                            cpu->chaosPropagation)
+//   cpu->o3Commit().setChaosPropagation(this) (commit.cc commitHead hook)
+// CHAOSCache has no CPU pointer, so it reaches the tracer through the
+// static instance() (single-core campaign; BaseCache::chaosVictimHook /
+// chaosLsuF6Notify static-hook precedent).
+//
+// ===================== registries / taint set (v1 rules) ===================
+// addr registry (addrpath): map<new_addr_base, {ptag, dyn_seq, size, tick}>.
+//   A Request matches when [vaddr, vaddr+size) overlaps [base, base+size)
+//   AND req->getReqInstSeqNum() == dyn_seq (the faulted request belongs to
+//   the faulting instruction; replays of the same inst via savedRequest
+//   legitimately re-match — the corrupted vaddr/addr is baked into the
+//   reused LSQRequest). Entries expire addrExpiryTicks after registration
+//   (lazy sweep on insert/lookup) to bound address-reuse misattribution.
+// faulted-byte registry (cache): map over [byte_addr, byte_end) ranges
+//   (single byte for data faults; whole block for data_shift; metadata
+//   field faults tag/valid/dirty/coh and the victim path register NO range —
+//   their chain honestly stops at the inj node).
+// taint set: map<(classValue, phys idx), {ptag, taintor_seq}>.
+//   + taint_reg at completeDataAccess (resp hit + needWBToRegister +
+//     NoFault + not squashed — exactly the condition under which
+//     LSQUnit::writeback performs completeAcc and writes the PRF).
+//   + consumer at commitHead when a source phys reg is tainted.
+//   + dest re-taint when a consumer commits (its dests carry the wrong
+//     value onward); clean-overwrite erase when an UNRELATED producer
+//     commits onto a tainted phys cell (the cell is rewritten with a fresh,
+//     untainted value — bounds stale taint after phys-reg recycling).
+//   + the tainting load's own commit keeps its dest taint (taintor_seq
+//     match) — that commit IS the first architectural materialization.
+//   Squash-race residual (documented): a load tainted at writeback then
+//     squashed before commit can leave stale taint on a recycled phys reg;
+//     the clean-overwrite rule bounds it; no squash hook in v1.
+// errant_commit: once per run (first overall). Single-fault campaign
+//   (maxFaults=1) ⇒ one ptag; multi-fault runs attribute the node to the
+//   first involved chain (detail says which).
+
+#include <zlib.h>
+
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "cpu/o3/CHAOSPropagation/chaos_consumer_summary.hh"  // [MDSPEC][R6-FIXCPP/T3]
+#include "base/types.hh"
+#include "mem/request.hh"          // RequestPtr (CHAOSAddrPath.hh precedent)
+#include "params/CHAOSPropagation.hh"
+#include "sim/sim_object.hh"
+#include "base/output.hh"
+#include "cpu/base.hh"
+
+namespace gem5 { namespace o3 { class CPU; } }
+namespace gem5 { namespace o3 { class DynInst; } }
+namespace gem5 { class Packet; }
+
+namespace gem5
+{
+
+class CHAOSPropagation : public SimObject
+{
+  public:
+    CHAOSPropagation(const CHAOSPropagationParams &p);
+    ~CHAOSPropagation();
+
+    // CHAOSCache (no CPU pointer) reaches the tracer through this static
+    // (single-instance assumption: single-core campaign; the static-hook
+    // precedent is BaseCache::chaosVictimHook / chaosLsuF6Notify).
+    static CHAOSPropagation *instance() { return chaos_instance; }
+
+    // [R6-A2/A07-c] Last emitted event_id for a fault chain (0 = none). The
+    // watchdog terminal must hang off that event so its L0→L4 prefix is
+    // provable; hanging off the inj node would make the gate reject it.
+    uint64_t lastEventId(uint64_t ptag) const {
+        auto it = ptag_last_event.find(ptag);
+        return it == ptag_last_event.end() ? 0 : it->second;
+    }
+
+    void startup() override;
+
+    // ============ PROP-EVT unified stream (spec sheet 11, plan Task H0) ====
+    // prop_evt.txt.gz: one line per propagation event, ALL registry fields
+    // in canonical order, empty values kept as "k=" (keys never omitted):
+    //   PROP-EVT: kind=<v> run_id=<v> ... evidence_status=<v>
+    // event_id shares the v1 node_id counter (PROP-EVT line N joins the v1
+    // CSV row N 1:1). parent_event_id = previous event of the same fault
+    // chain (root inj = ""), so propagation edges are explicit — no
+    // offline guessing. The registry below is the single source of truth;
+    // tools/lsu_prop_fields.py carries an identical copy, pinned equal by
+    // tests/test_lsu_prop_fields.py (emit/parse same-source discipline).
+    // "kind" leads the registry: spec sheet 11 lists 24 data fields but no
+    // event type — without kind the stream is untyped (v1 precedent).
+    static inline const char *const PROP_EVT_FIELDS[] = {
+        "kind", "run_id", "sample_run_id", "fault_id", "event_id",
+        "parent_event_id", "tick", "cycle", "core_id", "thread_id",
+        "dyn_inst_seq", "store_dyn_inst_seq", "commit_seq", "pc", "opcode",
+        "lq_idx", "sq_idx", "request_id", "walk_id", "mshr_id", "fill_id",
+        "pf_request_id", "va", "pa", "cache_line", "set", "way",
+        "entry_index", "field", "before", "after", "state_before",
+        "state_after", "arch_reg", "phys_reg", "detection_layer",
+        "contained", "outcome", "oracle_diff", "evidence_status", "corr",
+    };
+    static constexpr int N_PROP_EVT_FIELDS =
+        (int)(sizeof(PROP_EVT_FIELDS) / sizeof(PROP_EVT_FIELDS[0]));
+
+    // [MDSPEC][R6] T-series containment vocabulary, carried OUTSIDE the
+    // shared PROP_EVT_FIELDS registry on purpose. That registry is mirrored
+    // 1:1 by tools/lsu_prop_fields.py and pinned equal by
+    // tests/test_lsu_prop_fields.py; the parser already keeps family keys
+    // outside it ("注册表外的家族键…保留在 dict 中供家族消费" —
+    // lsu_prop_fields.parse_line). Growing the SHARED registry is a
+    // tools-lane change, so the TLB family records its disposition here
+    // rather than half-routing a contract it does not own.
+    //
+    // Ruling: an unchanged-PA (Masked) / permission-denied / lost-walk
+    // fault is CONTAINED. A contained chain must say WHERE it was contained
+    // and WHY, so the offline checker can close it as detected_contained
+    // instead of "provable_to_Ln_then_unknown" (beyond=Unknown). The layer
+    // value is the L-number (e.g. "L2"); the reason reuses the L2 `field`
+    // vocabulary (effective_pa_unchanged / translation_blocked /
+    // walk_refill_lost).
+    static inline const char *const PROP_EVT_EXT_FIELDS[] = {
+        "containment_layer", "containment_reason",
+        // [MDSPEC][R6-FIXA2] Explicit lineage-bridge (kind=request_fork)
+        // vocabulary — family keys emitted ONLY on bridge events; the parser
+        // keeps family keys outside the shared registry (see above), so the
+        // bridge contract travels without growing the shared sheet-11 registry.
+        "old_request_id", "new_request_id", "source_event_id", "dest_event_id",
+        "bridge_layer", "bridge_reason", "shared_addr", "shared_size",
+        // [MDSPEC][R6-A4/A07-b] AGU ready-delay REAL lifecycle vocabulary
+        // (user ruling 7, 2026-10-28). The delayed ready handshake needs its
+        // own explicit time/consumption fields so the offline lifecycle
+        // check can prove ready_tick < delayed_tick <= resume_tick <=
+        // terminal_tick without re-deriving them from before/after:
+        //   ready_tick    the REAL ready/handshake tick (instant the AGU
+        //                 was asked for this instruction's address)
+        //   delayed_tick  the tick the delayed handshake actually ran
+        //   delay_cycles  the bounded delay in CPU cycles (spec A07-b = 1)
+        //   consumed      1 = the resume hook really re-entered the execute
+        //                 path for this instruction (read-back, not armed)
+        //   squashed      at resume/terminal: was the instruction already
+        //                 squashed (1) or still live (0)
+        // Family keys outside the shared sheet-11 registry: the parser keeps
+        // them per family (tools/lsu_prop_fields.parse_line), so no parser
+        // change is owed for these columns.
+        "ready_tick", "delayed_tick", "delay_cycles", "consumed", "squashed",
+        // [R6-S-FWD 2026-10-30] fwd_source_sub identity: the load was fed by
+        // the WRONG (older) store. store_dyn_inst_seq on the event names that
+        // wrong source (the real producer of the delivered data); this field
+        // names the TRUE source the address/forward scan selected, so both
+        // sides of the wrong-source substitution are recoverable.
+        "true_store_dyn_inst_seq",
+        // [FSU] FSU family extension keys (outside the shared 41-field
+        // registry, same convention as the family keys above). Kept here so
+        // notePropEvt does not drop them as unknown.
+        "model_id", "submodel", "unit", "freq", "load_id",
+        "iq_slot", "src_slot", "producer_seq", "consumer_seq",
+        "reg_generation", "lane_width", "lane_offset", "lane_mask",
+        // [FSU][D3] FP precision + named-field range + full 128-bit values.
+        "precision", "field_lo", "field_hi", "full_before", "full_after",
+        "reg_class", "bit_in_lane",
+        // [FSU][D3] Real dynamic-instruction decode provenance.
+        "instruction_bits", "decoded_kind", "decoded_precision",
+        "decoded_reg_class", "decoded_element_width", "decoded_lanes",
+        "decoded_reliable", "manifest_precision", "manifest_lane_width",
+        "manifest_lane_offset", "precision_match", "lane_match",
+        "decode_reason",
+        "fu_class", "fu_index", "bit_indices", "fault_mask",
+        "before_hash", "after_hash", "value_hash",
+        "eligible_ordinal", "eligible_total", "attempted", "applied",
+        "activated",
+        // [FSU][FP05] Real result-burst (one episode over 2-4 consecutive
+        // eligible results). Unknown keys are dropped by notePropEvt, so the
+        // complete episode/event accounting MUST be listed here.
+        "burst_id", "burst_ordinal", "burst_length", "burst_mode",
+        "burst_lane_base", "burst_lane_step",
+        "burst_end", "burst_end_reason",
+        "burst_eligible_start", "burst_eligible_last",
+        "burst_episode_events", "burst_episode_complete",
+        "burst_expected_episodes",
+        "burst_episodes_attempted", "burst_episodes_applied",
+        "burst_episodes_completed", "burst_episodes_short",
+        "burst_episodes_lane_rejected",
+        "burst_events_attempted", "burst_events_applied",
+        "burst_events_activated", "burst_events_squashed",
+        "burst_merged_sources", "burst_source_fault_ids",
+        "burst_accounting_ok",
+        "golden_id", "config_hash", "binary_hash", "terminal",
+        // [FSU][D2] F1/F2/F3 rate provenance.
+        "rate_divisor", "jitter_pct", "interval", "ordinal_index",
+        "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
+        // [FSU][F5] Permanent-fault (one install, many exposures) provenance.
+        "install_event", "stuck_polarity", "fixed_mask",
+        "first_eligible_sn", "exposure_id", "exposure_count",
+        "activated_exposure_count", "first_activated_sn",
+        "last_exposure_sn", "affected_sn", "correct_before", "stuck_after",
+        "first_impact_latency", "sample_policy", "exposures_total",
+        "exposures_sampled", "exposures_dropped",
+        // [FSU][F5] Eligible / warm-up / census accounting emitted on
+        // fault_installed and chain_end. The pre-registered census is only a
+        // reference; `eligible_delta_vs_census` is arithmetic, not an error.
+        "eligible_seen_total", "warmup_configured",
+        "warmup_eligible_skipped", "install_eligible_ordinal",
+        "install_is_exposure", "post_install_eligible",
+        "eligible_without_writable_dest", "selected_eligible_total",
+        "eligible_delta_vs_census", "census_reference",
+        // [FSU][F5] Sample de-duplication / observation-only evidence.
+        "sampled_unique", "omitted", "applied_to_all_exposures",
+        "sampled_is_observation_only",
+        // [FSU][F5] Bounded multi-source summary on the L2 operand_read of a
+        // consumer affected by several activated exposures of one cell.
+        "merged_activated_exposures", "observed_exposure_ids",
+        "sources_expanded", "sources_unexpanded", "observation_scope",
+        "cell_sources_overflow",
+        // [FSU][F5-W1] Explicit candidate opClass name (never dropped).
+        "op_class",
+        // [FR03] Permanent physical-cell lifecycle / generation provenance.
+        "generation_old", "generation_new", "generation_changes",
+        "cell_allocated", "cell_free", "stuck_reapplied", "phys_reads",
+        "phys_reads_delta", "permanent_key",
+        // [FR03] Real L5 commit/squash witnesses and read/write exposure
+        // totals. Emitted by CHAOSPhysReg; without these keys notePropEvt
+        // would warn-and-drop them (never silently keep unknown fields).
+        "first_impact_sn", "first_impact_tick", "l5_witness_event",
+        "commit_events", "squash_events", "consumers_recorded",
+        "read_exposures_total", "write_exposures_total", "lane_mask_scope",
+        "first_activated_at_install",
+        // [FR07-HOOK v2] PRF writeback-data injection provenance.
+        "injection_site", "hook_version", "dest_operand", "arm_tick",
+        "writeback_tick", "wakeup_tick", "wakeup_dependents",
+        "wakeup_pending", "squash_tick",
+        // [FSU][FP08] Early-return proxy accounting.
+        "fpsr_attempted", "fpsr_applied", "fpsr_suppressed", "fpsr_reason",
+        "rounding_attempted", "rounding_applied", "suppressed",
+        // [FR01/FR02] Transient containment and post-overwrite visibility.
+        // Unknown keys are dropped by notePropEvt, so these MUST be listed.
+        "target_bits_before", "target_bits_after", "target_bits_restored",
+        "target_bits_flipped", "same_generation",
+        "post_overwrite_reads_total", "post_overwrite_reads_emitted",
+        "post_overwrite_affected_reads",
+        "post_overwrite_writes_total", "post_overwrite_writes_emitted",
+        "post_overwrite_writes_affected",
+        // [MMU-TRACE v1] Unified MMU/TLB/PTW/LSU identity, address and
+        // control fields. Family-extension columns (outside the shared
+        // sheet-11 registry), same convention as the T-series fields above.
+        // The MMU trace is observation-only and uses fault_id=0 for
+        // fault-free infrastructure events.
+        "tlbi_id", "lookup_id", "translation_id", "walk_level",
+        "tlb_entry_id", "entry_generation", "tlb_instance",
+        "pte_address", "pte_value_before", "pte_value_after",
+        "descriptor_type", "permission_result", "memory_attribute",
+        "unique_request_id", "request_fragment_id", "response_id",
+        "execution_attempt_id", "replay_generation",
+        "commit_status", "squash_status", "fault_status",
+        "exception_class", "asid", "vmid", "mode", "stage", "pfn",
+        "page_size_n", "data_fnv",
+        "trace_integrity", "trace_completeness", "propagation_coverage",
+        "missing_edges",
+        // [MMU-TRACE v2] Structured causal key (regime/security state beyond
+        // VA/ASID/VMID), TLB entry lifecycle before/after evidence, and the
+        // M01/M02 one-shot latch provenance. Same family-extension convention
+        // as the fields above (outside the shared sheet-11 registry).
+        "regime", "security_state",
+        "entry_generation_after", "entry_valid", "entry_partial",
+        "fault_model", "fault_field", "fault_reason",
+        "old_pfn", "new_pfn", "old_pa", "new_pa", "pte_recheck",
+        "fault_arm_event_id", "first_tlbi_id", "suppressed_tlbi_ids",
+        "suppress_count", "fault_disarm_event_id", "match_event_id",
+        "retained_entry_id", "retained_entry_generation",
+        "consumption_event_id", "activation_event_id",
+        "result_event_id", "result_pa", "response_event_id",
+        "writeback_event_id", "commit_event_id",
+        // [MMU-TRACE v3] Per-level PTW identity and MMU-scoped cache
+        // observation identity (real request/response joins).
+        "ptw_request_id", "ptw_response_id",
+        "cache_req_id", "cache_name", "hit",
+        // [MMU-TRACE v4 / Phase 2.2] M02 TLB-entry fault lineage across
+        // dynamic instructions. The lineage is keyed by the REAL entry
+        // identity (instance + entry_id + generation); these fields carry
+        // BOTH causal endpoints (origin insert/refill and current lookup)
+        // so a consumer is never joined by VA/PA equality or tick order.
+        "origin_event_id", "origin_translation_id", "origin_walk_id",
+        "entry_insert_event_id", "lookup_event_id", "lineage_state",
+        "reuse_ordinal", "origin_dyn_inst_seq", "origin_squashed",
+        "origin_squash_event_id", "consumer_count", "lineage_entry_count",
+        "lineage_entries", "lineage_fault_id",
+        // [MMU-PHASE3] M03-M08 activation / consumption / candidate evidence.
+        // Same family-extension convention: these are event keys, not a
+        // change to the M01/M02 field semantics.
+        "fault_site", "fault_persistence",
+        "candidate_asid", "candidate_entry_id", "candidate_generation",
+        "candidate_pfn", "candidate_pa", "candidate_valid",
+        "candidate_partial", "candidate_global", "lookup_outcome",
+        "decoy_pfn", "decoy_pa",
+        "request_pa_before", "request_pa_after",
+        "permission_before", "permission_after",
+        "next_table_pa_before", "next_table_pa_after",
+        "descriptor_before", "descriptor_after",
+        "fault_consume_count", "fault_activation_status",
+        // [MMU-PHASE3 / M05 decoy selection + M06 exception evidence]
+        "decoy_va", "decoy_source", "decoy_entry_id",
+        "decoy_entry_generation", "decoy_vpn",
+        "pte_decode_event_id", "pte_memory_written",
+        "state_consumed", "result_propagated", "exception_delivered",
+        "fault_state_consumed_event_id",
+        "fault_result_propagated_event_id",
+        "exception_delivery_event_id",
+        "fault_source", "fault_source_level", "fault_va",
+        "is_fetch", "is_write", "isv", "delivery_target",
+        "faulting_inst_squashed", "faulting_inst_squash_event_id",
+        "masked_reason",
+        // [W5X3-OBS-0222] LSQ translation-lifecycle terminal evidence
+        // (M07-C02-T01/T02 squash-discard chain). released = LSQ entry already
+        // freed when squashTranslation() runs; decision = continue_normal vs
+        // discard_due_to_prior_squash; terminal_reason =
+        // prior_squash_before_translation_completion; dispatch_decision =
+        // cache_dispatch_blocked_by_squash.
+        "released", "squash_cause", "decision", "terminal_reason",
+        "cleanup_completed", "dispatch_decision", "rejection_reason",
+    };
+    static constexpr int N_PROP_EVT_EXT_FIELDS =
+        (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
+
+    // H1-H7 hook families (and any future observer): emit one unified
+    // event. kv pairs use registry field names; unknown keys are warned
+    // once and dropped (honest, never silently kept). Auto-filled when the
+    // caller leaves them absent: event_id (next counter), parent_event_id
+    // (chain of fault_id), tick, cycle, core_id, run_id / sample_run_id
+    // (params), evidence_status ("observed").
+    // [FSU] Returns the assigned event_id so a caller can set an explicit
+    // parent_event_id for a direct-parent chain.
+    uint64_t notePropEvt(const std::string &kind,
+                         const std::vector<std::pair<std::string, std::string>> &kv);
+
+    // [FSU][F5] Late-flush hook. The tracer's own exit callback emits its
+    // per-ptag chain_end events and then closes the event stream. Injectors
+    // that need a terminal event carrying their own run-level accounting
+    // (F5 exposure totals) must run BEFORE that close, so they register here
+    // instead of using a separate global exit callback (whose order is
+    // construction-order dependent).
+    void registerExitFlush(std::function<void()> cb)
+    {
+        exit_flush_hooks.push_back(std::move(cb));
+    }
+
+
+    // ---- injector-facing registration (fault-injection time) --------------
+    // addrpath family: an AGU address fault just mutated a request address
+    // (old_addr→new_addr; sizes as known at the site, 0 = unknown for the
+    // post hook). Allocates a ptag, writes the inj + addr_form nodes and
+    // registers [new_addr, new_addr+new_size) in the addr registry.
+    // Returns the ptag (0 = tracer disabled / no-op).
+    uint64_t registerInjection(const char *site, uint64_t dyn_inst_seq,
+                               Addr old_addr, Addr new_addr, bool is_load,
+                               unsigned old_size, unsigned new_size);
+
+    // [R6-A2/TERMINAL] A real SE page-table fault reached the guest. Emit
+    // an L2 architectural-exception terminal for the injected chain whose
+    // registered range contains `va`. `delivered` is true only when the
+    // faulting VA was the exact injected VA (not a downstream wild pointer).
+    void noteArchTranslationFault(Addr va, bool delivered);
+
+    // [R6-A2/TERMINAL] A load/store carrying an injected fault was actually
+    // discarded by LSQUnit::squash. This is a real lifecycle event (the
+    // instruction is being popped, not a run-end heuristic), so it may close
+    // the chain at L4. No-op when the inst carries no registered fault.
+    void noteSquashDiscarded(o3::DynInst *inst, bool is_load,
+                             const char *state_before);
+
+    // cache family: a CHAOSCache fault just landed on block_addr.
+    //   byte_offset >= 0 : data fault on one byte (registry range =
+    //                      [block+off, block+off+1))
+    //   byte_offset == -1: whole-block fault (data_shift; registry range =
+    //                      [block, block+block_size))
+    //   byte_offset == -2: metadata field fault (tag/valid/dirty/coh) or the
+    //                      victim path — inj node only, NO delivery tracking
+    //                      (the chain honestly stops at inj).
+    uint64_t registerCacheFault(Addr block_addr, int byte_offset,
+                                Addr block_size, const char *field);
+
+    // [MDSPEC][R4-5.1] C11 MSHR merge corruption (CHAOSCache
+    // maybeCorruptMergeTarget): a demand-read target coalescing into an
+    // outstanding MSHR just had ONE offset-domain bit of its address
+    // flipped (old_addr -> new_addr, same line; `line` = the shared block
+    // address). Writes the inj node (detail old_addr/new_addr/size/
+    // block_addr — the dual-emit lifts them to before/after/cache_line;
+    // addr column = the corrupted target address; corr=origin) and
+    // registers the CORRUPTED target range [new_addr, new_addr+size) in
+    // the faulted-byte (blk) registry so every downstream event on that
+    // address/line joins the chain address-only (the labeled
+    // addr_fallback arm — C-family faults have no seq primary at this
+    // site): the H4 mshr_merge event at the same site (it correlates on
+    // the corrupted address), mshr_fill/cache_fill/mshr_free on the line,
+    // and noteMemResponse's cache arm (the response returns on the
+    // corrupted address) -> resp / lq_complete / taint_reg. Returns the
+    // ptag (0 = tracer disabled).
+    uint64_t registerMshrMergeFault(Addr line, Addr old_addr, Addr new_addr,
+                                    unsigned size);
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset (CHAOSCache
+    // maybeDeferFillTiming): a fill response on `line` just got DEFERRED —
+    // its processing (handleFill + target service + MSHR free) runs at
+    // `deferred_tick` instead of the arrival tick `arrival_tick` (the
+    // offset = deferred_tick - arrival_tick = delay_cycles cache cycles).
+    // Writes the inj node (corr=origin; addr column = the fill line;
+    // before/after = the faulted VALUE for this model, the delivery tick
+    // before/after the offset — registered fields, so the pair is
+    // stream-visible; block_addr lifts to cache_line) and registers the
+    // WHOLE fill line [line, line+block_size) in the faulted-byte (blk)
+    // registry so every downstream event on that line joins the chain
+    // address-only (the labeled addr_fallback arm — no seq primary at this
+    // site): the DELAYED mshr_fill/cache_fill/mshr_free events
+    // (correlateBlock), cache_access on later lookups, and
+    // noteMemResponse's cache arm (the response is delivered on this very
+    // line) -> resp / lq_complete / taint_reg, all at the shifted tick.
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerFillTimingFault(Addr line, Addr block_size,
+                                     Tick arrival_tick, Tick deferred_tick,
+                                     uint64_t delay_cycles);
+
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 (CHAOSCache
+    // maybeStickMshrBusy at BaseCache::recvTimingResp's release point): an
+    // MSHR entry that COMPLETED its fill was NOT released — it stays in the
+    // queue's allocated list (busy/occupied stuck-at-1) and never returns
+    // to the free list. `line` = the leaked entry's line; before/after =
+    // the queue's in-service occupancy that the correct release would have
+    // left vs. the occupancy with the release skipped (this model's
+    // faulted VALUE — a 4th value type after C12's tick pair, L04's seq
+    // pair and P06's classification pair). Writes the inj node
+    // (corr=origin; addr column = the line) + the model-specific
+    // `mshr_busy` node (the stuck state itself: mshr_id/entry_index/
+    // state_before/state_after/field=busy) and registers the WHOLE line in
+    // the faulted-byte (blk) registry so later events on that line join
+    // address-only (corr=addr_fallback — the C-family site has no seq
+    // primary). The entry's mshr_id is looked up (or minted) in the
+    // propagator's line-keyed MSHR registry and deliberately NOT released
+    // (the leak is the point). Returns the ptag (0 = tracer disabled).
+    uint64_t registerMshrBusyFault(Addr line, Addr block_size,
+                                   uint64_t occ_before, uint64_t occ_after,
+                                   bool was_full);
+
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration fake-free (CHAOSCache
+    // noteMshrAllocAttempt, called from BaseCache::chaosMshrOccArbitrate):
+    // the arbitration was widened by a fabricated free slot, and `line` is
+    // the request whose over-capacity (reserve) allocation the fault
+    // actually allowed. before/after = the queue's in-service occupancy
+    // pair around the over-commit (the model's faulted VALUE is the
+    // occupancy bookkeeping). Writes the inj node (corr=origin; addr
+    // column = the over-committed request's line) + the model-specific
+    // `mshr_arb` node (the arbitration observation: mshr_id/entry_index/
+    // state_before=full_blocked -> state_after=over_commit_alloc/field=
+    // capacity) and registers the WHOLE line in the faulted-byte (blk)
+    // registry so later events on that line join address-only (corr=
+    // addr_fallback — the C-family site has no seq primary). `materialized`
+    // is recorded in the node detail (this API is only called on
+    // materialization, so it is always true here — kept for symmetry with
+    // the fire-side log line). Returns the ptag (0 = tracer disabled).
+    uint64_t registerMshrArbFault(Addr line, Addr block_size,
+                                  uint64_t occ_before, uint64_t occ_after,
+                                  bool materialized);
+
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
+    // (CHAOSPrefetch maybeMarkFillAsDemand, called from Cache::
+    // serviceMSHRTargets' setPrefetched gate — the site where a fill's
+    // demand/prefetch classification becomes the durable line state). A
+    // prefetch-owned fill on `line` just got its classification marked
+    // demand: the CacheBlk::Prefetched bit is NOT set, so the line enters
+    // the cache exactly as a demand fill (the faulted VALUE of this model
+    // is the fill classification, before=prefetch -> after=demand — the
+    // third per-model value type after C12's tick pair and L04's seq
+    // pair; read it together with field=pf_fill_class). Writes the inj
+    // node (corr=origin; addr column = the marked line; before/after =
+    // the classification pair, registered fields so the pair is
+    // stream-visible; block_addr lifts to cache_line) and registers the
+    // WHOLE line [line, line+block_size) in the faulted-byte (blk)
+    // registry so every downstream event on that line joins the chain
+    // address-only (the labeled addr_fallback arm — no seq primary at
+    // this site): cache_access on later lookups, cache_fill/mshr_fill/
+    // mshr_free on refetches, cache_evict on eviction, and
+    // noteMemResponse's cache arm (a demand load served on this line) ->
+    // resp / lq_complete / taint_reg. The addr arm is the KNOWN
+    // over-approximation (a correct response on the same line joins and
+    // taints — C11 §5.1.6 precedent, corr=addr_fallback says so); the
+    // oracle adjudicates. The PREFETCH-REQUEST registry entry
+    // (notePrefetchRequest, called by the injector right after this)
+    // additionally arms the pf_fill/pf_demand nodes for this line: the
+    // injector's call site allocates the request-level pf_request_id at
+    // marking time (the queue/issue nodes predate the fault and stay
+    // absent — honest gap, the fault happens at fill). Returns the ptag
+    // (0 = tracer disabled).
+    uint64_t registerPfFillClassFault(Addr line, Addr block_size);
+    // [MDSPEC][R4-5.8] A07-b AGU-ready delay (CHAOSAddrPath
+    // maybeDelayAguReady at IEW::executeInsts' isMemRef branch — the
+    // ready/handshake point). ONE plain load/store just had its
+    // address-ready handshake delayed: the AGU (initiateAcc) runs at
+    // `delayed_tick` instead of `ready_tick` (delay = delayed_tick -
+    // ready_tick = delay_cycles CPU cycles). Writes the inj node
+    // (corr=origin; before/after = the faulted VALUE of this model — the
+    // ready tick before/after the delay, the C12 delivery-tick precedent;
+    // delay_cycles / lq_idx / sq_idx / pc stay in the v1 detail) and
+    // registers NOTHING yet: the EA does not exist at the ready point.
+    // The address binding is LATE: bindAguFaultAddr (below) is called
+    // from the LSQ::pushRequest PRE hook when the DELAYED instruction's
+    // EA first materializes (the AGU raw output), binding the chain to
+    // the real range [addr, addr+size) with the instruction's seq — the
+    // very same request's lsq_push (emitted right after the PRE hook),
+    // its mem_req/tlb_translate fragments and every downstream
+    // seq/overlap-correlated node then join with corr=seq_primary and
+    // REAL va values. NO address-only fallback arm exists for A07 (the
+    // fault follows the dynamic instruction, not an address — L04's
+    // stricter-than-minimum stance). If the delayed instruction never
+    // reaches pushRequest (predicated-off / squashed in the delay
+    // window), the chain honestly stops at the inj node.
+    // Returns the ptag (0 = tracer disabled).
+    //
+    // [MDSPEC][R6-A4/A07-b] request_id (default 0 = legacy/byte-identical,
+    // used by A07-a/A07-c) stamps the chain's request identity. For A07-b the
+    // caller passes the instruction's dyn seq, which IS the real request
+    // identity on this path (Request::getReqInstSeqNum() == DynInst::seqNum,
+    // see noteMemResponse), so every downstream event of the delayed access
+    // joins the SAME request branch instead of opening a sibling one. When
+    // request_id != 0 the inj node also declares the model's before/after
+    // ready STATE (state_before=ready, state_after=delayed) for the offline
+    // lifecycle check; request_id == 0 keeps the old detail string exactly.
+    uint64_t registerAguReadyFault(uint64_t dyn_seq, long long lq_idx,
+                                   long long sq_idx, Tick ready_tick,
+                                   Tick delayed_tick, uint64_t delay_cycles,
+                                   bool is_load, Addr pc,
+                                   uint64_t request_id = 0);
+
+    // [MDSPEC][R4-5.8] A07 late address binding (see above): attach the
+    // ALREADY-allocated ptag to [addr, addr+size) bound to dyn_seq in the
+    // addr registry (the seq-primary arm). No-op for ptag == 0 or
+    // dyn_seq == 0.
+    void bindAguFaultAddr(uint64_t ptag, uint64_t dyn_seq,
+                          Addr addr, unsigned size);
+
+    // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
+    // correlation (user ruling 2026-10-20: address-only correlation may
+    // survive only as a labeled fallback). Allocates a ptag, writes the
+    // inj node, and registers:
+    //   PRIMARY   — addr-registry entry [vaddr, vaddr+size) bound to the
+    //               PRODUCER STORE's dyn_inst_seq, so the store's later
+    //               sq_writeback / sq_complete events (which correlate by
+    //               correlateRequestBySeq) join this chain by SEQ;
+    //   FALLBACK  — the same byte range in the faulted-byte (blk) registry
+    //               for seq-less call sites (correlateBlock / the cache
+    //               branch of noteMemResponse). Address-only by design;
+    //               events that rely on it must carry corr=addr_fallback.
+    // store_seq == 0 (seq genuinely unavailable at the call site) skips
+    // the primary registration — the chain then joins by the labeled
+    // address fallback only. Returns the ptag (0 = tracer disabled).
+    uint64_t registerLSQForwardFault(uint64_t store_seq, long long sq_idx,
+                                     uint64_t store_req_id,
+                                     uint64_t load_seq, long long lq_idx,
+                                     uint64_t load_req_id,
+                                     Addr vaddr, Addr size,
+                                     const char *field);
+
+    // [MDSPEC][R4-5.3] L04-b response-pairing target exchange (CHAOSLSQFwd
+    // maybeSwapResponseTarget, called from LSQUnit::completeDataAccess —
+    // the request->instruction() pairing point). One in-flight load's
+    // returning response just got its pairing-table entry exchanged with
+    // another in-flight load's: the response for `src` is delivered to
+    // `tgt` now (half 1), and tgt's own later response is delivered to src
+    // (half 2) — two legal responses, each to the wrong consumer
+    // ("两个响应数据各自合法但送错消费者"). PRIMARY correlation is SEQ-
+    // BOUND on BOTH loads (the 09 sheet keys lq_idx↔dyn_inst_seq↔
+    // request_id; user ruling 2026-10-20): the inj node carries the TARGET
+    // (wrong consumer) seq — its resp/lq_complete/taint_reg share it — and
+    // before/after = the pairing mapping source-seq -> target-seq (the
+    // faulted VALUE of this model, dual-emit lifted from old_addr/new_addr
+    // detail keys; value type is per-model, see the C12 tick-pair
+    // precedent). The EXCHANGED pairing table is registered as TWO
+    // seq-bound addr-registry entries: [src_va, +src_size) -> tgt_seq
+    // (half 1's noteMemResponse: packet = src's response, inst = tgt) and
+    // [tgt_va, +tgt_size) -> src_seq (half 2). NO address-only fallback is
+    // registered for L04 (stricter than the labeled-fallback minimum: the
+    // 09 sheet forbids address single-key chains). Address collision
+    // (src_va == tgt_va — same-VA loads, common on the sq_forward probe):
+    // one map key — the half-1 binding wins, half 2 then has no
+    // seq-bound surface (honest gap, recorded here, never an addr join).
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerRespPairFault(uint64_t src_seq, long long src_lq_idx,
+                                   uint64_t src_req_id, Addr src_va,
+                                   unsigned src_size,
+                                   uint64_t tgt_seq, long long tgt_lq_idx,
+                                   uint64_t tgt_req_id, Addr tgt_va,
+                                   unsigned tgt_size);
+
+    // [MDSPEC][R4-5.7] S10-a StoreSet SSIT-ID 换值 (CHAOSLSQFwd
+    // --lsqfwd_s10, hooks at StoreSet::violation / checkInst — see
+    // CHAOSLSQFwd.hh for the model ruling). A violation retrain just
+    // assigned the load PC a fresh SSID and the injector substituted it
+    // with ANOTHER LEGAL live store-set ID (candidates = valid SSIT
+    // entries' SSIDs minus the true one; workbook 07 实施细则: no random
+    // bit strings — the target came from the current run). Writes the inj
+    // node (corr=origin; pc lifts to the unified pc field; before/after =
+    // true/target SSID — the faulted VALUE of this model, the SSID
+    // assignment; store_pc and the candidate-set size stay in the detail)
+    // and registers NO downstream correlate surface: the fault lives in
+    // PC-keyed predictor state, which has no addr/seq registry arm. The
+    // chain's downstream members (ssit_consult / ssit_violation) are the
+    // injector's own PC-keyed emissions — pf_train precedent (the
+    // prefetcher's stride fault has the same no-correlate-surface shape).
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerStoreSetFault(Addr store_pc, Addr load_pc,
+                                   uint64_t true_ssid, uint64_t new_ssid,
+                                   size_t candidate_count);
+
+    // [MDSPEC][R4-4] ArmTLB pfn fault, seq-PRIMARY correlation (the TLB
+    // twin of registerLSQForwardFault; replaces the pre-R4-4 address-only
+    // registration, user ruling 2026-10-20). The injection site
+    // (TLB::lookup) has no Request in the gem5 core signature, but
+    // MMU::getTE publishes the in-flight translation's identity on the TLB
+    // (chaosLookupReqSeq/Size) which CHAOSArmTLB forwards here:
+    //   PRIMARY  — addr-registry entry [va, va+span) bound to req_seq, so
+    //              the request's own later seq-keyed events (correlate-
+    //              RequestBySeq / correlateRequest's seq arm) join by SEQ.
+    //              req_seq == 0 (table-walker / functional lookups) skips
+    //              the primary — labeled fallback only.
+    //   FALLBACK — the WRONG physical page [new_pa_page, +pa_span) in the
+    //              faulted-byte registry for the seq-less cache-side sites,
+    //              ONLY when the corrupted pfn actually redirects the PA
+    //              (old/new PA page differ — pfn bits at/above the PA width
+    //              wrap out of the 64-bit Addr and are architecturally
+    //              inert; measured: the T01 default draw pfn-bit-56). When
+    //              the PA is unchanged NOTHING is registered downstream:
+    //              the chain honestly ends at the TLB layer rather than
+    //              fabricating cache/resp/taint joins from unrelated
+    //              correct traffic on the unchanged page.
+    // The unified tlb_pfn event carries corr (seq_primary | addr_fallback
+    // | "" for the no-surface case) plus dyn_inst_seq/request_id ("0" =
+    // unstamped, lsq_sendfrag convention). Returns the ptag (0 = disabled).
+    uint64_t registerTlbFault(uint64_t req_seq, Addr va, Addr size,
+                              Addr old_pfn, Addr new_pfn,
+                              Addr old_pa, Addr new_pa, Addr pa_span,
+                              const char *mode, int entry_way,
+                              int candidate_way, uint64_t walk_id,
+                              const std::string &entry_before,
+                              const std::string &entry_after);
+
+    // [MDSPEC][R4-10-T05/T06/T07] TLB entry-STATE / access-attribute faults
+    // (valid / global / ASID / AP / memory-type / page-size). These mutate a
+    // field of the hit entry that is NOT the pfn, so the PA is usually
+    // unchanged and the tlb_pfn node (before/after pfn + PA) does not apply.
+    // Emits the L0 `inj` anchor plus ONE L2 `tlb_state` node carrying
+    // field + state_before/state_after (the mutated field's text before/after
+    // the mutation). corr follows the same arms as registerTlbFault
+    // (seq_primary when the in-flight request is published, else "" — honest
+    // no-surface: the chain honestly stops at the TLB layer rather than
+    // inventing a PA redirect). Returns the ptag (0 = disabled).
+    // [R6-V4-T07CHAIN] `pa_span` = the faulted entry's page size
+    // (entry->size + 1 at the site; 0 ⇒ 4 KiB). It is used ONLY to open
+    // correlation arms when this state/CAM fault actually REDIRECTS the
+    // effective PA (false_hit: miss→fabricated hit, old_pa=0 → forged PA).
+    // A PA-neutral state fault (T05/T06 valid_clear/perm_subst) passes
+    // pa_changed=false and opens NO arm — the translation it performs is the
+    // clean one, so nothing downstream can be attributed to it.
+    uint64_t registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
+                                   const char *field,
+                                   const std::string &before,
+                                   const std::string &after,
+                                   Addr old_pa, Addr new_pa,
+                                   int entry_way, int candidate_way,
+                                   uint64_t walk_id,
+                                   const std::string &entry_before,
+                                   const std::string &entry_after,
+                                   Addr pa_span = 0);
+
+    // Close a T-series lookup observation at the real MMU completion point,
+    // after permission/alignment checks have produced the final Fault.
+    void noteTlbTranslationResult(uint64_t req_seq, Addr va, bool has_pa,
+                                  Addr pa, const char *fault);
+
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only): register a PAIR of
+    // nodes for ONE page-table walk — `tlb_walk` (the walk issued by
+    // TableWalker::walk) and `tlb_refill` (the refill completion of that
+    // same walk). Both carry the SAME walk_id and the SAME fault_id ⇒ the
+    // pairing is provable by construction (two nodes, distinct ticks,
+    // shared walk_id) — this is the "walk/fill pairing" the T08 blocker
+    // named. fill_lost=true records the T08-a outcome honestly as
+    // field=lost / outcome=lost (the refill that never arrived) rather
+    // than fabricating a completed refill. corr=origin on both nodes (the
+    // injector's own registration burst — no correlate* query, same shape
+    // as registerTlbFault's inj node). Returns the ptag (0 = disabled).
+    uint64_t registerTlbWalkPair(uint64_t walk_id, Addr va, uint64_t req_seq,
+                                 uint64_t walk_start_tick,
+                                 uint64_t refill_tick, unsigned level,
+                                 bool fill_lost, const char *mode);
+
+    // Funnel row (attempted/eligible/injected as of NOW). Called by the
+    // injectors at every successful injection AND at their exit callbacks
+    // (final counts). Per-node Z_SYNC_FLUSH ⇒ abort-survivable.
+    void noteFunnel(const char *site, uint64_t attempted, uint64_t eligible,
+                    uint64_t injected);
+
+    // [MDSPEC][H5] prefetch request-level identity. pf_request_id must be a
+    // STABLE request-level id shared by every node of one prefetch
+    // request's chain (train→queue→issue→fill→demand) — it is NOT the
+    // fault id (ptag) and NOT a per-site counter or a tick (spec sheet 9
+    // P01: "为prefetch request分配pf_request_id并贯穿MSHR/fill/后续demand").
+    // Allocates a fresh id (>=1) and registers [addr, addr+size) so the
+    // later queue/issue/fill/demand events on the same prefetched line
+    // resolve to the same id. 0 = tracer disabled.
+    uint64_t notePrefetchRequest(Addr addr, Addr size);
+
+    // [MDSPEC][H5] resolve the pf_request_id of the prefetch request whose
+    // registered line overlaps [addr, addr+size); 0 = no prefetch request
+    // (the site is not prefetch-driven → no pf_* node). Optionally returns
+    // the registered base. Range overlap only — never a single-key guess.
+    uint64_t prefetchRequestId(Addr addr, Addr size, Addr *base_out = nullptr);
+
+    // [MDSPEC][H5] attach an ALREADY-allocated prefetch request to another
+    // generated line. The prefetcher's fault (e.g. a corrupted training
+    // stride) only shows up in the candidate addresses generated on later
+    // calls, so this is how those candidates join the same request chain
+    // (and how queue/issue/fill/demand on them resolve to that
+    // pf_request_id). Requires a pfid >= PF_ID_BASE (from
+    // notePrefetchRequest); no-op otherwise.
+    void registerPtagPrefetch(uint64_t pfid, Addr addr, Addr size);
+
+    // [MDSPEC][H4] MSHR lifecycle identity. One stable mshr_id per
+    // in-flight miss line (spec sheet 9 C01: "mshr_id/fill_id/victim_id 及
+    // event 父子关系"); a merge reuses the existing id of the same line,
+    // a free releases it, and every fill allocates a fresh fill_id. These
+    // are REAL allocated ids, not the hex block address.
+    uint64_t noteMshrAlloc(Addr line);      // fresh id for a new miss line
+    uint64_t noteMshrLookup(Addr line);     // existing id (merge); 0 = none
+    uint64_t noteMshrFree(Addr line);       // release; returns the freed id
+    uint64_t noteFill(Addr line);           // fresh fill_id
+
+    // [MDSPEC][H6] attach an EXISTING ptag's chain to a faulted byte range
+    // in the block registry, so cache-side events (cache_access /
+    // cache_return / RMW) on that line correlate with the chain the
+    // injector opened. Needed by injectors whose fault is architecturally
+    // visible to the cache but whose site (e.g. the ARM exclusive monitor
+    // in the ISA) is not the cache itself. No-op for ptag == 0.
+    void registerPtagBlock(uint64_t ptag, Addr byte_begin, Addr byte_end);
+
+    // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
+    // [MDSPEC][R4-1-review-I1] correlation-arm labels (user ruling 2026-10-20:
+    // address-only correlation may survive ONLY as a labeled fallback —
+    // consumers must be labeled too, not just the registration). Every
+    // PROP-EVT event whose fault_id came from a correlate* lookup carries
+    // corr=<one of these> saying WHICH arm matched:
+    //   CORR_SEQ_PRIMARY   — the join is seq-bound (addr-registry entry
+    //                        matched with dyn_seq, or correlateRequestBySeq)
+    //   CORR_ADDR_FALLBACK — the join is address-only (faulted-byte / blk
+    //                        registry overlap; no seq constraint)
+    // [MDSPEC][R4-4-review-I1] the corr contract extends to EVERY event on
+    // the stream, including the writeNode dual-emit kinds (inj / addr_form /
+    // mem_req / resp / taint_reg / consumer / errant_commit) and chain_end:
+    // where no correlate lookup ran, the marker must SAY so — an empty corr
+    // on a chain member is a contract violation (it is indistinguishable
+    // from an unlabeled address-domain join). Non-join markers:
+    //   CORR_ORIGIN     — chain-opening registration event (inj / addr_form):
+    //                     no join is attempted; this event CREATES the chain.
+    //   CORR_TAINT_PROP — fault_id from taint-set membership (consumer /
+    //                     errant_commit): no correlate lookup at this event;
+    //                     membership propagates from the taint_reg that
+    //                     established the taint (whose own corr records the
+    //                     arm that admitted the chain).
+    //   CORR_NONE       — chain lifecycle marker with no correlation
+    //                     semantics (chain_end exit callback).
+    // corr stays empty ONLY where an earlier approved family contract allows
+    // the honest absence: tlb_pfn with no correlation surface (req_seq==0
+    // AND PA page unchanged) and pf_fill/pf_demand with fault_id=0.
+    // [MDSPEC][R6-FIXCPP/A] It ALSO stays empty — with a Request identity
+    // present — for a TLB-entry fault whose corrupted pfn did NOT redirect
+    // the effective PA (pa_changed == 0; the pfn bit sits at/above the PA
+    // width and wraps out of the Addr): the translation the MMU runs is the
+    // CLEAN one, the chain opens no arm at all and honestly stops at the TLB
+    // layer (L2 containment), instead of fabricating a seq_primary that
+    // would capture the same request's later clean events. See
+    // chaos_tlb_chain.hh (chaos_chain::tlbRegistrationArms) — the single
+    // source of truth this contract is implemented from.
+    static constexpr const char *CORR_SEQ_PRIMARY = "seq_primary";
+    static constexpr const char *CORR_ADDR_FALLBACK = "addr_fallback";
+    static constexpr const char *CORR_ORIGIN = "origin";
+    static constexpr const char *CORR_TAINT_PROP = "taint_prop";
+    static constexpr const char *CORR_NONE = "none";
+    // [Phase 2.2] The join was made by the M02 entry-lineage registry using
+    // the REAL TLB entry identity (instance + entry_id + generation), not by
+    // VA/PA equality and not by tick proximity.
+    static constexpr const char *CORR_ENTRY_LINEAGE = "entry_lineage";
+
+    // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
+    // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
+    // whose faulted-byte registry overlaps [addr, addr+size). 0 = no chain
+    // (the request is not fault-correlated; PROP-EVT is a fault-propagation
+    // stream, spec sheet 11 — non-correlated observations stay out).
+    // corr_out (optional) receives the matched arm's label above; it is
+    // left untouched when nothing matched.
+    uint64_t correlateRequest(uint64_t dyn_seq, Addr addr, Addr size,
+                              const char **corr_out = nullptr);
+
+    // [MDSPEC][H7] Seq-only correlation for LQ/SQ lifecycle sites that have
+    // the DynInst but not a stable vaddr at hand (read()/executeStore()):
+    // match the addr registry by dyn_seq alone; optionally return the
+    // registered base via base_out (the event's va). The join is seq-bound
+    // by construction → *corr_out = CORR_SEQ_PRIMARY on a hit.
+    uint64_t correlateRequestBySeq(uint64_t dyn_seq,
+                                   Addr *base_out = nullptr,
+                                   const char **corr_out = nullptr);
+
+    // [R6-S-REPAIR2 2026-10-30] S11 lost-store real witnesses. The PRE hook
+    // zeroed the access size, so addReq() creates no Request and the store
+    // completes without any memory transaction. Emit the real L2
+    // request-suppressed observation at that deterministic point, and the
+    // L3 containment when the store actually completes with no request.
+    // Both look up the injection by seq (the size-0 registry entry) and
+    // never fabricate a Request/mem_req.
+    void noteStoreRequestSuppressed(uint64_t dyn_seq, Addr addr,
+                                    unsigned old_size);
+    void noteStoreLostContained(uint64_t dyn_seq, Addr addr);
+
+    // [MDSPEC][H4] Block-address correlation for cache structural events
+    // (access/fill/evict on a faulted block): return the ptag whose
+    // faulted-byte registry overlaps [addr, addr+size); optionally return
+    // the registered base. 0 = not fault-correlated (no event). The join
+    // is address-only by construction → *corr_out = CORR_ADDR_FALLBACK on
+    // a hit (the labeled fallback arm).
+    uint64_t correlateBlock(Addr addr, Addr size, Addr *base_out = nullptr,
+                            const char **corr_out = nullptr);
+
+    // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
+    // about to leave for translation/memory. Writes a mem_req node when it
+    // matches the addr registry (addrpath) or the faulted-byte registry
+    // (cache). Returns the FIRST matched ptag (0 = no match) so the H1
+    // unified lsq_sendfrag event can carry the chain id; corr_out receives
+    // the matched arm's label (seq-bound addr registry vs address-only blk
+    // registry — [MDSPEC][R4-1-review-I1]).
+    uint64_t noteMemRequest(const char *site, uint64_t dyn_inst_seq,
+                            const RequestPtr &req,
+                            const char **corr_out = nullptr);
+
+    // LSQUnit::completeDataAccess (pre-writeback, squashed-guarded inside):
+    // writes a resp node when the packet delivers a registered fault, and —
+    // for register-writeback loads/SC/atomics with NoFault — taint_reg nodes
+    // for the dest phys regs (added to the taint set).
+    void noteMemResponse(o3::DynInst *inst, Packet *pkt, bool wb_to_reg);
+
+    // [R6-S-FWD 2026-10-30] A real SQ forward delivered the faulted data to
+    // `load_inst` (no memory response exists on this path). Emit the REAL
+    // lifecycle the hardware executes and register the consuming load:
+    //   L1 sq_entry  — the producer store's SQ entry is the forward source,
+    //   L2 lsq_fwd   — the forward decision/transfer (field = model),
+    //   L3 resp      — the forwarded value handed to the load,
+    //   L4 taint_reg — the load's destination physical register(s) receive
+    //                  fault-delivered data (also inserted into taint_set),
+    // and register load_inst->seqNum in the forwarded-load seq registry so
+    // squash/commit lifecycle hooks join by SEQ (never by an unrelated
+    // address broadcast). Returns the taint_reg event id (0 when disabled).
+    uint64_t noteForwardedLoad(o3::DynInst *load_inst, Addr vaddr,
+                               unsigned size, uint64_t ptag,
+                               uint64_t store_seq, long long sq_idx,
+                               long long lq_idx, uint64_t load_req_id,
+                               uint64_t true_store_seq, const char *field,
+                               const void *data);
+
+    // Commit::commitHead (the W2.1/W2.4 anchor): commit-side taint
+    // propagation. consumer nodes for tainted source phys regs, first
+    // errant_commit, dest re-taint / clean-overwrite.
+    void noteCommit(ThreadID tid, o3::DynInst *head_inst);
+
+    // [MDSPEC][R6-EMIT2/oracle] Hardware-detector stdout signal, the single
+    // input the offline oracle's Detected/Contained class consumes (L18-G7):
+    //   CHAOS_DETECT: layer=<Hardware RAS|OS|Application|None> contained=<0|1>
+    //                 tick=<n> ptag=<n> reason=<...>
+    // Emitted on the DETECTION path itself (errant_commit = escaped, layer
+    // None, contained 0; every containment recording = layer Hardware RAS,
+    // contained 1). stdout (not the gz stream) so a crash/abort sample —
+    // whose exit callback never runs — still carries the detection to the
+    // harness. No-op when the tracer is disabled.
+    void emitDetectSignal(const char *layer, bool contained, uint64_t ptag,
+                          const char *reason);
+
+    // ================= MMU unified trace (MMU-TRACE v1) ==================
+    // Observation-only events written to the SAME PROP-EVT stream as the
+    // fault-propagation events. fault_id=0 for fault-free infrastructure
+    // events; fault-injected events keep their ptag. A VA range gates the
+    // trace so a full-system run does not emit millions of unrelated hits.
+    bool mmuTraceEnabled() const { return write_log && mmu_trace; }
+    bool mmuTraceVa(Addr va) const
+    {
+        return mmu_trace_va_lo == 0 ||
+               (va >= mmu_trace_va_lo && va < mmu_trace_va_hi);
+    }
+
+    uint64_t mmuNewEntryId() { return ++next_mmu_entry_id; }
+    uint64_t mmuNewTlbiId() { return ++next_mmu_tlbi_id; }
+    uint64_t mmuNewLookupId() { return ++next_mmu_lookup_id; }
+    uint64_t mmuUniqueId(uint64_t translation_id) const;
+
+    // [MMU-TRACE v4] Execute-mode lookups (instruction fetch) carry no
+    // Request inst seq, so the walk/insert/result chain used to start with a
+    // zero identity. Mint a TRACE-ONLY identity from a reserved namespace
+    // instead. Values >= 2^63 cannot be a real DynInst::seqNum in any run
+    // this repository can execute; mmuBeginTxn additionally refuses a seq in
+    // this namespace that was not minted here, so a synthetic id can never
+    // collide with a real one. Returns 0 unless tracing is enabled and the
+    // VA is inside --prop_mmu_va_lo/hi (observation is therefore unchanged
+    // for untraced runs).
+    static constexpr uint64_t mmuSyntheticSeqBase() { return 1ULL << 63; }
+    static bool mmuIsSyntheticSeq(uint64_t seq)
+    {
+        return seq >= (1ULL << 63);
+    }
+    uint64_t mmuNewSyntheticSeq(Addr va);
+
+    // One MMU translation attempt. Returns 0 when tracing is disabled, the
+    // VA is outside the traced range, or the Request has no inst seq.
+    uint64_t mmuBeginTranslation(const RequestPtr &req, Addr va,
+                                 const char *mode, bool stage2);
+    // Miss-triggered transaction: the only warm-up-filtered entry point used
+    // by TLB::lookup. Hit-only repetitions of a warm VA create no event.
+    uint64_t mmuBeginMissTranslation(uint64_t seq, Addr va, const char *mode,
+                                     bool stage2, uint16_t asid = 0,
+                                     uint16_t vmid = 0, unsigned regime = 0,
+                                     unsigned ss = 0);
+    uint64_t mmuTxnForSeqVa(uint64_t seq, Addr va) const;
+    uint64_t mmuTxnForSeq(uint64_t seq) const;
+    uint64_t mmuTxnForVa(Addr va) const;
+    // [MMU-PHASE3 / M08] True when this dynamic instruction already has a
+    // REAL squash witness in the trace. A one-shot request-PA fault must not
+    // be spent on a wrong-path translation whose result can never commit;
+    // the activation waits for the first non-squashed translation of the
+    // target. Returns false when the seq is unknown or tracing is off.
+    bool mmuSeqSquashed(uint64_t seq) const;
+
+    // [MMU-TRACE v2] Registry/state names for the structured association key.
+    static const char *mmuRegimeName(unsigned regime)
+    {
+        switch (regime) {
+          case 0: return "EL10";
+          case 1: return "EL20";
+          case 2: return "EL2";
+          case 3: return "EL3";
+          default: return "Unknown";
+        }
+    }
+    static const char *mmuSecurityStateName(unsigned ss)
+    {
+        return ss == 1 ? "Secure" : "NonSecure";
+    }
+
+    uint64_t mmuNoteLookup(const std::string &instance, uint64_t lookup_id,
+                           uint64_t translation_id, uint64_t unique_id,
+                           uint64_t seq, Addr va, uint16_t asid, uint16_t vmid,
+                           bool hit, bool partial, Addr pfn, unsigned n,
+                           uint64_t entry_id, uint32_t gen, unsigned level,
+                           unsigned regime, unsigned ss,
+                           uint64_t fault_ptag = 0);
+    uint64_t mmuNoteWalkStart(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              uint16_t asid, uint16_t vmid, unsigned level,
+                              const char *mode, bool stage2,
+                              unsigned regime, unsigned ss);
+    // [MMU-TRACE v3] Per-level PTW request identity. One ID is minted for
+    // each real descriptor fetch (walk level), independent of the walk ID:
+    // pte_read -> ptw_request -> ptw_response -> pte_decode all carry it.
+    uint64_t mmuNewPtwRequestId() { return ++next_mmu_ptw_request_id; }
+    uint64_t mmuNotePteRead(uint64_t walk_id, uint64_t translation_id,
+                            uint64_t unique_id, uint64_t seq, Addr va,
+                            Addr pte_addr, unsigned level,
+                            uint64_t ptw_request_id = 0);
+    uint64_t mmuNotePteDecode(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              Addr pte_addr, uint64_t before, uint64_t after,
+                              unsigned level, const char *desc_type,
+                              uint64_t ptw_request_id = 0);
+    uint64_t mmuNotePtwRequest(uint64_t ptw_request_id, uint64_t walk_id,
+                               uint64_t translation_id, uint64_t unique_id,
+                               uint64_t seq, Addr va, Addr pte_addr,
+                               unsigned level, uint64_t pte_read_event);
+    uint64_t mmuNotePtwResponse(uint64_t ptw_request_id);
+    // [MMU-TRACE v3] Minimal classic-cache observation for a demand access
+    // whose Request carries an MMU transaction's dyn_inst_seq. The cache
+    // request identity is an explicit composite key (cache, seq, PA, isInst);
+    // it is minted once and reused by that access's lookup/MSHR/response
+    // events. Returns 0 for unrelated traffic (the trace stays MMU-scoped).
+    uint64_t mmuNoteCacheEvent(const char *kind, const std::string &cache,
+                               PacketPtr pkt, bool hit,
+                               uint64_t mshr_id = 0);
+    uint64_t mmuNoteTlbFill(uint64_t walk_id, uint64_t translation_id,
+                            uint64_t unique_id, uint64_t seq, Addr va,
+                            Addr pfn, unsigned n, bool partial,
+                            unsigned level);
+    // [Phase 2.2] Returns the emitted tlb_entry_insert event id (0 when the
+    // trace is off/out of range). `walk_id` is the owning table walk; it is
+    // the exact lineage key used to recognise a corrupted refill payload in
+    // EVERY TLB layer it is written to. `prev_entry_id/prev_generation` are
+    // the victim slot's identity being replaced, so the old lineage lifetime
+    // is closed explicitly (generation change alone also makes it
+    // unreachable, but the explicit end event is required evidence).
+    uint64_t mmuNoteEntryInsert(const std::string &instance, uint64_t entry_id,
+                                uint32_t gen, Addr va, uint16_t asid,
+                                uint16_t vmid, Addr pfn, unsigned n,
+                                bool partial, unsigned level, unsigned regime,
+                                unsigned ss, uint64_t translation_id,
+                                uint64_t unique_id, uint64_t walk_id = 0,
+                                uint64_t prev_entry_id = 0,
+                                uint32_t prev_generation = 0);
+    void mmuNotePermission(const RequestPtr &req, Addr va, bool grant,
+                           const char *mode, bool stage2);
+    void mmuNoteTranslationResult(const RequestPtr &req, Addr va, Addr pa,
+                                  bool has_pa, const char *fault, Addr pfn,
+                                  unsigned n, uint8_t mtype, bool shareable,
+                                  uint8_t inner, uint8_t outer,
+                                  bool noncacheable, bool xn, uint8_t ap,
+                                  uint64_t entry_id, uint32_t gen);
+    void mmuNoteLsuRequest(const RequestPtr &req, Addr va, Addr pa,
+                           const char *mode, bool is_fetch, bool has_pa);
+    // [W5X3-OBS-0222] Runtime observation of the LSQ translation-response
+    // handoff and the squash-discard decision, emitted from
+    // LSQ::SingleDataRequest::finish.  Parent-chained emission:
+    //   translation_response_received -> squash_translation_decision ->
+    //   [if prior_squash] squash_translation_invoked ->
+    //   translation_request_discarded -> cache_dispatch_decision.
+    // Pure observation; never changes translation/dispatch behaviour.
+    void mmuNoteLsqTranslationFinish(const RequestPtr &req,
+                                     o3::DynInst *inst,
+                                     const char *fault_status, Addr pa,
+                                     bool prior_squash, bool released);
+    // [W5X3-OBS-0202c] Instruction-fetch (IFU) propagation completion.
+    // The Execute-mode fetch translation carries only a synthetic seq (no
+    // DynInst), so the MMU trace stops at the Execute lsu_request. These
+    // three hooks thread that synthetic translation_id through the O3 fetch
+    // pipeline using the REAL fetch Request object identity (never VA/tick):
+    //   mmuTakeFetchTxn(req)  — called from Fetch::finishTranslation; returns
+    //                           the open fetch translation_id for this exact
+    //                           Request (registered by mmuNoteLsuRequest) and
+    //                           consumes the registration (one fetch = one use).
+    //   mmuNoteIfuResponse    — called from Fetch::processCacheCompletion when
+    //                           the icache delivers the line (real IFU response,
+    //                           distinct from the synthetic Execute lsu_request).
+    //   mmuRegisterFetchSeq   — called from Fetch::buildInst for each DynInst
+    //                           built from the faulted line; binds the DynInst
+    //                           seqNum to the fetch translation so the EXISTING
+    //                           mmuNoteCommit/mmuNoteSquash tag it and emits the
+    //                           ifu_decode event.
+    // All three are trace-only; they never change fetch/translation behaviour.
+    uint64_t mmuTakeFetchTxn(const RequestPtr &req);
+    void mmuNoteIfuResponse(uint64_t tid, Addr va, Addr pa);
+    void mmuRegisterFetchSeq(uint64_t tid, uint64_t seq, Addr pc);
+    void mmuNoteMemResponse(o3::DynInst *inst, Packet *pkt);
+    void mmuNoteWriteback(o3::DynInst *inst);
+    void mmuNoteCommit(o3::DynInst *inst);
+    void mmuNoteSquash(o3::DynInst *inst);
+    uint64_t mmuNoteTlbiIssue(uint64_t tlbi_id, const char *op,
+                              bool stage1, bool stage2);
+    uint64_t mmuNoteTlbiMatch(uint64_t tlbi_id, const std::string &instance,
+                              const char *op, uint64_t entry_id, uint32_t gen,
+                              Addr va, uint16_t asid, uint16_t vmid, unsigned n,
+                              unsigned regime, unsigned ss, bool suppressed,
+                              uint64_t fault_ptag = 0,
+                              const char *suppress_phase = nullptr);
+    // [Phase 2.2] Returns the emitted invalidation event id (0 = trace off),
+    // so the entry-lineage end event can name the real invalidating TLBI as
+    // its parent instead of guessing.
+    uint64_t mmuNoteTlbiInvalidate(uint64_t tlbi_id,
+                                   const std::string &instance,
+                                   const char *op, uint64_t entry_id,
+                                   uint32_t gen_before, uint32_t gen_after,
+                                   Addr va, uint16_t asid, uint16_t vmid,
+                                   unsigned regime, unsigned ss);
+
+    // ================= MMU fault injection (Phase 2 smoke) =================
+    // One-shot M01/M02 latches. Every entry point is a strict no-op unless
+    // mmuFaultModel selects that model, so fault-free runs stay
+    // byte-equivalent (the trace-only path is unchanged).
+    //
+    // [Phase 2.2] Fault ENABLEMENT and logging are independent controls:
+    //   * mmu_fault_enable (param mmuFaultEnable) selects whether the fault
+    //     model may mutate state at all;
+    //   * mmu_fault_model (param mmuFaultModel) selects WHICH model;
+    //   * write_log only gates trace/log output;
+    //   * mmu_trace only gates fault-free MMU trace events.
+    // Turning either logging switch off must NEVER disable the fault hook
+    // (measured Phase 2.1 coupling: `write_log && model` silently skipped
+    // injection when generic logging was disabled).
+    bool mmuFaultModelIs(const char *model) const;
+    bool mmuFaultEnabled() const { return mmu_fault_enable; }
+
+    struct MmuM01Decision
+    {
+        bool suppress = false;   // skip table.invalidate/invalidatePrev
+        bool first_arm = false;  // this match armed the one-shot latch
+        uint64_t fault_id = 0;
+        uint64_t arm_event = 0;
+    };
+    // TLB::flush, per matched entry. Only the l2_shared instance is
+    // considered; the latch is armed on the first exact-key complete 4 KiB
+    // entry and suppresses invalidations of that SAME entry identity.
+    MmuM01Decision mmuM01OnTlbiMatch(const std::string &instance, Addr va,
+                                     uint16_t asid, uint16_t vmid, unsigned n,
+                                     bool valid, bool partial, unsigned regime,
+                                     unsigned ss, uint64_t tlbi_id,
+                                     uint64_t entry_id, uint32_t generation,
+                                     const char *op);
+    // [MMU-TRACE v3] Emit mmu_fault_arm AFTER the tlbi_match event that
+    // triggered the one-shot arm, so the causal order is
+    // tlbi_issue -> tlbi_match -> mmu_fault_arm -> tlbi_suppressed.
+    // Returns 0 when no arm is pending or the trace is disabled.
+    uint64_t mmuM01EmitArm(uint64_t match_event);
+    // Emit tlbi_suppressed for the match just decided (after the match event).
+    void mmuM01NoteSuppressed(const std::string &instance, Addr va,
+                              uint16_t asid, uint16_t vmid, unsigned n,
+                              unsigned regime, unsigned ss, uint64_t tlbi_id,
+                              uint64_t entry_id, uint32_t generation,
+                              const char *op, uint64_t match_event);
+    // TLB::lookup on an l2_shared hit: true when this hit consumes the
+    // retained entry; the consuming translation is tagged with *fault_ptag.
+    bool mmuM01Consume(const std::string &instance, Addr va, uint16_t asid,
+                       uint16_t vmid, unsigned n, unsigned regime,
+                       unsigned ss, uint64_t entry_id, uint32_t generation,
+                       uint64_t translation_id, uint64_t *fault_ptag);
+    // Emit mmu_fault_disarm after the consuming lookup event.
+    void mmuM01EmitDisarm(uint64_t fault_ptag, uint64_t consume_event);
+
+    // M02: true when this refill payload must be corrupted (one shot).
+    bool mmuM02ShouldCorrupt(Addr va, Addr pfn, unsigned n, bool stage2,
+                             bool is_data, bool is_page, bool long_desc);
+    Addr mmuM02XorMask() const { return mmu_m02_xor_mask; }
+
+    // [MMU-TRACE v2] Insert attribution. The walker publishes the owning
+    // translation around mmu->insert so TLB::insert never has to guess from
+    // "the latest transaction for this VA" (that guess misattributed a later
+    // unrelated insert to a reused VA — measured in the M02 smoke).
+    void mmuSetInsertContext(uint64_t tid, uint64_t uid,
+                             uint64_t walk_id = 0)
+    {
+        mmu_insert_tid = tid;
+        mmu_insert_uid = uid;
+        mmu_insert_walk_id = walk_id;
+    }
+    void mmuClearInsertContext()
+    {
+        mmu_insert_tid = 0;
+        mmu_insert_uid = 0;
+        mmu_insert_walk_id = 0;
+    }
+    uint64_t mmuInsertTid() const { return mmu_insert_tid; }
+    uint64_t mmuInsertUid() const { return mmu_insert_uid; }
+    uint64_t mmuInsertWalkId() const { return mmu_insert_walk_id; }
+    // Emit refill_pfn_corrupt and tag the in-flight translation.
+    void mmuM02NoteActivation(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              Addr old_pfn, Addr new_pfn, unsigned n,
+                              uint64_t descriptor_raw, Addr pte_addr,
+                              uint64_t walk_event,
+                              const char *mode);
+
+    // ============ [Phase 2.2] M02 entry-fault lineage =====================
+    // The lineage registry is keyed by the REAL inserted TLB entry identity
+    // (tlb_instance, entry_id, generation) — NOT by DynamicInstSeqNum, VA or
+    // PA. A corrupted refill registers one lineage PER LAYER it is inserted
+    // into (DTLB and l2_shared are distinct lifetimes). Any later dynamic
+    // instruction that hits the exact entry identity consumes the lineage:
+    //   1. its own per-instruction translation transaction is created (or
+    //      reused) and adopts the fault id;
+    //   2. a fault_entry_consume / fault_entry_reuse witness is emitted with
+    //      BOTH the origin insert/refill event ids and the current lookup
+    //      event id;
+    //   3. downstream translation_result -> lsu_request -> cache_* ->
+    //      memory_response -> rf_writeback -> commit/squash inherit it.
+    // Called from TLB::lookup on a demand hit (functional lookups excluded).
+    // Returns the fault ptag when the exact identity + architectural key
+    // match; 0 otherwise. *tid_out receives the consumer transaction id.
+    uint64_t mmuM02FindLineage(const std::string &instance, uint64_t entry_id,
+                               uint32_t gen, Addr va, uint16_t asid,
+                               uint16_t vmid, unsigned n, unsigned regime,
+                               unsigned ss, Addr pfn, uint64_t seq,
+                               const char *mode, bool functional,
+                               uint64_t *tid_out = nullptr);
+    // Emit the consume/reuse witness AFTER the real tlb_lookup_hit event.
+    void mmuM02NoteConsume(uint64_t lookup_event);
+    // Close a lineage lifetime on invalidate / replacement / flush.
+    void mmuEndEntryLineage(const std::string &instance, uint64_t entry_id,
+                            uint32_t gen, const char *reason,
+                            uint64_t parent_event = 0);
+    // A new entry was inserted by promoting an entry from another TLB layer
+    // (multiLookup DTLB refill from l2_shared). The lineage is propagated by
+    // the SOURCE entry identity, never by address equality.
+    void mmuM02NotePromotion(const std::string &new_instance,
+                             uint64_t new_entry_id, uint32_t new_gen,
+                             const std::string &src_instance,
+                             uint64_t src_entry_id, uint32_t src_gen,
+                             uint64_t insert_event);
+    // TLB::multiLookup publishes the SOURCE entry identity around the
+    // promotion insert; TLB::insert's event hook consumes it. Exact-entry
+    // lineage only — never a VA/PA guess.
+    void mmuSetPromotionSource(const std::string &instance, uint64_t entry_id,
+                               uint32_t gen)
+    {
+        mmu_promote_src_instance = instance;
+        mmu_promote_src_id = entry_id;
+        mmu_promote_src_gen = gen;
+    }
+    void mmuClearPromotionSource()
+    {
+        mmu_promote_src_instance.clear();
+        mmu_promote_src_id = 0;
+        mmu_promote_src_gen = 0;
+    }
+
+    // ============ [MMU-PHASE3] Fault models M03-M08 =======================
+    // Shared API used by the TLB / PTW / MMU hooks. Every entry point is a
+    // strict no-op unless mmuFaultModel selects the calling model, so
+    // M01/M02 and fault-free runs keep their exact semantics.
+    //
+    // Generic target selector. Returns true when EVERY configured guard
+    // matches. A nullptr / -1 / "" argument means "not constrained".
+    // `va` is compared at page granularity under mmuTargetN when that is
+    // set (otherwise exact-page 4 KiB granularity).
+    bool mmuTargetKeyMatch(Addr va, uint16_t asid, uint16_t vmid,
+                           unsigned n, unsigned regime, unsigned ss,
+                           const char *instance = nullptr,
+                           int walk_level = -1,
+                           const char *mode = nullptr) const;
+    bool mmuTargetSeqMatch(uint64_t seq) const;
+    bool mmuFaultPersistenceEntry() const
+    { return mmu_fault_persistence == "entry_lifetime"; }
+    // One counter per model event channel; true exactly on the configured
+    // 1-based eligible-event ordinal (mmuEligibleEventIndex). In prescan
+    // mode the counter still advances and every event is emitted, but the
+    // call always returns false so no mutation can occur.
+    bool mmuEligibleEvent(unsigned channel,
+            const std::vector<std::pair<std::string, std::string>> &extra = {});
+    // Model -> eligible-event channel (M01=1 ... M08=8; 0 = unknown).
+    static unsigned mmuChannelForModel(const std::string &model);
+    // Create (or reuse) the consumer transaction for a faulted access that
+    // has no miss-triggered transaction of its own (e.g. a warm TLB hit or
+    // a fabricated M03 hit). Returns 0 when tracing is disabled; the fault
+    // itself still activates.
+    uint64_t mmuBeginConsumerTranslation(uint64_t seq, Addr va,
+                                         const char *mode, bool stage2,
+                                         uint16_t asid, uint16_t vmid,
+                                         unsigned regime, unsigned ss,
+                                         uint64_t fault_ptag = 0);
+    // Allocate the one-shot fault id, tag the owning transaction and emit
+    // `mmu_fault_activate` (parent = the transaction's last event).
+    // Returns the ptag, or 0 when the model is not selected / not Idle.
+    // Extra kv pairs are appended to the activation event.
+    uint64_t mmuFaultActivate(const char *model, const char *site,
+                              uint64_t translation_id, uint64_t seq, Addr va,
+                              const std::vector<std::pair<std::string,
+                                              std::string>> &kv = {});
+    // Persistent entry-fault registry (M04/M05): keyed by the REAL entry
+    // lifetime. `source_event` is the activation witness later consumers
+    // name as their cause.
+    void mmuRegisterEntryFault(const std::string &instance,
+                               uint64_t entry_id, uint32_t generation,
+                               uint64_t fault_id, uint64_t source_event,
+                               uint64_t origin_seq, Addr va,
+                               const char *model);
+    uint64_t mmuEntryFaultPtag(const std::string &instance, uint64_t entry_id,
+                               uint32_t generation) const;
+    // [W5X3-OBS-0202c] Bounded warm-hit consumer observation. A poisoned
+    // entry is read by an unbounded number of later dynamic instructions; we
+    // trace only the first MMU_CONSUMER_REUSE_CAP warm-hit consumer
+    // transactions (enough to reach the first committing consumer) and let
+    // the rest stay silent, matching the existing bounded-consumer principle
+    // (an unbounded fan-out would bloat the trace and never change the proven
+    // endpoint). Returns true once that entry's reuse_count reached the cap.
+    bool mmuEntryFaultReuseCapped(const std::string &instance,
+                                  uint64_t entry_id, uint32_t generation)
+        const;
+    // Emit fault_entry_consume/reuse for a later hit of a corrupted entry.
+    uint64_t mmuNoteEntryConsume(const char *kind,
+                                 const std::string &instance,
+                                 uint64_t entry_id, uint32_t generation,
+                                 Addr va, uint16_t asid, uint16_t vmid,
+                                 unsigned n, unsigned regime, unsigned ss,
+                                 uint64_t seq, const char *mode,
+                                 uint64_t lookup_event);
+    // [M06] The corrupted descriptor state was CONSUMED by the decoder. This
+    // is distinct from the fault RESULT being propagated: the former only says
+    // the injected value entered the decode path (e.g. pte_decode Invalid).
+    uint64_t mmuNoteFaultStateConsumed(const char *model, uint64_t fault_id,
+                                       uint64_t walk_id,
+                                       uint64_t translation_id, uint64_t seq,
+                                       Addr va, const char *descriptor_type,
+                                       uint64_t pte_value_before,
+                                       uint64_t pte_value_after,
+                                       Addr pte_address,
+                                       bool pte_memory_written,
+                                       uint64_t pte_decode_event);
+    // [M06] A real Arm fault object was produced for the injected descriptor
+    // (generateLongDescFault). The class/level are the architectural fault,
+    // independent of whether it is later delivered at commit.
+    uint64_t mmuNoteFaultResultPropagated(
+        const char *model, uint64_t fault_id, uint64_t walk_id,
+        uint64_t translation_id, uint64_t seq, Addr va,
+        const char *exception_class, const char *fault_source,
+        unsigned fault_source_level, bool is_fetch, bool is_write,
+        Addr fault_va, const char *delivery_target);
+    // [M06] The fault became architectural at the O3 commit trap point.
+    uint64_t mmuNoteExceptionDelivery(uint64_t seq, const char *pc,
+                                      const char *exception_class);
+    // Honest "configured but not activated" reason (e.g. an M05 decoy VA
+    // with no live L2 partial entry, or a decoy-base mismatch). Emitted at
+    // most once per (model, reason, VA); never consumes the eligible-event
+    // ordinal and never mutates state.
+    void mmuNoteUnactivated(const char *model, const char *reason, Addr va,
+                            const std::vector<std::pair<std::string,
+                                            std::string>> &kv = {});
+    // Accessors for the model-specific hooks.
+    uint64_t mmuActiveFaultPtag() const
+    { return mmu_fault_activated ? mmu_fault_ptag : 0; }
+    // Event id of the one-shot activation witness (0 = not emitted/trace
+    // disabled). Persistent entry faults name it as their causality source.
+    uint64_t mmuFaultActivationEventId() const
+    { return mmu_fault_activation_event; }
+    int mmuM03CandidateAsid() const { return mmu_m03_candidate_asid; }
+    Addr mmuM04DecoyPfn() const { return mmu_m04_decoy_pfn; }
+    Addr mmuM05DecoyVa() const { return mmu_m05_decoy_va; }
+    Addr mmuM05DecoyTableBase() const { return mmu_m05_decoy_table_base; }
+    Addr mmuM08PaXorMask() const { return mmu_m08_pa_xor_mask; }
+    // Valid guest DRAM PA domain shared by the PA-candidate checks.
+    Addr mmuPaDomainLo() const { return mmu_m02_dram_lo; }
+    Addr mmuPaDomainHi() const { return mmu_m02_dram_hi; }
+    Addr mmuTargetVa() const { return mmu_target_va; }
+    int mmuTargetN() const { return mmu_target_n; }
+    uint64_t mmuEntryFaultConsumeCount() const
+    { return mmu_entry_fault_consume_count; }
+
+    // Exit-time honest lifecycle report for the selected model.
+    void mmuFaultExitReport();
+
+  private:
+    // [FSU][F5] Injector hooks flushed by the tracer's exit callback after
+    // its own chain_end events and before the event stream is closed.
+    std::vector<std::function<void()>> exit_flush_hooks;
+
+    // One CSV row: numeric fields with has_x=false print as "".
+    // corr labels the PROP-EVT dual-emit ([R4-4-review-I1]): one of the
+    // CORR_* constants above (or a correlate* arm label) — nullptr only for
+    // kinds that are not dual-emitted (funnel); a nullptr corr on a
+    // dual-emitted kind warns once and writes corr= (contract violation
+    // guard, never silent).
+    void writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
+                   bool has_seq, uint64_t request_id, bool has_req_id,
+                   Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
+                   uint64_t arch_reg, bool has_arch, const std::string &detail,
+                   const char *corr = nullptr, int tid = -1);
+
+    // Core PROP-EVT emitter: event_id is the caller-allocated (v1-shared)
+    // counter value; ptag drives the parent_event_id chain. fields may
+    // override auto values (tick/cycle/core_id/run_id/...).
+    void emitPropEvt(const std::string &kind, uint64_t ptag, uint64_t event_id,
+                     std::map<std::string, std::string> fields, int tid);
+
+    // Parse a v1 detail "k=v;k=v" string into the map (used by the
+    // dual-emit to lift old_addr/new_addr/pc/field/block_addr into the
+    // unified before/after/pc/field/cache_line fields).
+    static void parseDetail(const std::string &detail,
+                            std::map<std::string, std::string> &out);
+
+    uint64_t fnv1a64(const void *blob, size_t n) const;
+    const char *regClassName(int class_value) const;
+
+    // Lazy expiry sweep (called on insert/lookup; registries are tiny).
+    void sweepExpired();
+
+    // Shared transaction constructor (pc=0 when unavailable). [Phase 2.2]
+    // `fault_ptag` is stamped on the transaction BEFORE translation_start is
+    // emitted, so a consumer transaction's very first event already carries
+    // the inherited fault id (no retroactive rewriting of the stream).
+    uint64_t mmuBeginTxn(uint64_t seq, Addr va, uint64_t pc, const char *mode,
+                         bool stage2, uint16_t asid, uint16_t vmid,
+                         unsigned regime, unsigned ss,
+                         uint64_t fault_ptag = 0);
+
+    // [Phase 2.2] Seq-keyed consumer inheritance for downstream hooks that
+    // only see the Request's dyn-inst seq. The ptag was established by a
+    // REAL TLB entry-lineage consumption, never by VA/PA matching here.
+    uint64_t mmuAdoptConsumerFault(uint64_t tid, uint64_t seq);
+
+    BaseCPU *cpu;
+    o3::CPU *o3cpu = nullptr;      // resolved at startup(); nullptr = disabled
+    std::string trace_file;        // simout.resolve target (.gz, self-managed)
+    bool write_log;                // gate ALL tracking + writing
+    // [MMU-TRACE v1] VA-gated unified MMU trace (params).
+    bool mmu_trace;
+    Addr mmu_trace_va_lo;
+    Addr mmu_trace_va_hi;
+    // [MMU-TRACE v2] M01/M02 one-shot fault configuration (params).
+    // [Phase 2.2] mmu_fault_enable is the INDEPENDENT injection switch; the
+    // model string alone never consults write_log/mmu_trace.
+    bool mmu_fault_enable;
+    std::string mmu_fault_model;   // "" | M01 | M02
+    Addr mmu_m01_va;
+    int mmu_m01_asid;              // -1 = any
+    int mmu_m01_vmid;              // -1 = any
+    int mmu_m01_regime;            // -1 = any [MMU-TRACE v3]
+    int mmu_m01_ss;                // -1 = any [MMU-TRACE v3]
+    unsigned mmu_m01_n;
+    Addr mmu_m02_va;
+    Addr mmu_m02_old_pfn;
+    Addr mmu_m02_xor_mask;
+    Addr mmu_m02_dram_lo;          // validity domain of old/new PA pages
+    Addr mmu_m02_dram_hi;
+    // [MMU-PHASE3] generic target selector + model-specific parameters.
+    Addr mmu_target_va;
+    int mmu_target_asid;
+    int mmu_target_vmid;
+    int mmu_target_n;
+    int mmu_target_regime;
+    int mmu_target_ss;
+    std::string mmu_target_instance;
+    int mmu_target_walk_level;
+    uint64_t mmu_target_seq;
+    std::string mmu_target_mode;
+    uint64_t mmu_eligible_index;
+    bool mmu_prescan = false;
+    std::map<unsigned, uint64_t> mmu_eligible_counts;
+    // Identity of the eligible event selected by mmu_eligible_index, used
+    // to join activation -> eligible-event in the causal graph.
+    uint64_t mmu_eligible_selected_event = 0;
+    unsigned mmu_eligible_selected_channel = 0;
+    uint64_t mmu_eligible_selected_ordinal = 0;
+    std::string mmu_fault_persistence;
+    int mmu_m03_candidate_asid;
+    Addr mmu_m04_decoy_pfn;
+    Addr mmu_m05_decoy_va;
+    Addr mmu_m05_decoy_table_base;
+    Addr mmu_m08_pa_xor_mask;
+    uint64_t addr_expiry_ticks;    // registry entry lifetime (0 = never expire)
+    gzFile gz_file = nullptr;      // raw zlib stream; crash-durability note
+
+    // PROP-EVT stream (H0): second crash-durable gz; event counter shared
+    // with v1 (event_id == node_id). ptag_last_event gives each fault chain
+    // its previous event id (parent_event_id edge).
+    std::string evt_trace_file;    // simout.resolve target (.gz)
+    std::string run_id;            // campaign RunID (param; "" = unset)
+    std::string sample_run_id;     // sample index within the RunID
+    gzFile evt_gz_file = nullptr;
+    uint64_t clock_period = 0;     // captured at startup(); cycle = tick/period
+    bool evt_unknown_key_warned = false;
+    bool evt_corr_missing_warned = false;   // [R4-4-review-I1] guard above
+    std::map<uint64_t, uint64_t> ptag_last_event;
+
+    // [MDSPEC][R6-FIXA] Request-scoped parent cursor.  `ptag_last_event` alone
+    // made every event of a fault descend from the previous event of the SAME
+    // ptag no matter which request it belonged to.  That is wrong for the
+    // addr_fallback broadcast (one polluted line/PA read by many requests):
+    // it chained request A's event directly onto request B's event, i.e. a
+    // cross-request parent edge — which the chain checker's `cross_request_edge`
+    // rule (R6-GATE-D3) correctly rejects (measured T04-F0-W4: event 12
+    // mshr_alloc req=31 -> event 13 cache_access req=32, 59 breaks).
+    //
+    // The chain is now per (ptag, request): a stamped event descends from the
+    // last event of ITS OWN request; an un-stamped event (lifecycle only —
+    // lsq_push / sq_complete / taint_reg / resp / errant_commit / chain_end /
+    // lq_complete) belongs to the chain's OWNER request, i.e. the first stamped
+    // request of that ptag = the faulting request.  A later, different request
+    // therefore starts a SIBLING sub-chain under the same fault_id (rooted
+    // where its own request first appears) instead of hanging off another
+    // request's event.  For a single-request chain this is byte-identical to
+    // the old cursor.
+    std::map<uint64_t, uint64_t> ptag_owner_request;   // ptag -> owning req id
+    std::map<std::pair<uint64_t, uint64_t>, uint64_t> ptag_branch_last;
+
+    // [MDSPEC][R6-FIXA2] Explicit lineage bridge.  The request-scoped cursor
+    // above stops a SIBLING sub-chain from hanging off another request's
+    // event, but a sibling with no parent at all would drop the *real*
+    // cross-request pollution propagation out of the causal graph (user
+    // ruling 2026-10-23: "事件数不变不代表传播图语义等价").  So the FIRST
+    // event of a new request of an existing fault chain is joined to the
+    // pollution source by one explicit `request_fork` bridge event, which
+    // records old/new request ids, source/dest event ids, the stable chain
+    // identity (corr), the crossing layer, the reason, and the SHARED
+    // propagation object — the registered corrupted byte range that BOTH
+    // requests actually address (verifiable by the chain checker).
+    //
+    // A bridge is emitted ONLY when a real source event and a real shared
+    // object are both known.  With no provenance the request is NOT linked
+    // (no fabricated bridge) and the chain stays honestly per-request.
+    static constexpr uint64_t BRIDGE_ID_BASE = 1ull << 32;
+    uint64_t next_bridge_id = BRIDGE_ID_BASE;          // disjoint id space
+    std::map<std::pair<uint64_t, uint64_t>, uint64_t> ptag_bridge_event;
+    // Last STAMPED event of each (ptag, request) branch together with the
+    // addresses it carried: the only admissible pollution source for a
+    // bridge, because a bridge's source must be verifiable (a request-stamped
+    // event that really addresses the shared object).  An un-stamped
+    // lifecycle event can never carry the identity, so it is not a source.
+    struct LineageSrc {
+        uint64_t event_id = 0;
+        uint64_t va = 0, pa = 0, line = 0;
+        bool touches(Addr begin, Addr end) const
+        {
+            for (uint64_t a : {va, pa, line})
+                if (a != 0 && a >= begin && a < end)
+                    return true;
+            return false;
+        }
+    };
+    std::map<std::pair<uint64_t, uint64_t>, LineageSrc> ptag_branch_src;
+    // Emit the bridge for `dest_request` of `ptag` (returns its event id, or
+    // 0 when no verifiable source/object exists).  `kind` is the destination
+    // event's kind; `fields` is its pending field map (read-only).
+    uint64_t emitLineageBridge(const std::string &kind, uint64_t ptag,
+                               uint64_t dest_request, uint64_t dest_event_id,
+                               const std::map<std::string, std::string> &fields);
+    // Serialize + flush one PROP-EVT row (shared by the normal emitter and
+    // the lineage-bridge emitter).
+    void writePropEvtRow(std::map<std::string, std::string> &fields);
+
+    // [MDSPEC][R6-FIXCPP/A] Drop every correlation arm (addr_registry seq
+    // entry + blk_registry fallback page) belonging to `ptag`. Called at a
+    // CONTAINED translation completion so a closed chain leaves no residual
+    // mapping behind; idempotent, no-op for ptag == 0 or an arm-less chain.
+    // The registration-side gate + this revocation are the two halves of the
+    // containment contract pinned by tests/ (chaos_tlb_chain.hh is the shared
+    // decision source for both).
+    void revokeChainArms(uint64_t ptag);
+
+    struct TlbPending {
+        uint64_t ptag = 0;
+        std::string corr;
+        uint64_t walk_id = 0;
+        int entry_way = -1;
+        int candidate_way = -1;
+        Addr clean_pa = 0;
+        Addr lookup_pa = 0;
+        std::string entry_before;
+        std::string entry_after;
+        // [R6-B/T08-bcd] walk-family faults have no clean-PA baseline (the
+        // corrupted object is the walk handshake, not the entry pfn); the
+        // completion must not claim containment on an unknown baseline.
+        bool walk_fault = false;
+    };
+    // Request sequence plus VA disambiguates stage/functional lookups while
+    // preserving a direct join with the MMU request that completes them.
+    std::map<std::pair<uint64_t, Addr>, TlbPending> tlb_pending;
+
+    static CHAOSPropagation *chaos_instance;
+
+    uint64_t next_node_id = 0;
+    uint64_t next_ptag = 0;        // 0 reserved ("no chain")
+
+    // [MMU-TRACE v1] Per-translation context. Keyed by MMU-allocated
+    // identities, never by pointer addresses. One PTW may serve several
+    // requests; one instruction may be retried (execution_attempt_id).
+    struct MmuTxnInfo
+    {
+        uint64_t translation_id = 0;
+        uint64_t unique_request_id = 0;
+        uint64_t dyn_seq = 0;
+        Addr va = 0;
+        uint64_t last_event = 0;
+        uint64_t req_event = 0;
+        uint64_t resp_event = 0;
+        uint64_t wb_event = 0;
+        uint64_t result_event = 0;
+        uint64_t attempt = 0;
+        // [MMU-TRACE v2] Injected-fault chain id (ptag) once this
+        // translation becomes a fault-chain member; 0 for fault-free
+        // infrastructure events. All later events of the translation adopt
+        // this fault_id, so FaultID joins the whole downstream chain.
+        uint64_t fault_ptag = 0;
+        // Structured association key captured at transaction creation.
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        // [Phase 2.2] Real squash witness of this dynamic instruction. The
+        // M02 lineage records whether the ORIGINAL refill instruction was
+        // squashed before a later dynamic consumer arrived.
+        uint64_t squash_event = 0;
+    };
+    std::map<uint64_t, MmuTxnInfo> mmu_txn;                 // tid -> info
+    std::map<uint64_t, uint64_t> mmu_txn_by_walk;           // walk_id -> tid
+    std::map<std::pair<uint64_t, Addr>, uint64_t> mmu_txn_by_seq_va;
+    std::map<Addr, uint64_t> mmu_txn_by_va;
+    std::map<uint64_t, uint64_t> mmu_seq_txn;               // seq -> tid
+    // [W5X3-OBS-0202c] Execute-fetch Request -> open translation_id. Keyed by
+    // the real Request object identity (never VA) so the O3 fetch pipeline can
+    // recover the synthetic fetch transaction in finishTranslation. Populated
+    // by mmuNoteLsuRequest for fetch requests, consumed by mmuTakeFetchTxn.
+    std::map<const Request *, uint64_t> mmu_req_txn;        // req ptr -> tid
+    // [MMU-TRACE v4] Reserved-namespace identities minted for Execute-mode
+    // lookups. A high-bit seq that is NOT in this set is a real dynamic
+    // sequence that reached the reserved range; mmuBeginTxn refuses it
+    // rather than risk a collision.
+    uint64_t next_mmu_synthetic_seq = 0;
+    std::set<uint64_t> mmu_synthetic_seqs;
+    std::map<uint64_t, uint64_t> mmu_walk_last;             // walk_id -> evt
+    std::map<uint64_t, uint64_t> mmu_tlbi_last;             // tlbi_id -> evt
+    // [MMU-TRACE v2] Last maintenance event per EXACT association key
+    // (VA, ASID, VMID, regime, security state) — the explicit parent of the
+    // next miss-triggered translation of that same translation context.
+    // VA-only keying cannot distinguish equal-VA/different-ASID or
+    // equal-VA/different-regime entries (design §4.2).
+    struct MmuAssocKey
+    {
+        Addr va = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        uint8_t regime = 0;
+        uint8_t ss = 0;
+        bool operator<(const MmuAssocKey &o) const
+        {
+            return std::tie(va, asid, vmid, regime, ss) <
+                   std::tie(o.va, o.asid, o.vmid, o.regime, o.ss);
+        }
+    };
+    std::map<MmuAssocKey, uint64_t> mmu_last_tlbi_key;
+
+    // [MMU-TRACE v2] M01 one-shot latch + M02 activation lifecycle.
+    enum class MmuFaultState { Off, Idle, Armed, Consumed, Activated };
+    MmuFaultState mmu_fault_state = MmuFaultState::Off;
+    uint64_t mmu_fault_ptag = 0;
+    uint64_t mmu_fault_arm_event = 0;
+    uint64_t mmu_fault_disarm_event = 0;
+    uint64_t mmu_fault_consume_event = 0;
+    uint64_t mmu_fault_activation_event = 0;
+    uint64_t mmu_fault_first_tlbi_id = 0;
+    std::string mmu_fault_tlbi_op;      // op name of the arming TLBI
+    uint64_t mmu_fault_last_suppressed_event = 0;
+    uint64_t mmu_fault_suppress_count = 0;
+    std::vector<uint64_t> mmu_fault_suppressed_tlbi_ids;
+    uint64_t mmu_fault_entry_id = 0;
+    uint32_t mmu_fault_entry_generation = 0;
+    Addr mmu_fault_va = 0;
+    uint16_t mmu_fault_asid = 0;
+    uint16_t mmu_fault_vmid = 0;
+    uint8_t mmu_fault_regime = 0;
+    uint8_t mmu_fault_ss = 0;
+    unsigned mmu_fault_n = 0;
+    bool mmu_fault_armed = false;       // M01 maintenance window open
+    bool mmu_fault_consumed = false;
+    bool mmu_fault_activated = false;
+    // Downstream witnesses of the fault chain (filled by the emitters when
+    // the event's fault_id equals mmu_fault_ptag).
+    uint64_t mmu_fault_result_event = 0;
+    Addr mmu_fault_result_pa = 0;
+    uint64_t mmu_fault_response_event = 0;
+    uint64_t mmu_fault_wb_event = 0;
+    uint64_t mmu_fault_commit_event = 0;
+    uint64_t mmu_fault_consumer_event = 0;
+    // [M06] Consumed-state vs propagated-result evidence. `state_consumed`
+    // records that the injected descriptor entered decode; `result` records
+    // a real Arm fault object; `delivery` records the O3 commit trap.
+    uint64_t mmu_fault_state_consumed_event = 0;
+    uint64_t mmu_fault_result_propagated_event = 0;
+    uint64_t mmu_fault_exception_delivery_event = 0;
+    uint64_t mmu_fault_origin_seq = 0;
+    std::string mmu_fault_exception_class;
+    std::string mmu_fault_delivery_target;
+    bool mmu_fault_inst_squashed = false;
+    uint64_t mmu_fault_inst_squash_event = 0;
+    std::set<std::string> mmu_unactivated_emitted;
+    // [Phase 2.2] First cross-dynamic entry-lineage consumption witness and
+    // its consumer identity (summary evidence).
+    uint64_t mmu_fault_lineage_consume_event = 0;
+    uint64_t mmu_fault_lineage_consumer_seq = 0;
+    uint64_t mmu_fault_new_pfn = 0;
+    Addr mmu_fault_new_pa = 0;
+    Addr mmu_fault_old_pa = 0;
+    std::map<std::pair<uint64_t, Addr>, uint32_t>
+        mmu_attempts;                                       // (seq,va) -> n
+    std::set<uint64_t> mmu_traced_seqs;                     // commit filter
+    std::set<uint64_t> mmu_consumer_seqs;
+    std::map<uint64_t, std::set<std::pair<int, uint32_t>>>
+        mmu_traced_dests;                                   // seq -> dests
+    std::map<std::pair<int, uint32_t>, uint64_t>
+        mmu_dest_owner;                                     // reg -> seq
+    uint64_t next_mmu_translation_id = 0;
+    uint64_t next_mmu_unique_request_id = 0;
+    // [MMU-TRACE v3] PTW per-level request identity.
+    struct MmuPtwRequestInfo
+    {
+        uint64_t walk_id = 0;
+        uint64_t translation_id = 0;
+        uint64_t unique_id = 0;
+        uint64_t seq = 0;
+        Addr va = 0;
+        Addr pte_addr = 0;
+        unsigned level = 0;
+        uint64_t request_event = 0;
+        uint64_t response_event = 0;
+    };
+    uint64_t next_mmu_ptw_request_id = 0;
+    std::map<uint64_t, MmuPtwRequestInfo> mmu_ptw_info;
+    uint64_t next_mmu_cache_req_id = 0;
+    std::map<std::string, uint64_t> mmu_cache_req_ids;
+    uint64_t next_mmu_lookup_id = 0;
+    uint64_t next_mmu_tlbi_id = 0;
+    uint64_t next_mmu_response_id = 0;
+    uint64_t next_mmu_entry_id = 0;
+    // Insert-point translation context published by the walker (see
+    // mmuSetInsertContext); 0 = unknown (honest, no attribution).
+    uint64_t mmu_insert_tid = 0;
+    uint64_t mmu_insert_uid = 0;
+    uint64_t mmu_insert_walk_id = 0;
+
+    // [Phase 2.2] M02 entry-fault lineage. One record per REAL TLB entry
+    // lifetime. The key is instance + entry_id + generation; a generation
+    // change is a DIFFERENT lifetime and can never inherit an old fault.
+    struct MmuEntryLineageKey
+    {
+        std::string instance;
+        uint64_t entry_id = 0;
+        uint32_t generation = 0;
+        bool operator<(const MmuEntryLineageKey &o) const
+        {
+            return std::tie(instance, entry_id, generation) <
+                   std::tie(o.instance, o.entry_id, o.generation);
+        }
+    };
+    struct MmuEntryLineage
+    {
+        uint64_t fault_id = 0;
+        std::string fault_model = "M02";
+        // Origin (the corrupted refill and the instruction that walked).
+        uint64_t origin_event = 0;         // refill_pfn_corrupt event id
+        uint64_t origin_translation_id = 0;
+        uint64_t origin_walk_id = 0;
+        uint64_t origin_seq = 0;           // original dyn instruction
+        // The insert of THIS entry lifetime.
+        uint64_t insert_event = 0;
+        // Architectural identity of the corrupted translation.
+        Addr va = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned n = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        Addr old_pfn = 0, new_pfn = 0;
+        Addr old_pa = 0, new_pa = 0;
+        // Last event of THIS lifetime + how many dynamic consumers re-used it.
+        uint64_t last_event = 0;
+        uint64_t reuse_count = 0;
+    };
+    std::map<MmuEntryLineageKey, MmuEntryLineage> mmu_entry_lineage;
+
+    // [MMU-PHASE3] Persistent entry-fault registry for M04/M05. Separate
+    // from the M02 lineage so the M02 rules stay untouched. One record per
+    // REAL entry lifetime; a generation change never inherits the fault.
+    struct MmuEntryFaultRecord
+    {
+        uint64_t fault_id = 0;
+        uint64_t source_event = 0;
+        uint64_t origin_seq = 0;
+        Addr va = 0;
+        std::string model;
+        uint64_t reuse_count = 0;
+    };
+    std::map<MmuEntryLineageKey, MmuEntryFaultRecord> mmu_entry_faults;
+    uint64_t mmu_entry_fault_consume_count = 0;
+
+    // The one-shot corrupted refill waiting to be written into the TLBs.
+    // Matched at insert by walk_id + VA + N + new PFN (exact), never by
+    // address alone.
+    struct MmuM02Pending
+    {
+        bool active = false;
+        uint64_t ptag = 0;
+        uint64_t activation_event = 0;
+        uint64_t translation_id = 0;
+        uint64_t unique_id = 0;
+        uint64_t walk_id = 0;
+        uint64_t seq = 0;
+        Addr va = 0;
+        unsigned n = 0;
+        Addr old_pfn = 0, new_pfn = 0;
+        Addr old_pa = 0, new_pa = 0;
+    };
+    MmuM02Pending mmu_m02_pending;
+
+    // A lineage hit observed during TLB::lookup; the witness is emitted
+    // after tlb_lookup_hit so its parent is the real lookup event.
+    struct MmuM02ConsumePending
+    {
+        bool active = false;
+        uint64_t ptag = 0;
+        uint64_t tid = 0;
+        uint64_t uid = 0;
+        uint64_t seq = 0;
+        uint64_t attempt = 0;
+        std::string instance;
+        uint64_t entry_id = 0;
+        uint32_t generation = 0;
+        Addr va = 0, pfn = 0, pa = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned n = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        uint64_t reuse_ordinal = 0;
+    };
+    MmuM02ConsumePending mmu_m02_consume_pending;
+
+    // Per-dynamic-instruction consumer identity established by a lineage
+    // hit. Cache/response/writeback/commit hooks that only have the Request
+    // seq use this to inherit the fault even when the instruction opened no
+    // miss transaction (a warm hit used to be dropped entirely).
+    std::map<uint64_t, uint64_t> mmu_consumer_seq_ptag;   // seq -> ptag
+    std::map<uint64_t, uint64_t> mmu_consumer_seq_tid;    // seq -> tid
+
+    // Promotion source identity (set by TLB::multiLookup around insert).
+    std::string mmu_promote_src_instance;
+    uint64_t mmu_promote_src_id = 0;
+    uint32_t mmu_promote_src_gen = 0;
+    // [MDSPEC][R6-FIXCPP/T3] consumer_summary aggregation (see
+    // chaos_consumer_summary.hh — the ONE shared definition, no drift). The
+    // `consumer` kind is the ONLY aggregatable kind; every other event is a
+    // semantic state change / witness / terminal and is always emitted as its
+    // own PROP-EVT. Flushed to the stream immediately before the chain_end
+    // events at exit, so a real terminal always precedes the accounting.
+    chaos_consumer::Aggregator consumer_agg;
+    bool errant_commit_seen = false;
+    // [MDSPEC][R6] Per-chain record of the (single, first) errant commit.
+    // The errant_commit node already carries the faulting chain's own ptag,
+    // so WHICH chain reached the wrong architecturally-visible commit is
+    // observable; the run-global flag above cannot say it, which forced the
+    // L5 `chain_end` node to report a lifecycle-only outcome for every chain
+    // (outcome=run_end / detection_layer=None) — rejected as L5 evidence.
+    std::set<uint64_t> errant_ptags;
+
+    // [MDSPEC][R6-EMIT2/oracle] Tracer-observed commit ordinal (counts every
+    // commit seen by noteCommit — the CHAOSMicroSnap commit_seq semantic).
+    // The L5 detection node / chain_end carry it so the offline outcome join
+    // has a commit point (L18 contract item 3: fault_id/commit_seq/pc/
+    // dyn_inst_seq).
+    uint64_t commit_seq_counter = 0;
+    // Per-chain record of the DETECTION point (the errant commit): pc /
+    // DynInst seq / commit ordinal / tick, lifted onto the chain's L5
+    // chain_end node at exit. Chains that never reached a detection keep an
+    // empty record (honest — the fields stay "").
+    struct DetectPoint {
+        uint64_t pc = 0;
+        uint64_t dyn_seq = 0;
+        uint64_t commit_seq = 0;
+        Tick tick = 0;
+    };
+    std::map<uint64_t, DetectPoint> errant_detect;
+
+    // [MDSPEC][R6] Per-chain containment disposition (layer, reason), set
+    // when a translation completes with the fault ABSORBED (effective PA
+    // unchanged / permission-denied / lost walk) — i.e. the Masked case.
+    // The exit callback lifts it onto the chain's chain_end node so the
+    // chain closes as detected_contained (later layers justified
+    // N/A(contained)) instead of falling back to an Unknown terminal.
+    std::map<uint64_t, std::pair<std::string, std::string>> containment_ptags;
+
+    struct AddrEntry {
+        uint64_t ptag;
+        uint64_t dyn_seq;
+        Addr base;
+        Addr size;                 // 0 = address-only marker (never matches)
+        Tick registered;
+    };
+    std::map<Addr, AddrEntry> addr_registry;
+
+    // [R6-S-FWD 2026-10-30] Forwarded-load seq registry. The forward binds
+    // the addr registry to the PRODUCER store's seq; the consuming load has
+    // no memory response, so its lifecycle (squash/commit) can only join by
+    // ITS OWN seq. Keyed by dyn_seq (one entry per load), swept on expiry and
+    // erased at commit/squash so a recycled seq cannot inherit the chain.
+    std::map<uint64_t, AddrEntry> load_fwd_registry;
+
+    struct BlkEntry {
+        uint64_t ptag;
+        Addr byte_begin;           // inclusive
+        Addr byte_end;             // exclusive
+        Tick registered;
+    };
+    std::map<Addr, BlkEntry> blk_registry;
+
+    struct TaintEntry {
+        uint64_t ptag;
+        uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
+        // [MDSPEC][R6/A6] The event that ESTABLISHED this taint (the
+        // taint_reg node, or the consumer node that re-tainted a dest).
+        // Consumers of this taint name it as their parent_event_id, so the
+        // chain is a real DAG (one source → many consumers) instead of the
+        // degenerate "parent = previous event" linear list the single
+        // ptag_last_event cursor produced.
+        uint64_t src_event = 0;
+    };
+    std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+
+    // [MDSPEC][R6/A7] Store-response taint, keyed by the STORE's DynInst seq
+    // (a store has no arch dest reg to key the phys-reg taint set on — its
+    // architectural materialization is its COMMIT). noteMemResponse records
+    // the store here at its L3 response; noteCommit then treats the store's
+    // own commit as the error path (errant_commit, L4/L5) exactly as it does
+    // the faulting load's self-taint commit. Without this the store chain
+    // honestly stopped at L3 (measured S04-F0-W5).
+    std::map<uint64_t, TaintEntry> store_taint;
+
+    // [R6-S-REPAIR2] one real L3 containment per lost-store seq.
+    std::set<uint64_t> store_lost_contained;
+
+    // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
+    // request keyed by its line base, carrying the request-level
+    // pf_request_id (independent of ptag) so every downstream node of the
+    // same prefetch resolves the same id.
+    struct PfEntry {
+        uint64_t pf_request_id;
+        Addr base;
+        Addr size;
+        Tick registered;
+    };
+    std::map<Addr, PfEntry> pf_registry;
+    uint64_t next_pf_request_id = 0;   // 0 reserved ("no prefetch request")
+    // pf_request_id lives in a DISJOINT numeric space from fault_id/ptag
+    // (offset PF_ID_BASE) so a request-level id can never be mistaken for,
+    // or coincide with, a fault-chain id (spec sheet 9 P01 requires them
+    // to be different identities).
+    static constexpr uint64_t PF_ID_BASE = 1ULL << 32;
+
+    // [MDSPEC][H4] in-flight miss lines → allocated mshr_id (real ids).
+    std::map<Addr, uint64_t> mshr_registry;
+    uint64_t next_mshr_id = 0;         // 0 reserved ("no mshr")
+    uint64_t next_fill_id = 0;         // 0 reserved ("no fill")
+};
+
+} // namespace gem5
+
+#endif // __CPU_O3_CHAOS_PROPAGATION_HH__

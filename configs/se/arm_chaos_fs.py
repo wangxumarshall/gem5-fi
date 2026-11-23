@@ -1,0 +1,751 @@
+#!/usr/bin/env python3
+# arm_chaos_fs.py — ARM64 full-system (FS) config for CHAOS fault injection.
+#
+# Phase 3 (§六.4 step 3: TLB/system-register FI) needs FS mode to reach the
+# ARM MMU (TLB entries, page-table walker, system registers). This config
+# boots the gem5-fs/ ARM Ubuntu disk via the gem5 v25 stdlib ArmBoard +
+# VExpress_GEM5_Foundation platform, using LOCAL gem5-fs/ deps (kernel,
+# disk, dtb, boot ROM) — no network resource fetch.
+#
+# The FS-mode bootstrap is itself the deliverable here: a TLB/SYS-reg
+# injector SimObject does not exist yet (Phase 3 follow-up), but a
+# bootable FS config is the prerequisite — without it, no TLB/SYS FI is
+# possible. This config verifies FS mode boots to userspace on the
+# gem5-fs deps, then exits (so it's CI-able).
+#
+# Usage:
+#   gem5.opt --outdir=runs/fs configs/se/arm_chaos_fs.py \
+#       --kernel=gem5-fs/vmlinux --disk=gem5-fs/ubuntu.img \
+#       --bootloader=gem5-fs/boot.arm64 --root-partition=/dev/sda2 \
+#       [--cpu=TIMING|O3|Atomic] [--mem-size=2GiB]
+
+import argparse
+import m5
+from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
+                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg,
+                        CHAOSPTW, CHAOSPhysReg, CHAOSAddrPath)
+from gem5.components.boards.arm_board import ArmBoard
+# [MDSPEC][H0] CHAOSPropagation may be absent from an older binary — import
+# on demand so the FS path degrades loudly only when the flag is requested
+# (same discipline as configs/se/lsu_proxy.py).
+try:
+    from m5.objects import CHAOSPropagation
+except ImportError:
+    CHAOSPropagation = None
+from gem5.simulate.exit_event import ExitEvent
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
+)
+from gem5.components.memory import DualChannelDDR4_2400
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.isas import ISA
+from gem5.resources.resource import (
+    KernelResource, DiskImageResource, BootloaderResource,
+)
+from gem5.simulate.simulator import Simulator
+
+p = argparse.ArgumentParser()
+p.add_argument("--kernel", required=True, help="path to vmlinux")
+p.add_argument("--disk", required=True, help="path to the disk image")
+p.add_argument("--bootloader", required=True, help="path to boot.arm64")
+p.add_argument("--root-partition", default="/dev/vda1",
+               help="root partition in the disk image. The ArmBoard attaches "
+                    "the disk as a virtio-blk device, so it appears as "
+                    "vda (NOT sda). gem5-fs/ubuntu.img is GPT; partition 1 "
+                    "= ext4 root -> /dev/vda1.")
+p.add_argument("--cpu", default="TIMING",
+               choices=["TIMING", "O3", "Atomic"])
+p.add_argument("--mem-size", default="2GiB")
+p.add_argument("--platform", default="V1",
+               choices=["V1", "Foundation"],
+               help="VExpress platform. V1 matches the gem5-fs "
+                    "armv8_gem5_v1*.dtb + boot.arm64 combo; Foundation is "
+                    "the stdlib default (different memory map).")
+p.add_argument("--readfile", default=None,
+               help="optional script run via m5 readfile after boot")
+# §3.2 FS checkpoint pipeline (Phase 5.2): restore from a checkpoint taken
+# by boot_ckpt.rcS (Atomic boot -> m5 checkpoint -> m5 exit). The restore
+# run may use a DIFFERENT cpu type (e.g. O3) — gem5's checkpoint restore
+# switches the CPU and drains. Injectors mount fresh on the restore run;
+# their firstClock is interpreted RELATIVE to the checkpoint tick when
+# --ckpt_first_clock is given (see the rebase below).
+p.add_argument("--restore-checkpoint", default=None,
+               help="path to a checkpoint directory (e.g. m5out/cpt.12345); "
+                    "restores from it instead of a fresh boot")
+# §2.10 H7 (Phase 5.3 follow-up): BOOT-PHASE checkpoint — the H7 ECC-on/off
+# contrast's design expectation comes from boot-time page-table-walk density
+# (0.069%), which the steady-state checkpoint misses. Run to <ticks>, save a
+# checkpoint mid-boot, and exit. Restore runs then inject during the
+# walk-dense boot continuation.
+p.add_argument("--early-checkpoint", type=lambda x:int(x,0), default=0,
+               help="run to this tick, save a checkpoint, and exit (boot-"
+                    "phase checkpoint for the H7 contrast; 0 = off)")
+p.add_argument("--ckpt-first-clock", action="store_true", default=False,
+               help="rebase --tlb_first_clock/--sysreg_first_clock to be "
+                    "RELATIVE to the checkpoint tick (read from the ckpt's "
+                    "m5out/tick file)")
+# ---- Platform parameter presets (M3 T4 fix, 2026-09-28) ----
+# HONEST FIX: the V110/B0 deltas were previously applied by
+# kp920_proxy_fs.py / lsu_b0_fs.py AFTER exec'ing this script — but this
+# script ends with simulator.run(), so those post-exec hook assignments
+# were DEAD CODE (never executed; evidence: V110/B0 prints absent from all
+# logs, both boots produced identical ticks, config.ini shows dtb
+# assoc=64). Platform params now live HERE, applied in-body BEFORE the
+# Simulator is constructed. Every FS run made through the old wrappers ran
+# with DEFAULT gem5 params despite the wrapper labels.
+p.add_argument("--v110_params", action="store_true",
+               help="apply TaiShan V110 O3 params (C2-KP point): width=4, "
+                    "ROB=128, physInt=160, physFloat=192, LQ=48, SQ=42 "
+                    "(docs/kunpeng.md §3)")
+p.add_argument("--lsu_b0", action="store_true",
+               help="apply LSU-B0 params (09 §3 W7 / 02 table): DTLB=32 "
+                    "(S1 sensitivity restores 64), LQ=16, SQ=16")
+# Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector (FS only).
+p.add_argument("--chaos_armtlb", action="store_true",
+               help="attach CHAOSArmTLB (ARM TLB-entry pfn corruptor)")
+p.add_argument("--tlb_first_clock", type=lambda x:int(x,0), default=100000,
+               help="CHAOSArmTLB first clock cycle eligible for injection")
+p.add_argument("--tlb_probability", type=float, default=0.0,
+               help="CHAOSArmTLB per-lookup injection probability")
+p.add_argument("--tlb_fault_type", default="bit_flip",
+               choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
+                        "random", "pfn_to_mapped_page", "walk_pairing",
+                        # [R4-10-T08-b/c/d] walk/refill pairing sub-models
+                        "walk_fill_dup", "walk_done_early", "walk_stale_result",
+                        # [R4-10-T05] entry identity / lifecycle state
+                        "valid_clear", "valid_set", "global_flip", "asid_subst",
+                        # [R4-10-T06] access-attribute legal substitution
+                        "perm_subst", "memtype_subst", "pagesize_subst",
+                        # [R4-10-T07] CAM compare / way select
+                        "false_hit", "double_hit", "wrong_way"],
+               help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
+                    "(substitute with another mapped entry's pfn); "
+                    "walk_pairing = T08-a FS walk/fill lost (R4-5.9; needs "
+                    "--tlb_lsu_tier); valid_clear/valid_set/global_flip/"
+                    "asid_subst = T05 entry state; perm_subst/memtype_subst/"
+                    "pagesize_subst = T06 legal attribute substitution; "
+                    "false_hit/double_hit/wrong_way = T07 CAM/way select")
+# [R4-5.9] T08 walk/fill pairing trigger tier (event-normalized on the
+# page-table-walk issue stream). "off" = no trigger; walk_pairing panics
+# without a tier (loud refusal, L04/S10 discipline).
+p.add_argument("--tlb_lsu_tier", default="off",
+               choices=["off", "F0", "F1", "F2", "F3", "F4", "F5", "F6"],
+               help="CHAOSArmTLB event-normalized trigger tier (T08)")
+p.add_argument("--tlb_lsu_warmup_events", type=lambda x:int(x,0), default=0)
+p.add_argument("--tlb_lsu_span_events", type=lambda x:int(x,0), default=1000,
+               help="F0 uniform window size over the walk-issue stream")
+p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
+               help="CHAOSArmTLB max faults; 1 for single-fault")
+p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
+               help="CHAOSArmTLB 64-bit pfn mask; 0=random")
+# M3 W7 (T02, 02 r3): number of pfn bits to flip when faultMask=0 — the
+# mount previously hardcoded bitsToChange=1, so 2-bit models were unreachable.
+p.add_argument("--tlb_bits_to_change", type=lambda x:int(x,0), default=1,
+               help="CHAOSArmTLB pfn bits to flip when faultMask=0 (T02=2)")
+p.add_argument("--tlb_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--tlb_protection_model", default="none",
+               choices=["none","parity_interleaved"],
+               help="§1.2 protection-aware layer for the TLB injector. 'none' "
+                    "(default = L1 TLB raw escape, zero regression); "
+                    "'parity_interleaved' (L2 TLB/walk-cache proxy: 1-bit "
+                    "detect -> entry pfn restored before MMU use = Corrected "
+                    "(real HW invalidates+re-walks, this restores, E3); >=2-bit "
+                    "silent = SilentEscape).")
+# Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg system-register injector.
+# Hooks ISA::readMiscRegNoEffect (MRS read path). Whitelist of ARM MiscReg
+# enum NAMES (TTBR/TCR/MAIR/SCTLR/VBAR etc.) — empty = no injection.
+p.add_argument("--chaos_sysreg", action="store_true",
+               help="attach CHAOSArmSysReg (ARM system-register read-path "
+                    "corruptor, FS only)")
+p.add_argument("--sysreg_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--sysreg_fault_type", default="bit_flip",
+               choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
+                        "random", "value_to_legal"],
+               help="CHAOSArmSysReg fault type; value_to_legal = §2.10 F5 "
+                    "(substitute with another whitelisted sysreg's value)")
+p.add_argument("--sysreg_probability", type=float, default=0.0)
+p.add_argument("--sysreg_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--sysreg_fault_mask", type=lambda x:int(x,0), default=0)
+p.add_argument("--sysreg_rng_seed", type=lambda x:int(x,0), default=20260825)
+# §2.10 CHAOSPTW (page-table-walker PTE injector, FS-only, H7 knob).
+p.add_argument("--chaos_ptw", action="store_true",
+               help="attach CHAOSPTW to the D-side walk unit (FS-only)")
+p.add_argument("--ptw_mode", default="single_bit_xor",
+               choices=["single_bit_xor", "clear_valid", "two_bit_corrupt"],
+               help="PTE fault mode (clear_valid = H7 conditionalValidBit)")
+p.add_argument("--ptw_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--ptw_fault_mask", type=lambda x:int(x,0), default=0,
+               help="PTE XOR bitmask; 0 = random single bit")
+p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
+# [MDSPEC][H0] CHAOSPropagation unified propagation stream (FS side). The
+# campaign passes these on every sample; without parsing them here the
+# SystemConfig rejected the FS command line (argparse: unrecognized
+# arguments) or silently dropped the trace. run_id / sample_run_id are
+# stamped on every PROP-EVT line (spec sheet 11); prop_evt.txt.gz lands in
+# gem5 --outdir (= the sample's seed dir).
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (L0-L5 propagation trace)")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
+p.add_argument("--prop_run_id", default="")
+p.add_argument("--prop_sample_run_id", default="")
+# [MMU-TRACE v1] Fault-free unified MMU/TLB/PTW/LSU event trace. VA-gated so
+# a full-system run does not emit millions of unrelated events.
+p.add_argument("--prop_mmu_trace", action="store_true",
+               help="emit fault-free unified MMU trace events (VA-gated)")
+p.add_argument("--prop_mmu_va_lo", type=lambda x: int(x, 0), default=0,
+               help="MMU trace VA lower bound (inclusive); 0 = unbounded")
+p.add_argument("--prop_mmu_va_hi", type=lambda x: int(x, 0), default=0,
+               help="MMU trace VA upper bound (exclusive); 0 = unbounded")
+# [MMU-TRACE v2] One-shot M01/M02 smoke fault configuration. Empty model =
+# both hooks are strict no-ops (fault-free execution unchanged).
+p.add_argument("--mmu_fault_model", default="",
+               choices=["", "M01", "M02", "M03", "M04", "M05", "M06",
+                        "M07", "M08"],
+               help="MMU fault model ('' = off)")
+# [Phase 2.2] Independent injection switch. Fault injection must not be a
+# side effect of trace/log configuration: --prop_mmu_trace off and
+# --prop_write_log false only stop observation; the selected model still
+# mutates state (and the guest result still shows it).
+p.add_argument("--mmu_fault_enable", type=lambda x: str(x).lower() in
+               ("1", "true", "on", "yes"), default=True,
+               help="enable the selected MMU fault model (default true; "
+                    "false = configured but inert)")
+p.add_argument("--prop_write_log", type=lambda x: str(x).lower() in
+               ("1", "true", "on", "yes"), default=True,
+               help="CHAOSPropagation generic trace/log writing (default "
+                    "true); NEVER gates fault injection")
+p.add_argument("--mmu_m01_va", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m01_asid", type=int, default=-1,
+               help="M01 target ASID (-1 = any)")
+p.add_argument("--mmu_m01_vmid", type=int, default=-1,
+               help="M01 target VMID (-1 = any)")
+# [MMU-TRACE v3] Target regime/security-state constraints (-1 = any keeps
+# the Phase-2 behaviour byte-compatible).
+p.add_argument("--mmu_m01_regime", type=int, default=-1,
+               help="M01 target TranslationRegime (EL10=0,EL20=1,EL2=2,EL3=3;"
+                    " -1 = any)")
+p.add_argument("--mmu_m01_security_state", type=int, default=-1,
+               help="M01 target SecurityState (NonSecure=0,Secure=1;"
+                    " -1 = any)")
+p.add_argument("--mmu_m01_n", type=int, default=12)
+p.add_argument("--mmu_m02_va", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m02_old_pfn", type=lambda x: int(x, 0), default=0)
+p.add_argument("--mmu_m02_xor_mask", type=lambda x: int(x, 0), default=1)
+p.add_argument("--mmu_m02_dram_lo", type=lambda x: int(x, 0),
+               default=0x80000000)
+p.add_argument("--mmu_m02_dram_hi", type=lambda x: int(x, 0),
+               default=0x100000000)
+# [MMU-PHASE3] Generic target selector shared by M03-M08. Every field is a
+# strict guard; -1 / "" / 0-where-documented means unconstrained.
+p.add_argument("--mmu_target_va", type=lambda x: int(x, 0), default=0,
+               help="target canonical VA (0 = any)")
+p.add_argument("--mmu_target_asid", type=int, default=-1,
+               help="target ASID (-1 = any)")
+p.add_argument("--mmu_target_vmid", type=int, default=-1,
+               help="target VMID (-1 = any)")
+p.add_argument("--mmu_target_n", type=int, default=-1,
+               help="target page size exponent (-1 = any)")
+p.add_argument("--mmu_target_regime", type=int, default=-1,
+               help="target TranslationRegime (-1 = any)")
+p.add_argument("--mmu_target_security_state", type=int, default=-1,
+               help="target SecurityState (-1 = any)")
+p.add_argument("--mmu_target_instance", default="",
+               help="target TLB instance ('' = any)")
+p.add_argument("--mmu_target_walk_level", type=int, default=-1,
+               help="target walk level (-1 = any)")
+p.add_argument("--mmu_target_seq", type=lambda x: int(x, 0), default=0,
+               help="target DynInst seq (0 = any)")
+p.add_argument("--mmu_target_mode", default="",
+               help="target mode Read|Write|Execute|Atomic ('' = any)")
+p.add_argument("--mmu_eligible_event_index", type=lambda x: int(x, 0),
+               default=1,
+               help="1-based ordinal of the target event among eligible events")
+# [WHEN-5X3] Golden pre-scan: count/emit every eligible event for the
+# selected model, never mutate or activate. The exit census carries N.
+p.add_argument("--mmu_prescan", type=lambda x: str(x).lower() in
+               ("1", "true", "on", "yes"), default=False,
+               help="count eligible events without injecting (golden prescan)")
+p.add_argument("--mmu_fault_persistence", default="one_shot",
+               choices=["one_shot", "entry_lifetime"],
+               help="one_shot | entry_lifetime (corrupted TLB entry persists)")
+p.add_argument("--mmu_m03_candidate_asid", type=int, default=-1,
+               help="M03: required foreign candidate ASID (-1 = any != current)")
+p.add_argument("--mmu_m04_decoy_pfn", type=lambda x: int(x, 0), default=0,
+               help="M04: verified workload-owned decoy PFN from the W12 "
+                    "control run (0 = no activation; never auto-picked)")
+p.add_argument("--mmu_m05_decoy_va", type=lambda x: int(x, 0), default=0,
+               help="M05: decoy VA whose live L2 partial entry supplies the "
+                    "next-table base (0 = unset)")
+p.add_argument("--mmu_m05_decoy_table_base", type=lambda x: int(x, 0),
+               default=0,
+               help="M05: explicit decoy next-table base PA override "
+                    "(0 = derive from --mmu_m05_decoy_va)")
+p.add_argument("--mmu_m08_pa_xor_mask", type=lambda x: int(x, 0),
+               default=0x1000,
+               help="M08: XOR mask on the final request PA (bit 12 default)")
+p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
+               help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
+                    "first-eligible — 60/60 seeds hit the same dead event).")
+p.add_argument("--ptw_kernel_walk_only", action="store_true",
+               help="v1.3 Phase 20 H7 redesign: inject only on kernel-space "
+                    "(TTBR1-range) walks — the non-refillable context.")
+p.add_argument("--ptw_skip_empty_pte", action="store_true",
+               help="v1.2 Phase 17 H7: only inject on resident (non-zero) "
+                    "PTEs — clear_valid on 0x0 is a no-op.")
+p.add_argument("--ptw_ecc", type=lambda x: (str(x).lower() in ("1","true","on")),
+               default=True,
+               help="H7: ECC on (spurious~0) / off (spurious>0)")
+# §2.10 C method2 three-root-cause arm 1 (Phase 5.6): CHAOSPhysReg on the
+# O3 restore (PRF read-out corruption — the method2 'x10 garbage pointer'
+# root cause candidate). Requires --cpu=O3 (PRF exists only on O3).
+p.add_argument("--chaos_phys", action="store_true",
+               help="attach CHAOSPhysReg (O3 only; method2 PRF arm)")
+p.add_argument("--phys_mode", default="arch_frontend",
+               choices=["phys", "arch_frontend"],
+               help="PRF injection mode (arch_frontend targets an arch reg)")
+p.add_argument("--phys_target_arch", type=int, default=10,
+               help="arch reg index (method2 x10 default)")
+p.add_argument("--phys_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--phys_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--phys_rng_seed", type=lambda x:int(x,0), default=20260825)
+# §2.10 C method2 arm 2 (Phase 5.6): CHAOSAddrPath — AGU vaddr corruption
+# (byte7_zero: canonical -> non-canonical, the 'garbage pointer' translation
+# fault on the ADDRESS path instead of the register). O3-only.
+p.add_argument("--chaos_addrpath", action="store_true",
+               help="attach CHAOSAddrPath (O3 only; method2 AGU arm)")
+p.add_argument("--addrpath_mode", default="byte7_zero",
+               choices=["byte7_zero", "low_bit_flip", "sub_inflight_addr"],
+               help="AGU address-path fault mode")
+p.add_argument("--addrpath_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--addrpath_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--addrpath_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--sysreg_target_regs", default="",
+               help="comma-separated ARM miscRegName strings (lowercase, "
+                    "from misc.hh miscRegName[]), e.g. "
+                    "sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1")
+args = p.parse_args()
+
+# [MDSPEC][R4-6-T08] T08 walk_pairing pre-flight refusal. The C++ ctor
+# already panics when the mode lacks a tier or a walker (CHAOSArmTLB.cc
+# "[R4-5.9] ... panics loudly"), but that panic costs a full gem5 startup and
+# names the SimObject param, not the CLI flag. The R4-5.9 pilot showed how
+# expensive a silently half-wired T08 run is (a 1500 s FS run that produced
+# no walk evidence), so refuse here, first, with the flag names. Same
+# discipline as L04/S10: a mode that needs X must not run without X.
+# [R4-10] the walk/refill family: all four ride the walk-ISSUE event stream
+# (need --chaos_armtlb + --tlb_lsu_tier + walker=). T08-a drops the walk at
+# issue; T08-b/c/d are applied at the refill completion point.
+WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
+                    "walk_stale_result")
+if args.tlb_fault_type in WALK_FAULT_TYPES:
+    if not args.chaos_armtlb:
+        raise SystemExit(
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
+            "--chaos_armtlb: without it no CHAOSArmTLB SimObject exists, so "
+            "neither the walk hook (TableWalker) nor the lookup hook (TLB) "
+            "is mounted and the run would silently inject nothing. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
+    if args.tlb_lsu_tier == "off":
+        raise SystemExit(
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
+            "an event-normalized tier (--tlb_lsu_tier F0/F4/F6): the "
+            "page-table-walk ISSUE stream is this model's eligible stream, "
+            "so a tierless run has no sampling rule. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md and the "
+            "R4-10 report (T08-b/c/d sub-models).")
+
+cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
+           "Atomic": CPUTypes.ATOMIC}
+
+cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
+    l1d_size="16KiB", l1i_size="16KiB", l2_size="256KiB",
+)
+memory = DualChannelDDR4_2400(size=args.mem_size)
+processor = SimpleProcessor(cpu_type=cpu_map[args.cpu], num_cores=1, isa=ISA.ARM)
+release = ArmDefaultRelease()
+platform = VExpress_GEM5_V1() if args.platform == "V1" else VExpress_GEM5_Foundation()
+
+board = ArmBoard(
+    clk_freq="3GHz",
+    processor=processor,
+    memory=memory,
+    cache_hierarchy=cache_hierarchy,
+    release=release,
+    platform=platform,
+)
+
+# Local gem5-fs/ resources (no network fetch).
+kernel = KernelResource(local_path=args.kernel)
+disk = DiskImageResource(local_path=args.disk,
+                         root_partition=args.root_partition)
+bootloader = BootloaderResource(local_path=args.bootloader)
+
+# Minimal kernel args: the ArmBoard's get_default_kernel_args adds the
+# console + mem args; we just append root= + init (and an m5 exit on boot
+# via readfile if given, else rely on KernelBootedExitHandler).
+board.set_kernel_disk_workload(
+    kernel=kernel,
+    disk_image=disk,
+    bootloader=bootloader,
+    readfile=args.readfile,
+    kernel_args=["root=" + args.root_partition, "rw",
+                 "console=ttyAMA0", "earlycon=pl011,0x1c090000"],
+)
+
+# Phase 3 §六.4 item 3: attach CHAOSArmTLB to the CPU's D-TLB (the TLB whose
+# lookups carry data translations — the most SDC-relevant). CHAOSArmTLB is a
+# SimObject that holds a TLB* and self-registers via TLB::setChaosTLB. The
+# stdlib ArmBoard builds the CPU+MMU lazily, so attach in a _pre_instantiate
+# hook (after construction, before m5.instantiate). The D-TLB path under
+# the ArmBoard's cpu0 is cpu0.mmu.dtb (data TLB); i-TLB is cpu0.mmu.itb.
+# Attach CHAOS injectors that need the stdlib-built CPU in a _pre_instantiate
+# hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
+# trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
+# ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
+if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys or args.chaos_addrpath:
+    _tlb_attached = [False]
+    _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
+    def _attach_tlb(root):
+        if _orig_pi:
+            _orig_pi(root)
+        if _tlb_attached[0]:
+            return
+        core0 = processor.get_cores()[0]
+        cpu0 = core0.core
+        dtb = cpu0.mmu.dtb  # the data TLB (ArmISA::TLB)
+        # [R4-5.9] T08 walk_pairing attaches to the ArmTableWalker
+        # (cpu0.mmu.walker) instead of (well, in addition to) the TLB: the
+        # fault is on the page-table walk issue, not the lookup hit.
+        # walk_pairing also arms an event-normalized tier (--tlb_lsu_tier);
+        # without it the ctor panics loudly (the mode cannot run tierless).
+        # [R4-6][FS-INFRA] SimObject params MUST NOT be passed python None:
+        # gem5's param conversion turns a non-SimObject value into
+        # Class(value), so `walker=None` died with
+        #   TypeError: SimObject.__init__() takes 1 positional argument
+        #              but 2 were given
+        #   Error setting param CHAOSArmTLB.walker to None
+        # during _pre_instantiate — i.e. EVERY FS T-cell run (T01..T10) died
+        # at instantiate time, before the sim ever started (this is the real
+        # reason the T-series was recorded as "FS-INFRA blocked": the FS
+        # pipeline crashed, not merely "needed hours"). Omit the kwarg for
+        # the lookup modes instead — Param.ArmTableWalker's default is NULL.
+        _tlb_kwargs = dict(
+            tlb=dtb,
+            probability=args.tlb_probability,
+            firstClock=args.tlb_first_clock,
+            faultType=args.tlb_fault_type,
+            faultMask=args.tlb_fault_mask,
+            bitsToChange=args.tlb_bits_to_change,
+            maxFaults=args.tlb_max_faults,
+            rngSeed=args.tlb_rng_seed,
+            protectionModel=args.tlb_protection_model,
+            lsuTier=args.tlb_lsu_tier,
+            lsuWarmupEvents=args.tlb_lsu_warmup_events,
+            lsuSpanEvents=args.tlb_lsu_span_events,
+            writeLog=True,
+        )
+        if args.tlb_fault_type in WALK_FAULT_TYPES:
+            _tlb_kwargs["walker"] = cpu0.mmu.walker
+        arm_tlb = CHAOSArmTLB(**_tlb_kwargs)
+        board.chaos_armtlb = arm_tlb
+        # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
+        # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
+        _tlb_attached[0] = True
+
+        # §2.10 CHAOSPTW (Phase 5.3): hooks WalkUnit::doLongDescriptor —
+        # bit-flips the fetched PTE pre-eval. FS-only (SE walks translateMmuOff).
+        # The D-side walk unit is mmu.walker.walk_units[1] (inst/data/unified/
+        # unified/... order in ArmMMU.py). ptwEcc models H7.
+        if args.chaos_ptw:
+            dwalker = cpu0.mmu.walker.walk_units[1]
+            ptw = CHAOSPTW(
+                walker=dwalker,
+                mode=args.ptw_mode,
+                probability=1.0,
+                firstClock=args.ptw_first_clock,
+                faultMask=args.ptw_fault_mask,
+                ptwEcc=args.ptw_ecc,
+                eventsToSkip=args.ptw_events_to_skip,
+                skipEmptyPte=args.ptw_skip_empty_pte,
+                kernelWalkOnly=args.ptw_kernel_walk_only,
+                maxFaults=args.ptw_max_faults,
+                rngSeed=args.ptw_rng_seed,
+                writeLog=True,
+            )
+            board.chaos_ptw = ptw
+            # CHAOSPTW SELF-ATTACHES (ctor sets walker->chaosPTW = this).
+
+        # §2.10 C method2 arm 1 (Phase 5.6): CHAOSPhysReg — PRF read-out
+        # corruption on the O3 restore (the 'x10 garbage pointer' root
+        # cause candidate). Needs an O3 CPU (physRegFile); decline honestly
+        # otherwise (the Atomic boot pass has no PRF).
+        if args.chaos_phys:
+            if args.cpu == "O3":
+                chaos_p = CHAOSPhysReg(
+                    cpu=cpu0,
+                    injectionMode=args.phys_mode,
+                    targetArchRegIdx=args.phys_target_arch,
+                    probability=1.0,
+                    bitsToChange=1,
+                    faultMask=0,
+                    faultType="bit_flip",
+                    firstClock=args.phys_first_clock,
+                    maxFaults=args.phys_max_faults,
+                    rngSeed=args.phys_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_phys = chaos_p
+            else:
+                print("[arm_chaos_fs] CHAOSPhysReg skipped: needs --cpu=O3 "
+                      "(no PRF on " + args.cpu + ")")
+
+        # §2.10 C method2 arm 2 (Phase 5.6): CHAOSAddrPath — AGU address-path
+        # corruption (byte7_zero -> non-canonical vaddr -> translation fault
+        # on the ADDRESS path; the method2 root-cause candidate #2).
+        if args.chaos_addrpath:
+            if args.cpu == "O3":
+                ap = CHAOSAddrPath(
+                    cpu=cpu0,
+                    mode=args.addrpath_mode,
+                    probability=1.0,
+                    firstClock=args.addrpath_first_clock,
+                    maxFaults=args.addrpath_max_faults,
+                    rngSeed=args.addrpath_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_addrpath = ap
+            else:
+                print("[arm_chaos_fs] CHAOSAddrPath skipped: needs --cpu=O3")
+
+        # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg attaches to the CPU's
+        # ISA (isa vector, per-thread). The injector SELF-ATTACHES in its
+        # constructor (isa->chaosSysReg = this), hooking readMiscRegNoEffect.
+        if args.chaos_sysreg:
+            isa0 = cpu0.isa[0]  # ArmISA instance for thread 0
+            sys_reg = CHAOSArmSysReg(
+                isa=isa0,
+                probability=args.sysreg_probability,
+                firstClock=args.sysreg_first_clock,
+                faultType=args.sysreg_fault_type,
+                faultMask=args.sysreg_fault_mask,
+                bitsToChange=1,
+                targetRegs=args.sysreg_target_regs,
+                maxFaults=args.sysreg_max_faults,
+                rngSeed=args.sysreg_rng_seed,
+                writeLog=True,
+            )
+            board.chaos_sysreg = sys_reg
+            # SELF-ATTACH: constructor set isa0->chaosSysReg = this.
+    cache_hierarchy._pre_instantiate = _attach_tlb
+
+# §3.2 FS checkpoint pipeline (Phase 5.2): restore mode. Setting
+# board._checkpoint makes the Simulator restore from that directory instead
+# of a fresh boot (m5._create_cpp_objects(ckpt_dir=...)); the CPU type of
+# THIS run replaces the checkpointed one (Atomic boot -> O3 ROI is the
+# canonical pipeline). --ckpt-first-clock rebases the injector windows to be
+# relative to the checkpoint tick: firstClock is in CPU cycles, and the
+# checkpoint's tick is read from <ckpt>/../*.tick via m5's Utility.
+if args.restore_checkpoint:
+    import pathlib
+    ckpt = pathlib.Path(args.restore_checkpoint)
+    if not ckpt.exists():
+        raise FileNotFoundError(f"--restore-checkpoint: {ckpt} not found")
+    board._checkpoint = ckpt
+    print(f"[arm_chaos_fs] restoring from checkpoint: {ckpt}")
+    if args.ckpt_first_clock:
+        # the tick file lives next to the checkpoint dir (m5out/cpt.<tick>
+        # has no tick file inside; the sibling '<tick>.tick' under m5out
+        # holds it — gem5 writes 'm5out/cpt.<tick>' plus a '<tick>.tick')
+        # The tick is embedded in the checkpoint dir name (cpt.<tick>);
+        # the .tick file variant is only written by some gem5 versions.
+        ckpt_tick = None
+        if ckpt.name.startswith("cpt."):
+            try:
+                ckpt_tick = int(ckpt.name[4:])
+            except ValueError:
+                pass
+        if ckpt_tick is None:
+            tick_file = ckpt.parent / (ckpt.name.replace("cpt.", "") + ".tick")
+            if not tick_file.exists():
+                cands = sorted(ckpt.parent.glob("*.tick"))
+                tick_file = cands[-1] if cands else None
+            ckpt_tick = int(open(tick_file).read().strip()) if (
+                tick_file and tick_file.exists()) else None
+        if ckpt_tick is not None:
+            print(f"[arm_chaos_fs] checkpoint tick: {ckpt_tick} "
+                  f"(injector windows rebased relative to it)")
+            # Rebase: firstClock stays a cycle count but the injectors'
+            # inWindow compares curTick() against first_clock*period —
+            # so we add the checkpoint's cycle equivalent. The board clock
+            # is 3GHz (333 ps period -> ~333 ticks/cycle at 1ps ticks).
+            period_ticks = 333  # 3GHz board clock, ps-resolution ticks
+            rebased = args.tlb_first_clock + (ckpt_tick // period_ticks)
+            print(f"[arm_chaos_fs] tlb_first_clock: {args.tlb_first_clock} "
+                  f"-> {rebased}")
+            args.tlb_first_clock = rebased
+            # §2.10 C method2 arm 1 (Phase 5.6): CHAOSPhysReg schedules its
+            # attack event at CONSTRUCTION time to cpu->clockEdge(first_clock)
+            # — an un-rebased first_clock lands in the past on a restore run
+            # and trips doSimLoop's `curTick() <` assertion (found in the
+            # method2 pilot: abort at tick == checkpoint tick). Rebase it too.
+            if getattr(args, "phys_first_clock", None) is not None:
+                prebased = args.phys_first_clock + (ckpt_tick // period_ticks)
+                print(f"[arm_chaos_fs] phys_first_clock: "
+                      f"{args.phys_first_clock} -> {prebased}")
+                args.phys_first_clock = prebased
+            if getattr(args, "addrpath_first_clock", None) is not None:
+                arebased = args.addrpath_first_clock + (ckpt_tick // period_ticks)
+                print(f"[arm_chaos_fs] addrpath_first_clock: "
+                      f"{args.addrpath_first_clock} -> {arebased}")
+                args.addrpath_first_clock = arebased
+        else:
+            print("[arm_chaos_fs] WARN: no .tick file found; "
+                  "first_clock NOT rebased (absolute cycles)")
+
+# Exit when the kernel reports it has booted (default exit handlers include
+# the KernelBooted handler). This makes the FS run CI-able: boot-to-
+# userspace-success = exit 0.
+# §2.10 method2 (Phase 5.6): the default Simulator has NO behavior for the
+# KERNEL_OOPS exit event — a fault-induced kernel Oops crashed the whole
+# Python stack with NotImplementedError (found in the three-arm pilot:
+# AddrPath byte7_zero -> kfree NULL deref Oops 3/3). Register a handler:
+# record the oops (stdout already carries the dmesg dump) and EXIT the sim —
+# the runner's fs_mode classify maps 'Kernel Oops' -> Crash (DUE), which is
+# the correct FI outcome for this event.
+def _kernel_oops_exit():
+    print("[arm_chaos_fs] KERNEL OOPS under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True  # exit the simulation loop
+
+
+# [R6-FIXEXIT 2026-10-24] A fault-induced PANIC reaches Python as
+# "Kernel panic in simulated kernel" (fs_workload.cc:234) and had NO handler
+# registered, so it aborted with NotImplementedError (exit=1). Same outcome
+# class as the Oops: a legitimate Crash/DUE, ended through controlled
+# handling instead of an infrastructure error.
+def _kernel_panic_exit():
+    print("[arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True  # exit the simulation loop
+
+# ---- Platform preset application (M3 T4 fix, 2026-09-28) ----
+# In-body, BEFORE the Simulator is constructed (the only window where CPU/
+# TLB params provably reach instantiate — see the --v110_params/--lsu_b0
+# arg block above for the dead-code history this replaces).
+if args.v110_params or args.lsu_b0:
+    _core0 = processor.get_cores()[0]
+    _cpu0 = _core0.core
+    if args.lsu_b0:
+        # 02 table: DTLB=32 (ArmTLB.size, fully-assoc via Self.size;
+        # default 64 = W1 ③), LQ/SQ=16/16 (O3 only — the Atomic boot CPU
+        # has no LSQ params; they apply on the O3 restore run's fresh CPU).
+        _cpu0.mmu.dtb.size = 32
+        try:
+            _cpu0.LQEntries = 16
+            _cpu0.SQEntries = 16
+            print("[arm_chaos_fs] LSU-B0 applied: DTLB=32 LQ=16 SQ=16")
+        except AttributeError:
+            print("[arm_chaos_fs] LSU-B0 applied: DTLB=32 (boot CPU: no "
+                  "LQ/SQ — they apply on the O3 restore)")
+    if args.v110_params:
+        # docs/kunpeng.md §3 (same dict the old kp920_proxy_fs.py dead hook
+        # carried): width=4-wide, ROB=128, physInt=160, physFloat=192,
+        # LQ=48, SQ=42.
+        try:
+            _cpu0.fetchWidth = 4
+            _cpu0.decodeWidth = 4
+            _cpu0.renameWidth = 4
+            _cpu0.issueWidth = 4
+            _cpu0.dispatchWidth = 4
+            _cpu0.commitWidth = 4
+            _cpu0.numROBEntries = 128
+            _cpu0.numPhysIntRegs = 160
+            _cpu0.numPhysFloatRegs = 192
+            _cpu0.LQEntries = 48
+            _cpu0.SQEntries = 42
+            print("[arm_chaos_fs] C2-KP V110 applied: width=4 ROB=128 "
+                  "physInt=160 physFloat=192 LQ=48 SQ=42")
+        except AttributeError:
+            print("[arm_chaos_fs] C2-KP V110 skipped (boot CPU: params "
+                  "apply on the O3 restore)")
+
+# [MDSPEC][H0] CHAOSPropagation (FS path). O3-only: it self-attaches at
+# startup() to cpu.chaosPropagation (the LSQ-side hooks) and
+# cpu.commit.chaosPropagation — a TIMING/Atomic core has neither, so asking
+# for a trace on a non-O3 run is a hard error, not a silent empty file.
+if args.chaos_propagation:
+    if CHAOSPropagation is None:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation needs a gem5 binary "
+            "built with CHAOSPropagation (the worktree binary has it).")
+    if cpu_map[args.cpu] is not CPUTypes.O3:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation is O3-only (got "
+            "--cpu %s). The CP roadmap is TIMING boot -> O3 restore; set "
+            "--cpu O3." % args.cpu)
+    _prop_cpu = processor.get_cores()[0].core
+    board.chaos_propagation = CHAOSPropagation(
+        cpu=_prop_cpu,
+        traceFile=args.prop_trace_file,
+        writeLog=args.prop_write_log,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
+        mmuTrace=args.prop_mmu_trace,
+        mmuTraceVaLo=args.prop_mmu_va_lo,
+        mmuTraceVaHi=args.prop_mmu_va_hi,
+        mmuFaultModel=args.mmu_fault_model,
+        mmuFaultEnable=args.mmu_fault_enable,
+        mmuM01Va=args.mmu_m01_va,
+        mmuM01Asid=args.mmu_m01_asid,
+        mmuM01Vmid=args.mmu_m01_vmid,
+        mmuM01Regime=args.mmu_m01_regime,
+        mmuM01SecurityState=args.mmu_m01_security_state,
+        mmuM01N=args.mmu_m01_n,
+        mmuM02Va=args.mmu_m02_va,
+        mmuM02OldPfn=args.mmu_m02_old_pfn,
+        mmuM02XorMask=args.mmu_m02_xor_mask,
+        mmuM02DramLo=args.mmu_m02_dram_lo,
+        mmuM02DramHi=args.mmu_m02_dram_hi,
+        mmuTargetVa=args.mmu_target_va,
+        mmuTargetAsid=args.mmu_target_asid,
+        mmuTargetVmid=args.mmu_target_vmid,
+        mmuTargetN=args.mmu_target_n,
+        mmuTargetRegime=args.mmu_target_regime,
+        mmuTargetSecurityState=args.mmu_target_security_state,
+        mmuTargetInstance=args.mmu_target_instance,
+        mmuTargetWalkLevel=args.mmu_target_walk_level,
+        mmuTargetSeq=args.mmu_target_seq,
+        mmuTargetMode=args.mmu_target_mode,
+        mmuEligibleEventIndex=args.mmu_eligible_event_index,
+        mmuPrescan=args.mmu_prescan,
+        mmuFaultPersistence=args.mmu_fault_persistence,
+        mmuM03CandidateAsid=args.mmu_m03_candidate_asid,
+        mmuM04DecoyPfn=args.mmu_m04_decoy_pfn,
+        mmuM05DecoyVa=args.mmu_m05_decoy_va,
+        mmuM05DecoyTableBase=args.mmu_m05_decoy_table_base,
+        mmuM08PaXorMask=args.mmu_m08_pa_xor_mask,
+    )
+    print("[arm_chaos_fs] CHAOSPropagation attached (trace=%s, run_id=%r, "
+          "sample_run_id=%r, mmu_trace=%r, va=[%#x,%#x), fault_model=%r)" %
+          (args.prop_trace_file, args.prop_run_id, args.prop_sample_run_id,
+           args.prop_mmu_trace, args.prop_mmu_va_lo, args.prop_mmu_va_hi,
+           args.mmu_fault_model))
+
+simulator = Simulator(
+    board=board, full_system=True,
+    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit,
+                   ExitEvent.KERNEL_PANIC: _kernel_panic_exit},
+)
+if args.early_checkpoint:
+    # §2.10 H7 boot-phase checkpoint: run only up to <ticks> mid-boot, save,
+    # exit. The board clock is 3GHz (333 ticks/cycle) — e.g. 100M ticks
+    # = ~300K cycles, deep inside the boot walk-dense phase.
+    import m5 as _m5
+    simulator.run(max_ticks=args.early_checkpoint)
+    ckpt_dir = _m5.options.outdir + f"/cpt.{args.early_checkpoint}"
+    simulator.save_checkpoint(ckpt_dir)
+    print(f"[arm_chaos_fs] early boot checkpoint saved: {ckpt_dir}")
+else:
+    simulator.run()

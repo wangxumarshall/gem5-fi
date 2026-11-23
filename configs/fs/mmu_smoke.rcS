@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "[mmu-stage2] restore-ok"
+m5 exit

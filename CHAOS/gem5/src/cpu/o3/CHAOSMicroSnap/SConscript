@@ -1,0 +1,14 @@
+# -*- mode:python -*-
+# CHAOSMicroSnap — W2.4 read-only L1 µarchitecture shadow snapshot sampler.
+# Discovered by src/SConscript's os.walk. O3-only: sampled from the commit.cc
+# W2.1 anchor point (post setEntry loop, pre retireHead) via the CHAOSRAS/
+# CHAOSCommitTrace setter pattern; reads ROB/IQ/freelist occupancy and the
+# FRONT rename map (through the W2.4 UnifiedRenameMap::map() accessor) —
+# no state writes, no events.
+
+Import('*')
+
+SimObject('CHAOSMicroSnap.py', sim_objects=['CHAOSMicroSnap'], enums=[])
+Source('CHAOSMicroSnap.cc')
+
+DebugFlag('CHAOSMicroSnap')

@@ -1,0 +1,88 @@
+# gem5 observational changes — patch record (round 0202b)
+
+Two trace-only changes.  Neither alters fault-injection semantics (the M07
+`grant = true` inversion and the M04 `pfn` substitution are unchanged); both
+only change which transaction the activation event is attributed to, so the
+activation → translation_result → Execute lsu_request chain carries a real
+`translation_id` / `parent_event_id`.
+
+## Change 1 — src/arch/arm/mmu.cc (M07 activation)
+
+@@ mmu.cc lines ~766-774 (in mmu_checkPermissions64) @@
+
+-                    uint64_t m07_tid =
+-                        m07_prop->mmuTxnForSeqVa(m07_seq, vaddr_tainted);
+-                    if (!m07_tid) {
+-                        m07_tid = m07_prop->mmuBeginConsumerTranslation(
+-                            m07_seq, vaddr_tainted, m07_mode, false,
+-                            state.asid, state.vmid,
+-                            (unsigned)state.currRegime,
+-                            (unsigned)state.securityState);
+-                    }
++                    uint64_t m07_tid =
++                        m07_prop->mmuTxnForSeqVa(m07_seq, vaddr_tainted);
++                    if (!m07_tid && m07_seq == 0) {
++                        // [W5X3-OBS] Instruction-side (Execute) activation
++                        // carries no DynInst seq.  Join the open synthetic
++                        // fetch transaction by VA so the activation is
++                        // causally linked (translation_id) to the same
++                        // translation_result / Execute lsu_request.
++                        m07_tid = m07_prop->mmuTxnForVa(vaddr_tainted);
++                    }
++                    if (!m07_tid) {
++                        m07_tid = m07_prop->mmuBeginConsumerTranslation(
++                            m07_seq, vaddr_tainted, m07_mode, false,
++                            state.asid, state.vmid,
++                            (unsigned)state.currRegime,
++                            (unsigned)state.securityState);
++                    }
+
+## Change 2 — src/arch/arm/tlb.cc (M04 activation)
+
+@@ tlb.cc lines ~697-708 (in TLB::lookup, M04 hit_pfn_substitution) @@
+
+-                uint64_t tid = chaosMmuTranslationId;
+-                if (!tid && chaosLookupReqSeq != 0) {
+-                    tid = mmu_prop->mmuBeginConsumerTranslation(
+-                        chaosLookupReqSeq, lookup_data.va, mmuModeName(mode),
+-                        false, (uint16_t)lookup_data.asn,
+-                        (uint16_t)lookup_data.vmid,
+-                        (unsigned)retval->regime, (unsigned)retval->ss);
+-                    if (tid) {
+-                        chaosMmuTranslationId = tid;
+-                        chaosMmuUniqueReqId = mmu_prop->mmuUniqueId(tid);
+-                    }
+-                }
++                uint64_t tid = chaosMmuTranslationId;
++                if (!tid && chaosLookupReqSeq != 0) {
++                    tid = mmu_prop->mmuBeginConsumerTranslation(
++                        chaosLookupReqSeq, lookup_data.va, mmuModeName(mode),
++                        false, (uint16_t)lookup_data.asn,
++                        (uint16_t)lookup_data.vmid,
++                        (unsigned)retval->regime, (unsigned)retval->ss);
++                    if (tid) {
++                        chaosMmuTranslationId = tid;
++                        chaosMmuUniqueReqId = mmu_prop->mmuUniqueId(tid);
++                    }
++                }
++                // [W5X3-OBS] Instruction-side (Execute) activation carries no
++                // DynInst seq.  Mint the consumer transaction from the trace-
++                // only synthetic Execute seq (never a fault-model gate).
++                if (!tid && chaosLookupSyntheticSeq != 0) {
++                    tid = mmu_prop->mmuBeginConsumerTranslation(
++                        chaosLookupSyntheticSeq, lookup_data.va,
++                        mmuModeName(mode), false,
++                        (uint16_t)lookup_data.asn,
++                        (uint16_t)lookup_data.vmid,
++                        (unsigned)retval->regime, (unsigned)retval->ss);
++                    if (tid) {
++                        chaosMmuTranslationId = tid;
++                        chaosMmuUniqueReqId = mmu_prop->mmuUniqueId(tid);
++                    }
++                }
+
+## Build
+
+- old gem5.opt sha256: 741cdc567f4894448ed9aea08bcf9f9db2d65f42e089becac587890bfe9047b3
+- new gem5.opt sha256: d720e508206b6c94eb36a26ffb3f1e6f2db93459d8abfa58f1e7014db7047efa
+- build: `scons build/ARM/gem5.opt -j 8`

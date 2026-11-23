@@ -1,0 +1,22 @@
+SHEET 04_Source_Mapping dims=A1:H21 rows=21 cols=8
+R1: ModelID | SourceFile | Class | Function | LineRange | TargetFieldOrLogic | EvidenceStatus | Notes
+R2: M01 | tlb.cc | ArmISA::TLB | flush | 338-357 | tlbi_op.match; valid; invalidate; invalidatePrev | VERIFIED | Target l2_shared; new suppression latch
+R3: M01 | mmu.cc | ArmISA::MMU | flushStage1 | 223-233 | instruction/data/unified TLB traversal | VERIFIED | Unified l2_shared participates
+R4: M01 | tlbi_op.cc | TLBIOp subclasses | matchEntry | 242-275;336-348 | VA/ASID/lastLevel/range match | VERIFIED | W9 actual TLBI evidence
+R5: M01 | ArmMMU.py | ArmMMU | attributes | 101-108 | l2_shared 1280 entries, assoc 5, partial L2 | VERIFIED | Current injector attaches dtb; M01 must target l2_shared
+R6: M02 | table_walker.cc | WalkUnit | insertTableEntry | 2546-2643 | descriptor.pfn -> te.pfn -> mmu->insert | VERIFIED | PFN XOR mode new
+R7: M02 | pagetable.hh | TlbEntry | pAddr | 452-456 | (pfn<<N)|(va&size) | VERIFIED | N=12 PFN bit0 changes PA by 4 KiB
+R8: M03 | pagetable.hh | TlbEntry | match | 428-444 | valid/VA/security/regime/ASID/global/VMID | VERIFIED | ASID predicate
+R9: M03 | tlb.cc | TLB | lookup | 150-186 | normal lookup then maybeCorruptLookup | VERIFIED | post-lookup false-hit hook
+R10: M03 | CHAOSArmTLB.cc | CHAOSArmTLB | maybeCorruptLookup | 1178-1254 | FalseHit candidate selection | VERIFIED_WITH_LIMITATION | Current first-valid candidate too broad
+R11: M04 | tlb.cc | TLB | lookup | 165-174 | hit passed to maybeCorrupt | VERIFIED | before return to MMU
+R12: M04 | CHAOSArmTLB.cc | CHAOSArmTLB | maybeCorrupt | 740-798 | pfn_to_mapped_page mutates entry->pfn | VERIFIED | same-N candidate scan at 273-299
+R13: M05 | table_walker.cc | WalkUnit | insertPartialTableEntry | 2492-2543 | partial=true; pfn=nextTableAddr | VERIFIED | partial entry pointer
+R14: M05 | table_walker.cc | WalkUnit | walkAddresses | 1365-1400 | walkEntry.pfn consumed as table_addr | VERIFIED | causal use
+R15: M05 | tlb.cc | TLB | multiInsert | 297-308 | partialLevels controls insertion | VERIFIED | L2 partial cache enabled
+R16: M06 | table_walker.cc | WalkUnit | doLongDescriptor | 1981-2063 | local descriptor hook then type decode | VERIFIED | PTE memory unchanged
+R17: M06 | CHAOSPTW.cc | CHAOSPTW | maybeCorrupt | 53-120 | clear_valid clears bit0 | VERIFIED_WITH_LIMITATION | target filter required
+R18: M06 | table_walker.hh | LongDescriptor | type | 520-558 | bits[1:0]; L3 0b11=Page; 0b10=Invalid | VERIFIED | valid bit effect
+R19: M07 | mmu.cc | MMU | checkPermissions64 | 572-682 | grant result and !grant branch | VERIFIED | new grant hook
+R20: M08 | mmu.cc | MMU | translateMmuOn | 1083-1123 | pa=pAddr then req->setPaddr | VERIFIED | new request-local hook
+R21: M08 | pagetable.hh | TlbEntry | pAddr | 452-456 | PFN + page offset | VERIFIED | final PA semantics

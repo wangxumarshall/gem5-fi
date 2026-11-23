@@ -1,0 +1,9 @@
+# -*- mode:python -*-
+# CHAOSFPU — O3 floating-point/vector execution-unit fault injector (§2.6, S2 P1).
+
+Import('*')
+
+SimObject('CHAOSFPU.py', sim_objects=['CHAOSFPU'], enums=[])
+Source('CHAOSFPU.cc')
+
+DebugFlag('CHAOSFPU')

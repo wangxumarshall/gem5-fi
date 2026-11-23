@@ -1,0 +1,6 @@
+# -*- mode:python -*-
+# CHAOSNoC — Garnet NoC fault injector (§2.15, S4 system-level).
+Import('*')
+SimObject('CHAOSNoC.py', sim_objects=['CHAOSNoC'], enums=[])
+Source('CHAOSNoC.cc')
+DebugFlag('CHAOSNoC')

@@ -1,0 +1,32 @@
+SHEET 23_How_Fields dims=A1:G31 rows=31 cols=7
+R1: Phase | Field | Type | Scope | RecordingContract | RequiredFor | DiagnosticRole
+R2: Global | SampleRunID | String | scenario | Unique new SampleRunID; never reuse frozen R ID | MANDATORY | execution identity
+R3: Global | ModelID/ContextID/TimingID | String | scenario | Correspond exactly to matrix; C and T independent | MANDATORY | experiment index
+R4: Global | FaultID/EventID/ParentEventID | u64/string | trace | One origin, monotonic events, explicit causal edges/fan-out | MANDATORY | causal graph
+R5: Timing | EligibleEventID/Ordinal/N | u64 | timing | Golden pre-scan N, selected rank, actual triggered rank and ID | NEW_REQUIRED | prove exact timing
+R6: Timing | ROIStart/ROIEnd/EpisodeID | ticks/u64 | timing | Repeatable bounded ROI and event episode | NEW_REQUIRED | avoid cycle% confusion
+R7: Timing | EventFingerprint | string/hash | timing | Model hook + VA/PC/ASID/WalkID/request tuple when applicable | NEW_REQUIRED | pair controls
+R8: Timing | PreFaultStateSnapshot | record | time-of-trigger | TLB/PTW/perms/queues/branch/speculation; only available fields reported | NEW_REQUIRED | state characterization
+R9: Timing | InjectionEnableCount/ActualCount | integer | fault-injection | exactly one target mutation; control count zero | MANDATORY | injection validity
+R10: Trace | Tick/CPU/Thread/PC | u64/int | all | Joined per root/consumer, PC nullable for MMU execute fetch | MANDATORY | temporal identity
+R11: Trace | DynamicInstSeqNum | u64 | core-side | Do not use as sole request identity; fetch may be missing or zero | MANDATORY_IF_AVAILABLE | instruction join
+R12: TLB | TLBInstance/TLBLevel | enum | TLB | Distinguish DTB/ITB/L2 and partial/complete | MANDATORY | model routing
+R13: TLB | TLBEntryID/EntryGeneration | u64/u32 | TLB | Stable across lookup and lifecycle, not raw pointer only | MANDATORY | stale vs new
+R14: TLB | ASID/VMID/regime/security/global | enum/u64 | TLB | M01/M03 and permission-sensitive fields | MANDATORY_IF_RELEVANT | context separation
+R15: TLB | LookupID/TranslationID | u64 | MMU | One per real lookup attempt / translation | MANDATORY | lookup→request
+R16: TLBI | TLBIID/TLBIKind/MatchKey | record | MMU maint. | M01 exact match across all maintenance operations in epoch | MANDATORY_M01 | invalidation origin
+R17: PTW | WalkID/WalkLevel | u64/enum | PTW | Track miss→walk→refill, partial path | MANDATORY_IF_RELEVANT | walk linkage
+R18: PTW | PTEAddress/PTEValueBeforeAfter | addr/uint64 | PTW | M05 decoy PTE pointer, M06 local buffer; memory PTE proof | MANDATORY_M05_M06 | descriptor attribution
+R19: Translation | VA/PA_before/PA_after/N/PFN | record | MMU | Track address calculation and exact corruption step | MANDATORY_IF_RELEVANT | wrong address
+R20: Translation | TranslationResult/FaultClass | record | MMU | Normal versus faulty decision, permission/translation fault | MANDATORY | detection
+R21: Permission | GrantBefore/After/EL/AP/XN/UXN | record | MMU | M07 false→true; normal grant false; source PTE unchanged | MANDATORY_M07 | permission bypass
+R22: Request | UniqueRequestID/FragmentID | u64 | LSQ/request | Request→response, split and retry disambiguation | MANDATORY_IF_REQUEST | downstream request
+R23: Request | ResponseID/ValueBeforeAfter | u64/data | LSQ/cache | Maintain lineage through read data consumption | MANDATORY_IF_RESPONSE | data propagation
+R24: CPU | ConsumerInstID/DataDependency | u64/edge | CPU | Prove downstream use, dataflow not inferred from equal values | MANDATORY_IF_CONSUMED | consumption graph
+R25: CPU | Squash/Replay/CommitSeq | enums/u64 | CPU | Distinguish speculative output, precise fault, committed changes | MANDATORY_IF_RELEVANT | architectural visibility
+R26: CPU | IFURequest/Response/Decode/CommitBoundary | record | frontend | For Execute models report missing evidence boundary explicitly | M07_C05_HIGH_PRIORITY | avoid overclaim
+R27: Oracle | Expected/Observed/Outcome | record | software | Fault vs same-configuration golden; M07 golden denial is expected | MANDATORY | terminal classification
+R28: Quality | TraceCompleteness/MissingEdges | enum/string | QC | COMPLETE/PARTIAL/INCOMPLETE + missing causal edges | MANDATORY | evidence validity
+R29: Quality | PropagationCoverage | enum | QC | FULL only within actually observed path; IFU boundary separate | MANDATORY | scope limitation
+R30: Quality | ModelHookSHA/Config/Binary/Image | hashes | QC | Verify frozen Where, version, environment, workload | MANDATORY | reproducibility
+R31: Quality | NoFaultBaselineReference | ID/path | QC | One control per (model,context) when reusable | MANDATORY | counterfactual comparison

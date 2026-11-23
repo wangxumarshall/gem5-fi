@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSROB — O3 ROB fault injector (§2.3, S1 P0). Discovered by os.walk.
+# O3-only: hooks cpu/o3/rob.cc::retireHead. Self-attaches at startup().
+
+Import('*')
+
+SimObject('CHAOSROB.py', sim_objects=['CHAOSROB'], enums=[])
+Source('CHAOSROB.cc')
+
+DebugFlag('CHAOSROB')

@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""Generate self-contained WHEN-5X3 guest rcS scripts.
+
+One script per (Model, Context).  The binary is embedded (gzip -9n | base64)
+so a run can never silently use a stale workload.  Context repetition is
+deliberate: W10/W11/W13/W14 are single-episode programs, so a fixed number of
+sequential guest processes creates independent eligible episodes in the SAME
+gem5 simulation (same TLB/walk-cache state, same deterministic schedule).
+W9 repeats its remap epoch inside one process so the exact ASID key is
+preserved.
+"""
+import argparse
+import base64
+import gzip
+import subprocess
+import hashlib
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+WORK = os.path.join(ROOT, "workloads", "mmu_w5x3")
+W10S = os.path.join(ROOT, "workloads", "mmu", "W10S", "mmu_w10s")
+
+# (model, context) -> internal workload, guest context, binary, repetitions
+# mode for W10S, and whether the program repeats internally.
+PLAN = {
+    ("M01", "C01"): ("W9", "R01", "mmu_w9", 3, None, True),
+    ("M01", "C02"): ("W9", "R05", "mmu_w9", 3, None, True),
+    ("M01", "C03"): ("W9", "C03", "mmu_w9", 3, None, True),
+    ("M01", "C04"): ("W9", "R04", "mmu_w9", 3, None, True),
+    ("M01", "C05"): ("W9", "R03", "mmu_w9", 3, None, True),
+
+    ("M02", "C01"): ("W10", "R01", "mmu_w10", 3, None, False),
+    ("M02", "C02"): ("W10", "R05", "mmu_w10", 3, None, False),
+    ("M02", "C03"): ("W10", "C03", "mmu_w10", 3, None, False),
+    ("M02", "C04"): ("W10", "R04", "mmu_w10", 3, None, False),
+    ("M02", "C05"): ("W10", "R03", "mmu_w10", 3, None, False),
+
+    ("M03", "C01"): ("W11", "R01", "mmu_w11", 3, None, False),
+    ("M03", "C02"): ("W11", "R05", "mmu_w11", 3, None, False),
+    ("M03", "C03"): ("W11", "C03", "mmu_w11", 3, None, False),
+    ("M03", "C04"): ("W11", "R04", "mmu_w11", 3, None, False),
+    ("M03", "C05"): ("W11", "R03", "mmu_w11", 3, None, False),
+
+    ("M04", "C01"): ("W12", "R01", "mmu_w12", 1, None, False),
+    ("M04", "C02"): ("W12", "R05", "mmu_w12", 1, None, False),
+    ("M04", "C03"): ("W12", "C03", "mmu_w12", 1, None, False),
+    ("M04", "C04"): ("W12", "R04", "mmu_w12", 1, None, False),
+    ("M04", "C05"): ("W12", "R03", "mmu_w12", 1, None, False),
+
+    ("M05", "C01"): ("W13", "R01", "mmu_w13", 3, None, False),
+    ("M05", "C02"): ("W13", "R05", "mmu_w13", 3, None, False),
+    ("M05", "C03"): ("W13", "C03", "mmu_w13", 3, None, False),
+    ("M05", "C04"): ("W13", "R04", "mmu_w13", 3, None, False),
+    ("M05", "C05"): ("W13", "R03", "mmu_w13", 3, None, False),
+
+    ("M06", "C01"): ("W10", "R01", "mmu_w10", 3, None, False),
+    ("M06", "C02"): ("W10S", "R02", "W10S", 3, "cold", False),
+    ("M06", "C03"): ("W10", "C03", "mmu_w10", 3, None, False),
+    ("M06", "C04"): ("W10", "R04", "mmu_w10", 3, None, False),
+    # M06-C05 speculative wrong-path is piloted separately; the script is
+    # generated for completeness but its feasibility may remain N/A.
+
+    ("M07", "C01"): ("W14", "R01", "mmu_w14", 3, None, False),
+    ("M07", "C02"): ("W14", "R03", "mmu_w14", 3, None, False),
+    ("M07", "C03"): ("W14", "C03", "mmu_w14", 3, None, False),
+    ("M07", "C04"): ("W14", "R02", "mmu_w14", 3, None, False),
+    ("M07", "C05"): ("W14", "R05", "mmu_w14", 3, None, False),
+
+    ("M08", "C01"): ("W10", "R01", "mmu_w10", 3, None, False),
+    ("M08", "C02"): ("W10S", "R05", "W10S", 3, "warm", False),
+    ("M08", "C03"): ("W10", "C03", "mmu_w10", 3, None, False),
+    ("M08", "C04"): ("W10", "R04", "mmu_w10", 3, None, False),
+    ("M08", "C05"): ("W10", "R03", "mmu_w10", 3, None, False),
+}
+
+
+def binary_path(name):
+    # Dynamic binaries linked against the guest image's own glibc 2.31
+    # (/lib/aarch64-linux-gnu/libc-2.31.so). Payload becomes ~5 KiB, so the
+    # per-run guest install is seconds instead of tens of minutes.
+    if name == "W10S":
+        dyn = os.path.join(WORK, "mmu_w10s.dyn")
+    else:
+        dyn = os.path.join(WORK, name + ".dyn")
+    return dyn if os.path.isfile(dyn) else (
+        W10S if name == "W10S" else os.path.join(WORK, name))
+
+
+def payload(binary):
+    with open(binary, "rb") as fh:
+        raw = fh.read()
+    gz = subprocess.run(["xz", "-9ec", "-T1"], input=raw,
+                        stdout=subprocess.PIPE, check=True).stdout
+    return base64.b64encode(gz).decode("ascii"), hashlib.sha256(raw).hexdigest()
+
+
+def gen(model, context, outdir, iterations, installed=False):
+    if (model, context) not in PLAN:
+        raise SystemExit("no plan for %s %s" % (model, context))
+    wl, gctx, bname, reps, mode, internal_repeat = PLAN[(model, context)]
+    if internal_repeat:
+        reps = iterations
+    binary = binary_path(bname)
+    if not os.path.isfile(binary):
+        raise SystemExit("missing binary: %s" % binary)
+    b64, sha = payload(binary)
+    tag = "MMU_%s_%s_%s" % (wl, model, context)
+    tag = tag.replace("-", "_").upper()
+    lines = []
+    lines.append("#!/bin/sh")
+    lines.append("# Generated by campaign/gen_rcs.py — WHEN-5X3 %s %s." %
+                 (model, context))
+    lines.append("# WorkloadID=%s guest_ctx=%s reps=%d binary_sha256=%s" %
+                 (wl, gctx, reps, sha))
+    lines.append("ulimit -l unlimited 2>/dev/null || true")
+    exe = "/root/w5x3_%s" % (bname[4:] if bname.startswith("mmu_") else bname.lower())
+    if installed:
+        lines.append("echo \"[when5x3] installed-binary %s %s\"" %
+                     (model, context))
+        lines.append("test -x %s || { echo \"[when5x3] FATAL %s missing\"; "
+                     "m5 exit; }" % (exe, exe))
+    else:
+        lines.append("echo \"[when5x3] install %s %s\"" % (model, context))
+        lines.append("base64 -d > /tmp/w5x3_workload.xz <<'%s'" % tag)
+        for i in range(0, len(b64), 76):
+            lines.append(b64[i:i + 76])
+        lines.append(tag)
+        lines.append("if ! xz -dc /tmp/w5x3_workload.xz > /tmp/w5x3_workload; then")
+        lines.append("  echo \"[when5x3] FATAL payload decode failed\"")
+        lines.append("  m5 exit")
+        lines.append("fi")
+        lines.append("chmod +x /tmp/w5x3_workload")
+        exe = "/tmp/w5x3_workload"
+    lines.append("echo \"[when5x3] start %s %s\"" % (model, context))
+    if internal_repeat:
+        lines.append("%s --ctx %s --iterations %d" %
+                     (exe, gctx, reps))
+        lines.append("echo \"[when5x3] rc=$?\"")
+    else:
+        lines.append("i=0")
+        lines.append("while [ $i -lt %d ]; do" % reps)
+        lines.append("  i=$((i+1))")
+        lines.append("  echo \"[when5x3] episode=$i\"")
+        if wl == "W10S":
+            tva = "0x4001100000" if mode == "cold" else "0x4001400000"
+            lines.append("  %s --%s --target-va %s --pages 1024" %
+                         (exe, mode, tva))
+        elif wl == "W10":
+            lines.append("  %s --ctx %s --pages 1024" % (exe, gctx))
+        else:
+            lines.append("  %s --ctx %s" % (exe, gctx))
+        lines.append("  echo \"[when5x3] episode=$i rc=$?\"")
+        lines.append("done")
+    lines.append("echo \"[when5x3] done %s %s\"" % (model, context))
+    lines.append("m5 exit")
+    text = "\n".join(lines) + "\n"
+    os.makedirs(outdir, exist_ok=True)
+    path = os.path.join(outdir, "%s-%s.rcS" % (model, context))
+    with open(path, "w") as fh:
+        fh.write(text)
+    os.chmod(path, 0o755)
+    return path, sha
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--outdir", default=os.path.join(HERE, "rcs"))
+    ap.add_argument("--iterations", type=int, default=3)
+    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--model")
+    ap.add_argument("--context")
+    ap.add_argument("--installed", action="store_true")
+    args = ap.parse_args()
+    made = []
+    if args.all:
+        keys = sorted(PLAN)
+    else:
+        keys = [(args.model, args.context)]
+    for model, context in keys:
+        path, sha = gen(model, context, args.outdir, args.iterations, args.installed)
+        made.append({"model": model, "context": context,
+                     "rcs": os.path.relpath(path, ROOT), "sha256": sha})
+        print("wrote %s" % path)
+    with open(os.path.join(args.outdir, "rcs_manifest.json"), "w") as fh:
+        json.dump(made, fh, indent=2, sort_keys=True)
+
+
+if __name__ == "__main__":
+    main()

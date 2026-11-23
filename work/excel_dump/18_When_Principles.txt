@@ -1,0 +1,12 @@
+SHEET 18_When_Principles dims=A1:F11 rows=11 cols=6
+R1: Category | Rule | Definition | Implementation | Limit / caveat | Sheet
+R2: Dimension | Where | M01–M08 原 05_Injection_Configuration 的 Hook、字段、位、变异语义和持续性必须一致 | 源文件 03/04/05 和服务器 Git 冻结审计 | 不能为产生预期终态而更换注入点 | 所有新运行
+R3: Context | 5 个机制目标 | C01 参考激活；C02 访问/指令变体；C03 弱消费/隔离；C04 深依赖；C05 控制/推测 | 每模型逐项指定工作负载程序/事件/可执行验证，不用同一指令硬套 MMU 子单元 | M06/M07 语义不等于数据污染；验证边界 | 19_Context_5x8
+R4: Timing | 3 个分位点 | T01=0.10，T02=0.50，T03=0.90；对同一 (M,C) 的 no-fault 合格事件序列计算独立 rank | 动态合格事件序号，而不是 cycle 百分比；所有 T 使用同一 workload/input/seed | 若事件不能达3个，Pilot 失败且 N/A，严禁复制同一事件 | 20_When_5x3_120
+R5: Cartesian | 完整 5×3 | 每模型每类 C 均安排 T01/T02/T03，候选条件 15 条；8 模型理论 120 条 | 允许不适用或没有合格事件的行显示 N/A，但原因必须留存 | 不能据此声称覆盖全部微架构状态 | 120 行
+R6: Control | 按 context 复用 | 对同 (M,C) 与 3T 共用一条完整 ROI no-fault trace；基线必须与 Fault 的环境和输入匹配 | Boot/config、Workload hash、参数、Seed、checkpoint、访存映射、事件列表校验 | M07 正常 denied access 可能是 Fault，需在 handler/episode 中保留合格事件 | 21_Control_Baselines
+R7: Persistent Fault | 注入一次，但可能持续 | M01 maintenance-epoch；M02/M04/M05 TLB entry 污染持续至失效/替换；M03/M06/M07/M08 一次性事件 | 注入前无污染，目标事件后按原 fault duration 保持效应，不允许因 T 而改故障寿命 | 避免早期污染跨 episode 扰乱后续独立候选 | 22_Timing_Pilots
+R8: Eligibility | 模型特异，统一编排 | 预扫描枚举满足原 Where 所定义谓词的事件；每场景必须记录 N、episode、ordinal、target instance | C01–C05 使用相同模型事件谓词，允许额外上下文 Guard 但不放宽原谓词 | N<3 => 无法覆盖 10/50/90，需延长 workload 或标 N/A | 20_When_5x3_120
+R9: How | 五段证据链 | Fault/Normal delta→ activation→ mutation/decision→ dependent request/consumer→ squash/commit/terminal Oracle | EventID/ParentEventID、TLBI/Lookup/Translation/Walk/Request/ResponseID 和动态指令关联 | 无消费者、已被检测、取指仅 Request 等必须记录边界 | 23_How_Fields;24_How_Evidence
+R10: Metrics | 状态而非预设结果 | 记录 TLB/PTW/权限/VA->PA/请求/异常/分支/恢复等实际状态；聚类观察分叉 | T01/T02/T03 相同状态和终态也有效，不能按结果选点 | 统计仅代表所选场景，不推断现实发生概率 | 25_Acceptance
+R11: Protection | 冻结实验不被覆盖 | 正式 40 次证据和 mmu-final-reproducible 分支只读；新增代码、输出独立 | 不覆盖 Source/Source SHA/Formal ID、无效清理既有结果 | 只允许 copy/clone 生成新计划实验 | 17_Legacy_Formal40

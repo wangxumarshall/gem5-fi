@@ -1,0 +1,17 @@
+#!/bin/sh
+# m2_ptrchase.rcS — §2.10 C method2 three-root-cause FS workload (Phase 5.6).
+# The disk image is stock (no ptr_chase binary, no root to remount) — so the
+# "active pointer-path consumer" is a scheduler-domain walk from the shell:
+# repeated /proc/schedstat + /proc/self/maps reads drive the kernel through
+# find_busiest_group-class list traversals (the method2 signature context)
+# while the three arms (PRF x10 / AGU byte7 / TLB live-page) inject.
+# Checksum: count of successful rounds printed at the end.
+echo "[m2_ptrchase.rcS] starting scheduler-walk workload"
+ok=0
+i=0
+while [ $i -lt 2000 ]; do
+  if cat /proc/schedstat > /dev/null 2>&1; then ok=$((ok+1)); fi
+  i=$((i+1))
+done
+echo "[m2_ptrchase.rcS] rounds ok=$ok/2000"
+m5 exit

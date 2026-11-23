@@ -1,0 +1,496 @@
+{
+ "A01": {
+  "evidence": "provenance/A01_A02_A03_audit.json (03/04/05 cell hashes equal)",
+  "status": "PASS"
+ },
+ "A02": {
+  "evidence": "old workspace manifest recheck",
+  "status": "PASS"
+ },
+ "A03": {
+  "evidence": "frozen 40 IDs \u2229 new 120 IDs = empty",
+  "status": "PASS"
+ },
+ "A04": {
+  "evidence": "117 executed contexts; 3 N/A (M06-C05 speculative viability)",
+  "status": "PASS"
+ },
+ "A05": {
+  "evidence": "120 unique rows; 40 (Model,Context) cells x 3 T",
+  "status": "PASS"
+ },
+ "A06": {
+  "bad": [],
+  "evidence": "40 (Model,Context) cells with N>=3 and three distinct ceil(p*N) ordinals",
+  "ordinals": {
+   "M01-C03": {
+    "N": 4,
+    "ordinals": [
+     1,
+     2,
+     4
+    ]
+   },
+   "M01-R01": {
+    "N": 4,
+    "ordinals": [
+     1,
+     2,
+     4
+    ]
+   },
+   "M01-R03": {
+    "N": 4,
+    "ordinals": [
+     1,
+     2,
+     4
+    ]
+   },
+   "M01-R04": {
+    "N": 4,
+    "ordinals": [
+     1,
+     2,
+     4
+    ]
+   },
+   "M01-R05": {
+    "N": 4,
+    "ordinals": [
+     1,
+     2,
+     4
+    ]
+   },
+   "M02-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M02-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M02-R03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M02-R04": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M02-R05": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M03-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M03-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M03-R03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M03-R04": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M03-R05": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M04-C03": {
+    "N": 12,
+    "ordinals": [
+     2,
+     6,
+     11
+    ]
+   },
+   "M04-R01": {
+    "N": 20006,
+    "ordinals": [
+     2001,
+     10003,
+     18006
+    ]
+   },
+   "M04-R03": {
+    "N": 20007,
+    "ordinals": [
+     2001,
+     10004,
+     18007
+    ]
+   },
+   "M04-R04": {
+    "N": 20009,
+    "ordinals": [
+     2001,
+     10005,
+     18009
+    ]
+   },
+   "M04-R05": {
+    "N": 20005,
+    "ordinals": [
+     2001,
+     10003,
+     18005
+    ]
+   },
+   "M05-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M05-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M05-R03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M05-R04": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M05-R05": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M06-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M06-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M06-R02": {
+    "N": 5,
+    "ordinals": [
+     1,
+     3,
+     5
+    ]
+   },
+   "M06-R04": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M06-SPEC": {
+    "N": 0,
+    "ordinals": [
+     0,
+     0,
+     0
+    ]
+   },
+   "M07-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M07-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M07-R02": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M07-R03": {
+    "N": 6,
+    "ordinals": [
+     1,
+     3,
+     6
+    ]
+   },
+   "M07-R05": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M08-C03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M08-R01": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M08-R03": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   },
+   "M08-R04": {
+    "N": 6,
+    "ordinals": [
+     1,
+     3,
+     6
+    ]
+   },
+   "M08-R05": {
+    "N": 3,
+    "ordinals": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  "status": "PASS"
+ },
+ "A07": {
+  "bad": [],
+  "evidence": "T01/T02/T03 command lines identical after normalizing run identity and eligible ordinal",
+  "status": "PASS"
+ },
+ "A08": {
+  "bad": [],
+  "evidence": "117 fault runs activation_count=1; 39 controls activation_count=0",
+  "status": "PASS"
+ },
+ "A09": {
+  "boundary": "queue/speculation counters are recorded only where the frozen binary emits them",
+  "evidence": "activation-time state fields present: {\"asid\": 60, \"dyn_inst_seq\": 102, \"mode\": 102, \"page_size_n\": 102, \"tlb_entry_id\": 45, \"tlb_instance\": 45, \"va\": 117}",
+  "fields_seen": {
+   "asid": 60,
+   "dyn_inst_seq": 102,
+   "mode": 102,
+   "page_size_n": 102,
+   "tlb_entry_id": 45,
+   "tlb_instance": 45,
+   "va": 117
+  },
+  "missing": [],
+  "status": "PASS_WITH_DECLARED_GAPS"
+ },
+ "A10": {
+  "bad": [],
+  "evidence": "117/117 actual ordinal == ceil(p*N)",
+  "status": "PASS"
+ },
+ "A11": {
+  "evidence": "one no-fault pre-scan/control reused by all three timings; command/config/binary hashes identical",
+  "status": "PASS"
+ },
+ "A12": {
+  "detail": "15/15 M01 activations carry TLBI+EntryID",
+  "status": "PASS"
+ },
+ "A13": {
+  "bad": [],
+  "declared_gap": [
+   "M04-F0-W12-W5X3-C02-T01",
+   "M04-F0-W12-W5X3-C02-T02",
+   "M04-F0-W12-W5X3-C02-T03"
+  ],
+  "evidence": "M02/M04/M05 entry consume observed; 3 M04-C02 same-hit consumptions declared",
+  "gap_reason": "M04 ITLB activation entry is consumed by the same hit; no later reuse edge is emitted",
+  "status": "PASS_WITH_DECLARED_GAP"
+ },
+ "A14": {
+  "detail": "15/15 M03 activations show ASID-only mismatch",
+  "status": "PASS"
+ },
+ "A15": {
+  "detail": "12/12 M06 activations clear only the local L3 descriptor bit0",
+  "status": "PASS"
+ },
+ "A16": {
+  "detail": "15/15 M07 activations show grant false->true",
+  "status": "PASS"
+ },
+ "A17": {
+  "detail": "15/15 M08 activations flip only the request PA by 0x1000 and keep the PFN",
+  "status": "PASS"
+ },
+ "A18": {
+  "bad": [],
+  "evidence": "117/117 activation shares tick and eligible ordinal with the selected eligible event",
+  "status": "PASS"
+ },
+ "A19": {
+  "detail": [
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M03-F0-W11-W5X3-C02-T01"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M03-F0-W11-W5X3-C02-T02"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M03-F0-W11-W5X3-C02-T03"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M04-F0-W12-W5X3-C02-T01"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M04-F0-W12-W5X3-C02-T02"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M04-F0-W12-W5X3-C02-T03"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M05-F0-W13-W5X3-C02-T01"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M05-F0-W13-W5X3-C02-T02"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M05-F0-W13-W5X3-C02-T03"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M07-F0-W14-W5X3-C05-T01"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M07-F0-W14-W5X3-C05-T02"
+   },
+   {
+    "boundary": "MMU execute request only; IFU response/decode/commit NOT_EMITTED",
+    "ifu_events": false,
+    "sample": "M07-F0-W14-W5X3-C05-T03"
+   }
+  ],
+  "status": "PASS_WITH_BOUNDARY"
+ },
+ "A20": {
+  "evidence": "faulted oracle vs same-config control; M07 baseline denial is expected; terminal states computed only from observed lines/events",
+  "status": "PASS"
+ },
+ "A21": {
+  "evidence": "N<3/infeasible rows are explicitly N/A; no forced outcome; blocked_tasks.md",
+  "status": "PASS"
+ },
+ "A22": {
+  "evidence": "conclusions limited to the 117 observed 5x3 cells; no probability inference",
+  "status": "PASS_WITH_SCOPE"
+ }
+}

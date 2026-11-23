@@ -1,0 +1,402 @@
+{
+ "M01-C01": {
+  "model": "M01",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W9 fresh remap epoch; stale L2 hit then direct LDR consumer",
+  "predicate": "TLBInstance=l2_shared; tlbi_op.match=true; te.valid=true; te.partial=false; exact VA/ASID/VMID/regime/security/type key.",
+  "control_id": "CTRL-M01-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M01-C02": {
+  "model": "M01",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W9 stale L2 translation used by NEON load/lane consumer",
+  "predicate": "TLBInstance=l2_shared; tlbi_op.match=true; te.valid=true; te.partial=false; exact VA/ASID/VMID/regime/security/type key.",
+  "control_id": "CTRL-M01-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M01-C03": {
+  "model": "M01",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W9 stale L2 hit; load into unused temporary; restore/flush before any architectural use",
+  "predicate": "TLBInstance=l2_shared; tlbi_op.match=true; te.valid=true; te.partial=false; exact VA/ASID/VMID/regime/security/type key.",
+  "control_id": "CTRL-M01-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M01-C04": {
+  "model": "M01",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W9 stale load used to form pointer then dependent second LDR",
+  "predicate": "TLBInstance=l2_shared; tlbi_op.match=true; te.valid=true; te.partial=false; exact VA/ASID/VMID/regime/security/type key.",
+  "control_id": "CTRL-M01-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M01-C05": {
+  "model": "M01",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W9 stale load feeding conditional branch; record redirect/squash and wrong-path windows",
+  "predicate": "TLBInstance=l2_shared; tlbi_op.match=true; te.valid=true; te.partial=false; exact VA/ASID/VMID/regime/security/type key.",
+  "control_id": "CTRL-M01-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M02-C01": {
+  "model": "M02",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W10 cold Stage-1 4K leaf walk; wrong refill PFN consumed by direct LDR",
+  "predicate": "Target VA; mode=Read; Stage-1; valid leaf; te.N=12; old/new PFN both allocated DRAM pages.",
+  "control_id": "CTRL-M02-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M02-C02": {
+  "model": "M02",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W10 valid cold leaf walk for NEON vector load",
+  "predicate": "Target VA; mode=Read; Stage-1; valid leaf; te.N=12; old/new PFN both allocated DRAM pages.",
+  "control_id": "CTRL-M02-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M02-C03": {
+  "model": "M02",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W10 corrupted refill followed by dead load; invalidate entry before any later consumer",
+  "predicate": "Target VA; mode=Read; Stage-1; valid leaf; te.N=12; old/new PFN both allocated DRAM pages.",
+  "control_id": "CTRL-M02-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M02-C04": {
+  "model": "M02",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W10 wrong refill PFN load supplies pointer for dependent second load",
+  "predicate": "Target VA; mode=Read; Stage-1; valid leaf; te.N=12; old/new PFN both allocated DRAM pages.",
+  "control_id": "CTRL-M02-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M02-C05": {
+  "model": "M02",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W10 wrong refill value drives compare/branch; optionally speculative window",
+  "predicate": "Target VA; mode=Read; Stage-1; valid leaf; te.N=12; old/new PFN both allocated DRAM pages.",
+  "control_id": "CTRL-M02-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M03-C01": {
+  "model": "M03",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W11 process B same-VA ASID-conflict false-match -> direct LDR",
+  "predicate": "Candidate valid; same VA range/N/regime/security/VMID; global=false; candidate ASID differs from current ASID.",
+  "control_id": "CTRL-M03-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M03-C02": {
+  "model": "M03",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W11 ITLB same code VA in different ASIDs; eligible false-positive lookup",
+  "predicate": "Candidate valid; same VA range/N/regime/security/VMID; global=false; candidate ASID differs from current ASID.",
+  "control_id": "CTRL-M03-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M03-C03": {
+  "model": "M03",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W11 false-hit wrong data into dead consumer, no output dependency",
+  "predicate": "Candidate valid; same VA range/N/regime/security/VMID; global=false; candidate ASID differs from current ASID.",
+  "control_id": "CTRL-M03-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M03-C04": {
+  "model": "M03",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W11 false-hit load becomes pointer for dependent load",
+  "predicate": "Candidate valid; same VA range/N/regime/security/VMID; global=false; candidate ASID differs from current ASID.",
+  "control_id": "CTRL-M03-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M03-C05": {
+  "model": "M03",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W11 false-hit wrong data feeds branch, record speculative/commit difference",
+  "predicate": "Candidate valid; same VA range/N/regime/security/VMID; global=false; candidate ASID differs from current ASID.",
+  "control_id": "CTRL-M03-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M04-C01": {
+  "model": "M04",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W12 valid warm resident TLB hit, replace same-N PFN then direct load",
+  "predicate": "req_seq!=0; entry valid; candidate valid, different PFN, same N/page size; candidate page allocated with distinct sentinel.",
+  "control_id": "CTRL-M04-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M04-C02": {
+  "model": "M04",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W12 warm ITLB hit, substitute legal candidate PFN",
+  "predicate": "req_seq!=0; entry valid; candidate valid, different PFN, same N/page size; candidate page allocated with distinct sentinel.",
+  "control_id": "CTRL-M04-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M04-C03": {
+  "model": "M04",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W12 resident PFN changed but target load unused; explicit TLBI before next observed hit",
+  "predicate": "req_seq!=0; entry valid; candidate valid, different PFN, same N/page size; candidate page allocated with distinct sentinel.",
+  "control_id": "CTRL-M04-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M04-C04": {
+  "model": "M04",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W12 substituted PFN load feeds pointer and second LDR",
+  "predicate": "req_seq!=0; entry valid; candidate valid, different PFN, same N/page size; candidate page allocated with distinct sentinel.",
+  "control_id": "CTRL-M04-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M04-C05": {
+  "model": "M04",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W12 substituted PFN load affects compare/branch with commit/squash logging",
+  "predicate": "req_seq!=0; entry valid; candidate valid, different PFN, same N/page size; candidate page allocated with distinct sentinel.",
+  "control_id": "CTRL-M04-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M05-C01": {
+  "model": "M05",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W13 L2 partial hit resumes PTW via substituted next-table pointer; direct LDR",
+  "predicate": "te.partial=true; lookupLevel=L2; same N/regime/security/ASID/VMID compatible alternate partial entry exists.",
+  "control_id": "CTRL-M05-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M05-C02": {
+  "model": "M05",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W13 instruction-side partial-walk/fetch through same partial pointer hook",
+  "predicate": "te.partial=true; lookupLevel=L2; same N/regime/security/ASID/VMID compatible alternate partial entry exists.",
+  "control_id": "CTRL-M05-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M05-C03": {
+  "model": "M05",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W13 redirected partial walk data unused then purge corrupted translation",
+  "predicate": "te.partial=true; lookupLevel=L2; same N/regime/security/ASID/VMID compatible alternate partial entry exists.",
+  "control_id": "CTRL-M05-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M05-C04": {
+  "model": "M05",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W13 wrong partial pointer picks decoy PTE, value feeds pointer second LDR",
+  "predicate": "te.partial=true; lookupLevel=L2; same N/regime/security/ASID/VMID compatible alternate partial entry exists.",
+  "control_id": "CTRL-M05-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M05-C05": {
+  "model": "M05",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W13 partial-walk error influences branch; track branch/squash",
+  "predicate": "te.partial=true; lookupLevel=L2; same N/regime/security/ASID/VMID compatible alternate partial entry exists.",
+  "control_id": "CTRL-M05-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M06-C01": {
+  "model": "M06",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W10 cold Stage-1 L3 page descriptor, local bit0 clear -> Translation Fault",
+  "predicate": "Target VA/WalkID; Stage-1; lookupLevel=L3; descriptor bits[1:0]==0b11; bit0==1.",
+  "control_id": "CTRL-M06-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M06-C02": {
+  "model": "M06",
+  "context": "C02",
+  "guest_context": "R02",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W10 cold Stage-1 L3 valid page descriptor during EL0 Write",
+  "predicate": "Target VA/WalkID; Stage-1; lookupLevel=L3; descriptor bits[1:0]==0b11; bit0==1.",
+  "control_id": "CTRL-M06-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M06-C03": {
+  "model": "M06",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W10 faulted translation with software handler; downstream result intentionally unused",
+  "predicate": "Target VA/WalkID; Stage-1; lookupLevel=L3; descriptor bits[1:0]==0b11; bit0==1.",
+  "control_id": "CTRL-M06-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M06-C04": {
+  "model": "M06",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W10 dependent-consumer chain prepared behind target Load; injected fault prevents response",
+  "predicate": "Target VA/WalkID; Stage-1; lookupLevel=L3; descriptor bits[1:0]==0b11; bit0==1.",
+  "control_id": "CTRL-M06-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M06-C05": {
+  "model": "M06",
+  "context": "C05",
+  "guest_context": "SPEC",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W10 speculative wrong-path cold walk that is later squashed before architectural fault",
+  "predicate": "Target VA/WalkID; Stage-1; lookupLevel=L3; descriptor bits[1:0]==0b11; bit0==1.",
+  "control_id": "CTRL-M06-C05",
+  "feasibility": "PILOT_FEASIBILITY_OR_N_A"
+ },
+ "M07-C01": {
+  "model": "M07",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W14 EL0 Store through PROT_READ shared alias; grant=false->true",
+  "predicate": "Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal grant=false; no Stage-2.",
+  "control_id": "CTRL-M07-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M07-C02": {
+  "model": "M07",
+  "context": "C02",
+  "guest_context": "R03",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W14 EL0 Read through real PROT_EXEC execute-only mapping; FEAT_EPAN",
+  "predicate": "Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal grant=false; no Stage-2.",
+  "control_id": "CTRL-M07-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M07-C03": {
+  "model": "M07",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W14 forbidden read false-allowed; value intentionally discarded and no mutation",
+  "predicate": "Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal grant=false; no Stage-2.",
+  "control_id": "CTRL-M07-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M07-C04": {
+  "model": "M07",
+  "context": "C04",
+  "guest_context": "R02",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W14 RO alias atomic RMW; observable change via writable alias and dependent read",
+  "predicate": "Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal grant=false; no Stage-2.",
+  "control_id": "CTRL-M07-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M07-C05": {
+  "model": "M07",
+  "context": "C05",
+  "guest_context": "R05",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W14 valid XN mapping (PROT_READ, UXN=1) via indirect branch br xN",
+  "predicate": "Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal grant=false; no Stage-2.",
+  "control_id": "CTRL-M07-C05",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M08-C01": {
+  "model": "M08",
+  "context": "C01",
+  "guest_context": "R01",
+  "mechanism": "\u53c2\u8003\u6fc0\u6d3b",
+  "sequence": "W10 completed translation correct; final PA XOR 0x1000 -> direct LDR",
+  "predicate": "Target VA/DynInstSeqNum; complete translation; Permission NoFault; N=12; old/new PA both allocated DRAM.",
+  "control_id": "CTRL-M08-C01",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M08-C02": {
+  "model": "M08",
+  "context": "C02",
+  "guest_context": "R05",
+  "mechanism": "\u6fc0\u6d3b/\u8bbf\u95ee\u6761\u4ef6\u53d8\u5316",
+  "sequence": "W10 completed translation for STR, one-request PA-bit flip",
+  "predicate": "Target VA/DynInstSeqNum; complete translation; Permission NoFault; N=12; old/new PA both allocated DRAM.",
+  "control_id": "CTRL-M08-C02",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M08-C03": {
+  "model": "M08",
+  "context": "C03",
+  "guest_context": "C03",
+  "mechanism": "\u5f31\u6d88\u8d39/\u9694\u79bb",
+  "sequence": "W10 redirected Load value unused, no architecturally visible consumer",
+  "predicate": "Target VA/DynInstSeqNum; complete translation; Permission NoFault; N=12; old/new PA both allocated DRAM.",
+  "control_id": "CTRL-M08-C03",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M08-C04": {
+  "model": "M08",
+  "context": "C04",
+  "guest_context": "R04",
+  "mechanism": "\u6df1\u6570\u636e\u4f9d\u8d56",
+  "sequence": "W10 redirected Load supplies pointer for second Load",
+  "predicate": "Target VA/DynInstSeqNum; complete translation; Permission NoFault; N=12; old/new PA both allocated DRAM.",
+  "control_id": "CTRL-M08-C04",
+  "feasibility": "PILOT_REQUIRED"
+ },
+ "M08-C05": {
+  "model": "M08",
+  "context": "C05",
+  "guest_context": "R03",
+  "mechanism": "\u63a7\u5236/\u63a8\u6d4b\u8fb9\u754c",
+  "sequence": "W10 redirected Load affects compare/branch and speculative resolution",
+  "predicate": "Target VA/DynInstSeqNum; complete translation; Permission NoFault; N=12; old/new PA both allocated DRAM.",
+  "control_id": "CTRL-M08-C05",
+  "feasibility": "PILOT_REQUIRED"
+ }
+}

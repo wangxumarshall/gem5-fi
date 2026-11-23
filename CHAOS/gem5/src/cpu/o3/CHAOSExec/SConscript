@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSExec — O3 integer execution-unit fault injector (§2.12, S3 P3).
+# Discovered by os.walk. O3-only: hooks cpu/o3/dyn_inst.cc::execute().
+
+Import('*')
+
+SimObject('CHAOSExec.py', sim_objects=['CHAOSExec'], enums=[])
+Source('CHAOSExec.cc')
+
+DebugFlag('CHAOSExec')

@@ -1,0 +1,32 @@
+SHEET 02_SubUnit_Coverage dims=A1:F31 rows=31 cols=6
+R1: FunctionalArea | SubUnitOrFunction | ActualGem5Implementation | SelectedModel | CoverageStatus | Rationale
+R2: ITLB | Lookup / Tag Match | itb is separate ArmTLB instance; same TLB::lookup/TlbEntry::match | M03 R05; M04 R05 | INJECTED | Instruction-side contexts included; no duplicate model solely by instance name.
+R3: ITLB | Entry Valid / Translation Entry | TlbEntry::valid/pfn/N; same generic TlbEntry | M04 R05; M03 R05 | COVERED_BY_MODEL | Same implementation and fault mechanisms; explicit instruction fetch context.
+R4: ITLB | Instruction Address Translation | TLB entry pAddr + Execute mode PTW | M03/M04 R05 | COVERED_BY_MODEL | Trace IFU request and fetched instruction signature.
+R5: DTLB | Lookup / Tag Match | dtb ArmTLB; TlbEntry::match | M01/M02/M03/M04/M08 | INJECTED | Multiple distinct control/state/data mechanisms.
+R6: DTLB | Entry Valid / Translation Entry | TlbEntry::valid/pfn; TLB::flush/lookup | M01/M04 | INJECTED | M01 preserves L2 entry; M04 mutates resident PFN.
+R7: L2/Unified TLB | Lookup / hierarchy | l2_shared size=1280 assoc=5; itb/dtb next_level=l2_shared | M01/M05 | INJECTED | M01 complete entry; M05 partial walk-cache entry.
+R8: L2/Unified TLB | Partial entry / walk cache | partial_levels=[L2]; TlbEntry::partial | M05 | INJECTED | Next-table base is stored in partial entry pfn.
+R9: L2/Unified TLB | Replacement / update | AssociativeCache victim and TLB::insert | — | TRACE_ONLY | Wrong victim usually creates a miss/refill, not a wrong translation.
+R10: TLB Maintenance | TLBI issue / target range | TLBIOp subclasses; MMU::flushStage1 | M01 | INJECTED | W9 observes VALE1IS and later range maintenance.
+R11: TLB Maintenance | Entry invalidation | TLB::flush; invalidate/invalidatePrev | M01 | INJECTED | Targeted invalidation suppression.
+R12: TLB Maintenance | ASID matching | TlbEntry::match ASID/global predicate | M03 | INJECTED | False-positive only when all other key fields match.
+R13: TLB Maintenance | VMID matching | TlbEntry::match useVMID; Stage2 TLBs | — | BLOCKED | Stage-2 source exists but no validated Stage-2 workload.
+R14: PTW | Walk request/state machine | MMU::getTE -> walker->walk; WalkerState | — | TRACE_ONLY | Walk-drop candidate primarily yields timeout; deferred from SDC-focused model set.
+R15: PTW | Multi-level walk / partial resume | walkAddresses consumes partial entry pfn | M05 | INJECTED | Intermediate next-table pointer substitution.
+R16: PTW | PTE read | fetchDescriptor and memory response | — | TRACE_ONLY | Observe PTE address/data; no separate memory-side corruption model.
+R17: PTW | Descriptor decode | doLongDescriptor / LongDescriptor::type | M06 | INJECTED | Local valid/type bit clear causes Translation Fault.
+R18: PTW | Complete entry refill | insertTableEntry; descriptor.pfn -> te.pfn | M02 | INJECTED | Refill payload PFN bit corruption.
+R19: PTW | Walk result pairing/completion | existing T08 walk family | — | DEFERRED | Walk stale result/drop/duplicate need distinct two-walk or timeout study.
+R20: Address Translation | PFN extraction / combine | descriptor.pfn; TlbEntry::pAddr | M02/M04 | INJECTED | Refill and resident PFN mechanisms.
+R21: Address Translation | Page offset / final PA | TlbEntry::pAddr; MMU::translateMmuOn | M08 | INJECTED | One-request PA corruption; TLB entry remains correct.
+R22: Address Translation | Page-size metadata N/size/tg | TlbEntry N/size/tg; existing PageSizeSubst | — | DEFERRED | Needs mixed-page-size workload and target-specific candidate semantics.
+R23: Permission Checker | Read/Write/Execute and privilege | MMU::checkPermissions64; s1PermBits64/s2PermBits64 | M07 | INJECTED | One-bit grant inversion for one denied operation.
+R24: Permission Checker | AP/XN/privilege inputs | TlbEntry AP/XN/pxn and permission helper | M07 | COVERED_BY_MODEL | Different R01-R05 access contexts exercise helper inputs.
+R25: Memory Attribute Checker | Memory type/cacheability | memAttrsAArch64; mtype/nonCacheable; Request flags | — | TRACE_ONLY | Current MemTypeSubst changes mtype only; no deterministic SDC workload established.
+R26: Memory Attribute Checker | Shareability/inner/outer attrs | TlbEntry attributes and Request flags | — | TRACE_ONLY | Record attributes end-to-end; no independent model selected.
+R27: Translation Fault Detection | Translation Fault | LongDescriptor::type Invalid -> generateLongDescFault | M06 | COVERED_BY_MODEL | M06 changes valid L3 descriptor into Invalid.
+R28: Translation Fault Detection | Access Flag Fault | LongDescriptor::af; doLongDescriptor | — | TRACE_ONLY | AF check traced; separate AF bit model deferred.
+R29: Translation Fault Detection | Permission Fault | checkPermissions64 DataAbort/PrefetchAbort | M07 | COVERED_BY_MODEL | Normal denial vs injected grant.
+R30: Translation Fault Detection | Address Size Fault | checkAddrSizeFaultAArch64 | — | TRACE_ONLY | Immediate abort path; no distinct SDC signature selected.
+R31: Stage-2/VMID | Stage-2 translation and VMID | stage2_itb/dtb and Stage2LookUp exist | — | BLOCKED | No Stage-2 Full-System workload in supplied baseline.

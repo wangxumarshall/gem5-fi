@@ -1,0 +1,11 @@
+SHEET 27_Change_Log dims=A1:D10 rows=10 cols=4
+R1: Version | Change | Rationale / safe migration | Evidence
+R2: v2.0 SOURCE | 用户上传 v2.0；8 models/40 proposed R contexts, original 16 tabs | 保留 00–15 原表数值、模型 Hook/Where 不改；源表内过时 Proposal 状态仅作归档 | source file
+R3: FORMAL 2026-11-13 | 正式已完成 40/40 R contexts，31 SDC/5 DETECTED/4 SQUASH | 与新 When 矩阵区分，且证据/结果原样冻结 | MMU_40_Context_Evidence_Atlas.csv
+R4: M07 post-v2 correction | R03 PROT_EXEC EL0 Read；R05 valid XN PROT_READ+br xN | 正式证据与用户先前批准的变更一致；不以原 v2.0 旧稿为权威 | formal Atlas R03/R05
+R5: vWhen5x3 2026-11-16 | 新增 8×5×3=120 故障设计 + 至多 40 可复用 Control | 与 LSU 5×3 方法对齐，采用 Context/Timing 完整交叉 | 19/20/21
+R6: When Trigger | 每 (M,C) golden ROI 预扫描 N，T=10/50/90 ceil(p*N) | 严格动态 eligible event 而不是 CPU cycle；N≥3 | 18/20/22
+R7: No overwrite | 新样本 ID Mxx-F0-W?-W5X3-Cxx-Txx；仅在新的独立工作副本执行 | 避免覆盖历史正式 R ID、结果和 Git 分支 | 16/20/25
+R8: How schema | 补充 Timing 状态、MMU因果事件、Request/Response、终态与 TraceComplete | 避免仅有故障注入日志而无传播链 | 23/24/25
+R9: Special contexts | M06检测阻断与 M07权限违例按自身语义报告，C05推测先 Pilot | 不强迫所有模型产生数据传播或架构错误 | 19/22/24
+R10: Runtime | 可编辑 120+40 运行与并行、Pilot、复用率时间预算 | 实际耗时需基于 0202 新 Pilot 校准 | 26

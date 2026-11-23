@@ -1,0 +1,11 @@
+# -*- mode:python -*-
+# CHAOSFreeList — O3 freelist fault injector (§2.2, S1 P0, patch 2).
+# Discovered by src/SConscript's os.walk. O3-only: hooks cpu/o3/free_list.hh
+# UnifiedFreeList::getReg. Self-attaches at startup().
+
+Import('*')
+
+SimObject('CHAOSFreeList.py', sim_objects=['CHAOSFreeList'], enums=[])
+Source('CHAOSFreeList.cc')
+
+DebugFlag('CHAOSFreeList')

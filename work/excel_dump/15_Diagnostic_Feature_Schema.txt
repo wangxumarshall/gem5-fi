@@ -1,0 +1,14 @@
+SHEET 15_Diagnostic_Feature_Schema dims=A1:C13 rows=13 cols=3
+R1: FeatureGroup | Fields | DiagnosticPurpose
+R2: Static origin | ModelID, Unit, SubUnit, SourceFile, Class, Function, TargetField, TargetBit | Root cause identity
+R3: Injection | FaultID, InjectionTick, NormalValue, FaultValue, FaultDuration | Initial fault signature
+R4: Activation | EligibleEvent, PC, Opcode, DynamicInstSeqNum, VA, ASID, VMID | Instruction/context activation
+R5: Translation context | TLBInstance, TLBLevel, TLBEntryID, EntryGeneration, LookupID, TranslationID | Translation source
+R6: PTW context | WalkID, WalkLevel, PTEAddress, PTEValueBefore/After, DescriptorType | Walk/descriptor signature
+R7: Address state | PFN, N, Size, PA_before, PA_after | Address translation delta
+R8: Permission/attribute | GrantBefore/After, ExceptionClass, MemoryAttribute, RequestFlags | Access control and memory semantics
+R9: Request/response | UniqueRequestID, RequestFragmentID, ResponseID, execution_attempt_id, replay_generation | Request identity/replay
+R10: Propagation graph | EventKinds, ParentEventEdges, ConsumerInstructions, Cache/Memory events | Causal propagation signature
+R11: Control outcome | SquashStatus, CommitStatus, commit_seq, DetectionLayer | Architectural reachability
+R12: Terminal | TerminalState, OracleExpected, OracleObserved, OracleDiff | Software-visible outcome
+R13: Quality | TraceIntegrity, TraceCompleteness, PropagationCoverage, MissingEdges | Evidence quality

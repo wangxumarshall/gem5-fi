@@ -1,0 +1,12 @@
+SHEET 12_Blockers dims=A1:G11 rows=11 cols=7
+R1: ID | Severity | Area | Issue | Evidence | RequiredAction | Status
+R2: B01 | P0 | M01 | Prove stale l2_shared entry survives all matching TLBI operations | W9 sees target l2_shared entry and later range TLBI | Implement maintenance-window latch; pilot DTLB miss -> stale L2 hit | DESIGN_GATE
+R3: B02 | P0 | M03 | Current FalseHit selects first valid entry | CHAOSArmTLB.cc:1242-1253 | Filter all key fields except non-global ASID | HOOK_REFINEMENT
+R4: B03 | P0 | M05 | Partial walk-cache hook and W13 absent | table_walker.cc:2492-2543;1365-1400 | Implement targeted hook; prove partial hit after leaf-only TLBI | NEW_HOOK_AND_PILOT
+R5: B04 | P0 | M06 | clear_valid lacks target VA/level/type gate | CHAOSPTW.cc:53-120 | Restrict to Stage1 L3 Page descriptor bits[1:0]=11 | HOOK_REFINEMENT
+R6: B05 | P0 | M07 | Permission grant hook/W14 absent | mmu.cc:643-682 | Implement grant inversion and RO/RW alias baseline | NEW_HOOK_AND_WORKLOAD
+R7: B06 | P0 | M08 | Final PA hook absent | mmu.cc:1121-1123 | Add one-request PA mutation with DRAM guard | NEW_HOOK
+R8: B07 | P1 | Stage2 | No Stage2 workload in supplied baseline | ArmMMU.py:110-115 | Keep blocked until virtualization workload | BLOCKED
+R9: B08 | P1 | Memory attributes | No deterministic attribute-to-SDC workload | mmu.cc:1101-1119 | Trace flags; defer independent model | DEFERRED
+R10: B09 | P1 | Workspace | Original linked worktree shares common dir with LSU; 111 docs deletions | Git baseline/source manifest | Implementation only in independent clone; no reset/clean/prune | WORKSPACE_GUARD
+R11: B10 | P1 | Seed | No authoritative MMU seed sheet supplied | User policy | Do not execute formal sample until Excel supplies Seed | USER_DATA_REQUIRED

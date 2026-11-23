@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSLSQFwd — store-to-load forwarding-path fault injector (O3 only).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSLSQFwd.py', sim_objects=['CHAOSLSQFwd'], enums=[])
+Source('CHAOSLSQFwd.cc')
+
+DebugFlag('CHAOSLSQFwd')

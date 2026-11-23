@@ -1,0 +1,236 @@
+[
+  {
+    "context": "C01",
+    "model": "M01",
+    "rcs": "campaign/rcs/M01-C01.rcS",
+    "sha256": "eff7595885d6912b87155c0dc8c3a6cb15fb27e58b903c1082d16396b9f9e361"
+  },
+  {
+    "context": "C02",
+    "model": "M01",
+    "rcs": "campaign/rcs/M01-C02.rcS",
+    "sha256": "eff7595885d6912b87155c0dc8c3a6cb15fb27e58b903c1082d16396b9f9e361"
+  },
+  {
+    "context": "C03",
+    "model": "M01",
+    "rcs": "campaign/rcs/M01-C03.rcS",
+    "sha256": "eff7595885d6912b87155c0dc8c3a6cb15fb27e58b903c1082d16396b9f9e361"
+  },
+  {
+    "context": "C04",
+    "model": "M01",
+    "rcs": "campaign/rcs/M01-C04.rcS",
+    "sha256": "eff7595885d6912b87155c0dc8c3a6cb15fb27e58b903c1082d16396b9f9e361"
+  },
+  {
+    "context": "C05",
+    "model": "M01",
+    "rcs": "campaign/rcs/M01-C05.rcS",
+    "sha256": "eff7595885d6912b87155c0dc8c3a6cb15fb27e58b903c1082d16396b9f9e361"
+  },
+  {
+    "context": "C01",
+    "model": "M02",
+    "rcs": "campaign/rcs/M02-C01.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C02",
+    "model": "M02",
+    "rcs": "campaign/rcs/M02-C02.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C03",
+    "model": "M02",
+    "rcs": "campaign/rcs/M02-C03.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C04",
+    "model": "M02",
+    "rcs": "campaign/rcs/M02-C04.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C05",
+    "model": "M02",
+    "rcs": "campaign/rcs/M02-C05.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C01",
+    "model": "M03",
+    "rcs": "campaign/rcs/M03-C01.rcS",
+    "sha256": "e47414c1955603d43db9730265939a9ec8003226b47d6c76867e64d323dc6a7a"
+  },
+  {
+    "context": "C02",
+    "model": "M03",
+    "rcs": "campaign/rcs/M03-C02.rcS",
+    "sha256": "e47414c1955603d43db9730265939a9ec8003226b47d6c76867e64d323dc6a7a"
+  },
+  {
+    "context": "C03",
+    "model": "M03",
+    "rcs": "campaign/rcs/M03-C03.rcS",
+    "sha256": "e47414c1955603d43db9730265939a9ec8003226b47d6c76867e64d323dc6a7a"
+  },
+  {
+    "context": "C04",
+    "model": "M03",
+    "rcs": "campaign/rcs/M03-C04.rcS",
+    "sha256": "e47414c1955603d43db9730265939a9ec8003226b47d6c76867e64d323dc6a7a"
+  },
+  {
+    "context": "C05",
+    "model": "M03",
+    "rcs": "campaign/rcs/M03-C05.rcS",
+    "sha256": "e47414c1955603d43db9730265939a9ec8003226b47d6c76867e64d323dc6a7a"
+  },
+  {
+    "context": "C01",
+    "model": "M04",
+    "rcs": "campaign/rcs/M04-C01.rcS",
+    "sha256": "accc9a44092d36cfbf0ba65ff71d07278323f03ae4dec3cc45ba5cb67a970aa7"
+  },
+  {
+    "context": "C02",
+    "model": "M04",
+    "rcs": "campaign/rcs/M04-C02.rcS",
+    "sha256": "accc9a44092d36cfbf0ba65ff71d07278323f03ae4dec3cc45ba5cb67a970aa7"
+  },
+  {
+    "context": "C03",
+    "model": "M04",
+    "rcs": "campaign/rcs/M04-C03.rcS",
+    "sha256": "accc9a44092d36cfbf0ba65ff71d07278323f03ae4dec3cc45ba5cb67a970aa7"
+  },
+  {
+    "context": "C04",
+    "model": "M04",
+    "rcs": "campaign/rcs/M04-C04.rcS",
+    "sha256": "accc9a44092d36cfbf0ba65ff71d07278323f03ae4dec3cc45ba5cb67a970aa7"
+  },
+  {
+    "context": "C05",
+    "model": "M04",
+    "rcs": "campaign/rcs/M04-C05.rcS",
+    "sha256": "accc9a44092d36cfbf0ba65ff71d07278323f03ae4dec3cc45ba5cb67a970aa7"
+  },
+  {
+    "context": "C01",
+    "model": "M05",
+    "rcs": "campaign/rcs/M05-C01.rcS",
+    "sha256": "83d1d942e5d15d98a89d16c5474dc15a7d2f7f307abdfe5de69964148897563b"
+  },
+  {
+    "context": "C02",
+    "model": "M05",
+    "rcs": "campaign/rcs/M05-C02.rcS",
+    "sha256": "83d1d942e5d15d98a89d16c5474dc15a7d2f7f307abdfe5de69964148897563b"
+  },
+  {
+    "context": "C03",
+    "model": "M05",
+    "rcs": "campaign/rcs/M05-C03.rcS",
+    "sha256": "83d1d942e5d15d98a89d16c5474dc15a7d2f7f307abdfe5de69964148897563b"
+  },
+  {
+    "context": "C04",
+    "model": "M05",
+    "rcs": "campaign/rcs/M05-C04.rcS",
+    "sha256": "83d1d942e5d15d98a89d16c5474dc15a7d2f7f307abdfe5de69964148897563b"
+  },
+  {
+    "context": "C05",
+    "model": "M05",
+    "rcs": "campaign/rcs/M05-C05.rcS",
+    "sha256": "83d1d942e5d15d98a89d16c5474dc15a7d2f7f307abdfe5de69964148897563b"
+  },
+  {
+    "context": "C01",
+    "model": "M06",
+    "rcs": "campaign/rcs/M06-C01.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C02",
+    "model": "M06",
+    "rcs": "campaign/rcs/M06-C02.rcS",
+    "sha256": "e248e72c4c820c694e2fd3612d41aacbedbf57f80d03750f63070826873c798d"
+  },
+  {
+    "context": "C03",
+    "model": "M06",
+    "rcs": "campaign/rcs/M06-C03.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C04",
+    "model": "M06",
+    "rcs": "campaign/rcs/M06-C04.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C01",
+    "model": "M07",
+    "rcs": "campaign/rcs/M07-C01.rcS",
+    "sha256": "4802ec1e1b9b271da2151da8dece7936bd05e4f4716748304cd9a0abbd434e15"
+  },
+  {
+    "context": "C02",
+    "model": "M07",
+    "rcs": "campaign/rcs/M07-C02.rcS",
+    "sha256": "4802ec1e1b9b271da2151da8dece7936bd05e4f4716748304cd9a0abbd434e15"
+  },
+  {
+    "context": "C03",
+    "model": "M07",
+    "rcs": "campaign/rcs/M07-C03.rcS",
+    "sha256": "4802ec1e1b9b271da2151da8dece7936bd05e4f4716748304cd9a0abbd434e15"
+  },
+  {
+    "context": "C04",
+    "model": "M07",
+    "rcs": "campaign/rcs/M07-C04.rcS",
+    "sha256": "4802ec1e1b9b271da2151da8dece7936bd05e4f4716748304cd9a0abbd434e15"
+  },
+  {
+    "context": "C05",
+    "model": "M07",
+    "rcs": "campaign/rcs/M07-C05.rcS",
+    "sha256": "4802ec1e1b9b271da2151da8dece7936bd05e4f4716748304cd9a0abbd434e15"
+  },
+  {
+    "context": "C01",
+    "model": "M08",
+    "rcs": "campaign/rcs/M08-C01.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C02",
+    "model": "M08",
+    "rcs": "campaign/rcs/M08-C02.rcS",
+    "sha256": "e248e72c4c820c694e2fd3612d41aacbedbf57f80d03750f63070826873c798d"
+  },
+  {
+    "context": "C03",
+    "model": "M08",
+    "rcs": "campaign/rcs/M08-C03.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C04",
+    "model": "M08",
+    "rcs": "campaign/rcs/M08-C04.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  },
+  {
+    "context": "C05",
+    "model": "M08",
+    "rcs": "campaign/rcs/M08-C05.rcS",
+    "sha256": "23111bc1ba56374088c0bee8336a4667e5feeb9162b38ebc7f7a85380bb9626f"
+  }
+]

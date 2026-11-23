@@ -1,0 +1,10 @@
+SHEET 13_Change_Log dims=A1:D9 rows=9 cols=4
+R1: Version | Change | Reason | Evidence
+R2: v1 | M01/M02 only | Initial real-case driven candidates | First-stage audit
+R3: v2.0 | Expanded to M01-M08 | Full subunit assessment identified distinct tag, resident-entry, partial-walk, descriptor, permission and final-PA mechanisms | Source mapping/coverage
+R4: v2.0 | M01 targets l2_shared and uses maintenance-window latch | W9 observes l2_shared entry and later range TLBI | W9 evidence; ArmMMU.py:101-108
+R5: v2.0 | M02 is refill PFN, not PTE memory corruption | te.pfn assigned from descriptor.pfn before insert | table_walker.cc:2546-2643
+R6: v2.0 | M05 is partial next-table base, not final data PFN | partial pfn consumed as table_addr | table_walker.cc:2492-2543;1365-1400
+R7: v2.0 | M06 mutates local descriptor only | doLongDescriptor hook before type decode | table_walker.cc:1981-2063
+R8: v2.0 | W9/W10 preserved; W11-W14 proposed | No false claim of execution | Original package
+R9: v2.0 | SampleRunIDs proposed; Seed blank/authoritative placeholder | Seed policy preserved | Researcher requirement

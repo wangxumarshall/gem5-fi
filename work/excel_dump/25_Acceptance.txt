@@ -1,0 +1,24 @@
+SHEET 25_Acceptance dims=A1:F23 rows=23 cols=6
+R1: GateID | Area | AcceptCriterion | RequiredEvidence | Status | AppliesTo
+R2: A01 | Source Preservation | 原 03_Fault_Model_Summary、04_Source_Mapping、05_Injection_Configuration 完全保留 | 逐单元 hash/Workbook 值审计 | PENDING | 必需
+R3: A02 | Frozen 40 Protection | 0202 原正式工作区 mmu-final-reproducible 和结果零覆盖 | 独立拷贝 + 工作目录白名单 + git diff | PENDING | 必需
+R4: A03 | Formal vs new ID | 原 40 SampleRunID 只能用于正式证据对照；新 120 样本必须使用新 ID | ID集合交集为空 | PENDING | 必需
+R5: A04 | Real context | 每类 Context 的目标操作真实可触发相同冻结 Where 模型 | program + instruction/VA + predicted predicate logs | PENDING | 必需
+R6: A05 | 5x3 completeness | 8模型×5类C×3T=120 个预定义候选格子，N/A 不掩饰为完成 | 20_When_5x3_120 120行、唯一性 | PENDING | 必需
+R7: A06 | 3 unique eligible events | 每个 (M,C) golden ROI 合格事件 N≥3，ceil(10%N)、ceil(50%N)、ceil(90%N) 不重复 | pre-scan eligible event CSV and ID hash | PENDING | 必需
+R8: A07 | Same hook and operation | T01/T02/T03 的注入函数、目标状态、错误操作、fault duration 一致 | hook diff + before/after + model ref | PENDING | 必需
+R9: A08 | One fault activation | 故障运行恰好一个首次激活，Control 为零；持久故障状态可继续存在 | FaultArmed/Activated counts; state lifetime | PENDING | 必需
+R10: A09 | State snapshot | 注入时记录 TLB/PTW/访问/推测/queue 可见状态；缺失字段显式 N/A | ActualStateTrace 与 EventID link | PENDING | 必需
+R11: A10 | Timing alignment | 基于 gold baseline 的 N 和排序；Fault 触发实际 rank/事件与预定相符 | actual ordinal==planned ordinal | PENDING | 必需
+R12: A11 | Control reuse | 相同 (M,C) 三个时机共用 baseline 之前验证 config/seed/input/checkpoint/hash | 21_Control_Baselines checksum and matching | PENDING | 必需
+R13: A12 | M01 multi-epoch | 维护 epoch 完整匹配 l2_shared，匹配 TLBI 期间 latch 不丢失 | TLBIID/key + EntryGen + post lookup | PENDING | M01
+R14: A13 | M02/M04/M05 contamination | 污染 entry 持续性被观察，前后独立 episode 不互相污染 | EntryID/Generation and reset evidence | PENDING | M02/M04/M05
+R15: A14 | M03 ASID-only mismatch | 要求真实不同 ASID，其他 Lookup Key 相同；不允许填错 global flag | ASID/VMID/EntryID/LookupID | PENDING | M03
+R16: A15 | M06 translation fault | 本地 PTE bit0 mutation，原内存 PTE 不变；后续无效消费者不得编造 | local descriptor vs PTE memory and FaultClass | PENDING | M06
+R17: A16 | M07 permission models | R03 使用 PROT_EXEC ExecuteOnly EL0 Load；R05 valid XN+indirect branch，grant=false→true | Permission before/after, AP/UXN, request kind | PENDING | M07
+R18: A17 | M08 one-request PA | Request PA flip 仅影响一条目标请求，TLB entry 没有改动 | RequestID+PA before/after+EntryID | PENDING | M08
+R19: A18 | Causal graph | FaultID→EventID→ParentEventID 与 Walk/Lookup/Translation/Request join 完成 | no missing edges in expected observability | PENDING | 必需
+R20: A19 | Execute evidence boundaries | M03/M04/M05/M07 取指链如果没有 IFU response/decode/commit，不能标端到端 FULL | explicit EvidenceBoundary and TraceCoverage | PENDING | 必需
+R21: A20 | Terminal oracle | 正确运行期望与 fault 观测分开；M07 baseline denied access 合理；Terminal 状态一律证据支持 | Oracle Expected/Observed/Outcome + exit code | PENDING | 必需
+R22: A21 | Failure handling | N<3、不可触发、预扫描失配、应用终止、Trace缺边均显式标 BLOCKED/N/A | reason+workload/hook status; no forced outcomes | PENDING | 必需
+R23: A22 | Research conclusions | 报告 Context-Timing interaction 仅限实际实现/观测的 5×3 格子，不推断真实 SDC 发生概率 | coverage matrix + results comparative notes | PENDING | 论文

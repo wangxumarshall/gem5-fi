@@ -1,0 +1,17 @@
+SHEET 01_MMU_Architecture dims=A1:D16 rows=16 cols=4
+R1: Object/Function | SourceAnchor | ActualImplementation | Status
+R2: ArmMMU | ArmMMU.py:96-118 | itb/dtb/l2_shared/stage2_itb/stage2_dtb configured | VERIFIED
+R3: L1 ITLB/DTLB | ArmMMU.py:101-108 | Separate instances; same ArmISA::TLB implementation; next_level=l2_shared | VERIFIED
+R4: L2 shared | ArmMMU.py:101-104 | 1280 entries, 5-way, partial_levels=[L2] | VERIFIED
+R5: Stage2 TLBs | ArmMMU.py:110-115 | Separate Stage2 instruction/data instances | SOURCE_EXISTS / WORKLOAD_BLOCKED
+R6: multiLookup | tlb.cc:238-259 | Local TLB then next level on miss | VERIFIED
+R7: multiInsert | tlb.cc:297-308 | Complete entries propagate; partial only if configured | VERIFIED
+R8: TlbEntry::match | pagetable.hh:428-444 | valid, VA, security, regime, ASID/global, VMID | VERIFIED
+R9: TlbEntry::pAddr | pagetable.hh:452-456 | (pfn<<N)|(va&size) | VERIFIED
+R10: flushStage1 | mmu.cc:223-233 | instruction/data/unified TLB vectors | VERIFIED
+R11: TLB::flush | tlb.cc:338-357 | match then invalidate/invalidatePrev | VERIFIED
+R12: partial entry | table_walker.cc:2492-2543 | nextTableAddr stored in partial TlbEntry::pfn | VERIFIED
+R13: complete entry | table_walker.cc:2546-2643 | descriptor.pfn stored before insertion | VERIFIED
+R14: descriptor decode | table_walker.cc:1981-2063 | Invalid/AccessFlag/address-size detection | VERIFIED
+R15: permission | mmu.cc:572-682 | grant decision and DataAbort/PrefetchAbort | VERIFIED
+R16: attributes/final PA | mmu.cc:1101-1123 | Request attributes and final PA materialization | VERIFIED

@@ -1,0 +1,207 @@
+{
+ "A01": {
+  "all_equal": false,
+  "new_workbook_sha256": "9dd7912147840ad2bf8dcd8cdc5e3c31e0b05704e0e482041ad766c9d4326564",
+  "old_workbook_sha256": "8f728d83476d0528c974fcf6f66cc013ee8bdc8471f5626d9648959882b22ee9",
+  "required_where_equal": true,
+  "required_where_sheets": [
+   "03_Fault_Model_Summary",
+   "04_Source_Mapping",
+   "05_Injection_Configuration"
+  ],
+  "sheets": {
+   "00_Readme": {
+    "equal": false,
+    "new": {
+     "rows": 26,
+     "sha256": "854572b90b4e3dc89c1dbd6fa9f34cdf18ad3fa49d425167c35f1ce3f83b0813"
+    },
+    "old": {
+     "rows": 22,
+     "sha256": "ffc76ed9598c1ba01aa817cceaa4dc2dfedf022a0db5c6f122e5f517d71ae45b"
+    }
+   },
+   "01_MMU_Architecture": {
+    "equal": true,
+    "new": {
+     "rows": 16,
+     "sha256": "f104a6bf006cfc2245ca2459a529461176bcf76e5cce94e37cf6044ee7ec9e80"
+    },
+    "old": {
+     "rows": 16,
+     "sha256": "f104a6bf006cfc2245ca2459a529461176bcf76e5cce94e37cf6044ee7ec9e80"
+    }
+   },
+   "02_SubUnit_Coverage": {
+    "equal": true,
+    "new": {
+     "rows": 31,
+     "sha256": "b7984fe6baec29480fcf4c9e6e31c4a591305f1537275d1b61d9eae2fb61b927"
+    },
+    "old": {
+     "rows": 31,
+     "sha256": "b7984fe6baec29480fcf4c9e6e31c4a591305f1537275d1b61d9eae2fb61b927"
+    }
+   },
+   "03_Fault_Model_Summary": {
+    "equal": true,
+    "new": {
+     "rows": 9,
+     "sha256": "255f31f586a5785042edefeb7c15e9ec47a0af8495daa3a974d3242acfe7789c"
+    },
+    "old": {
+     "rows": 9,
+     "sha256": "255f31f586a5785042edefeb7c15e9ec47a0af8495daa3a974d3242acfe7789c"
+    }
+   },
+   "04_Source_Mapping": {
+    "equal": true,
+    "new": {
+     "rows": 21,
+     "sha256": "48105a89f0a1ce0fe82b93f30f397a3358e94bcc2d0dcb3dc42b6aef0001aafc"
+    },
+    "old": {
+     "rows": 21,
+     "sha256": "48105a89f0a1ce0fe82b93f30f397a3358e94bcc2d0dcb3dc42b6aef0001aafc"
+    }
+   },
+   "05_Injection_Configuration": {
+    "equal": true,
+    "new": {
+     "rows": 9,
+     "sha256": "bfd5963aca01a3f4f984df40c5a89326ee75345be62ac8203df47f2f19b619e6"
+    },
+    "old": {
+     "rows": 9,
+     "sha256": "bfd5963aca01a3f4f984df40c5a89326ee75345be62ac8203df47f2f19b619e6"
+    }
+   },
+   "06_Workload_Matrix": {
+    "equal": true,
+    "new": {
+     "rows": 7,
+     "sha256": "0d6da16af56bc570d57983ace1dfc15ee5172f257af349b5de32b0284dceae00"
+    },
+    "old": {
+     "rows": 7,
+     "sha256": "0d6da16af56bc570d57983ace1dfc15ee5172f257af349b5de32b0284dceae00"
+    }
+   },
+   "07_Sample_Matrix": {
+    "equal": false,
+    "new": {
+     "rows": 41,
+     "sha256": "499f1ffa325745127dc31e285b536579e6714e4bc46be62bbdcabc7bb4deb6f0"
+    },
+    "old": {
+     "rows": 41,
+     "sha256": "20880a1027816bafb25509ab86b50fd1b9c1d8aa48bbf59a3097cdae88b966ed"
+    }
+   },
+   "08_Propagation_Path": {
+    "equal": true,
+    "new": {
+     "rows": 89,
+     "sha256": "ab19bbed27901b5fbaa357d958daf670be1db7e39cc3924098afb3a4469ff8a0"
+    },
+    "old": {
+     "rows": 89,
+     "sha256": "ab19bbed27901b5fbaa357d958daf670be1db7e39cc3924098afb3a4469ff8a0"
+    }
+   },
+   "09_Trace_Configuration": {
+    "equal": false,
+    "new": {
+     "rows": 36,
+     "sha256": "1fca9d6befce8e659f3530e72894a931e111978274ae7eeed20b2e1645ed7d9b"
+    },
+    "old": {
+     "rows": 36,
+     "sha256": "880727208b72c25aca59355418d2cec169065224a8870245004057609d07b10e"
+    }
+   },
+   "10_Terminal_Oracle": {
+    "equal": true,
+    "new": {
+     "rows": 19,
+     "sha256": "f1a6365916be0f84781bb8c5aac826060e08c35663c5122aec895aeadfdb410d"
+    },
+    "old": {
+     "rows": 19,
+     "sha256": "f1a6365916be0f84781bb8c5aac826060e08c35663c5122aec895aeadfdb410d"
+    }
+   },
+   "11_Acceptance_Checklist": {
+    "equal": false,
+    "new": {
+     "rows": 17,
+     "sha256": "7dba237c098e19ebb3c14d3b26ab93c094d108ffec9a13bb8ba14a191a483fdd"
+    },
+    "old": {
+     "rows": 17,
+     "sha256": "3ca39f8e6169c9fa7dcd1e4dfcb7a3ce40a131c29f6b40a476b62983d75c5131"
+    }
+   },
+   "12_Blockers": {
+    "equal": false,
+    "new": {
+     "rows": 11,
+     "sha256": "7524547b99a6d1e7b02662c20d06a765f768784fc08b6015ae1739a88810e70f"
+    },
+    "old": {
+     "rows": 11,
+     "sha256": "1b3e8845d639ce2196d65f0dad15746421f0af6e917ad5f90d9d27763bc53cda"
+    }
+   },
+   "13_Change_Log": {
+    "equal": false,
+    "new": {
+     "rows": 9,
+     "sha256": "1e43bf7c1ae2a1e63ed7ff37df0ec677905d10450614f2d82c0c94d5c48ed87d"
+    },
+    "old": {
+     "rows": 15,
+     "sha256": "08dc7b4b7c1991e11609e86e22b590710125740e08a804d628003d56147fa9c3"
+    }
+   },
+   "14_Deferred_Candidates": {
+    "equal": true,
+    "new": {
+     "rows": 14,
+     "sha256": "e79dc14817534edc3fa81a9f1b682200b7a6abc57d7b847b016620540ae0b58d"
+    },
+    "old": {
+     "rows": 14,
+     "sha256": "e79dc14817534edc3fa81a9f1b682200b7a6abc57d7b847b016620540ae0b58d"
+    }
+   },
+   "15_Diagnostic_Feature_Schema": {
+    "equal": true,
+    "new": {
+     "rows": 13,
+     "sha256": "d2a2ac1d1f31d3d0ec9d6ced5d03b2bdd6b38acf063f07611f9ec27a6c7d387c"
+    },
+    "old": {
+     "rows": 13,
+     "sha256": "d2a2ac1d1f31d3d0ec9d6ced5d03b2bdd6b38acf063f07611f9ec27a6c7d387c"
+    }
+   }
+  }
+ },
+ "A02": {
+  "git_operations_performed": false,
+  "manifest_path": "/home/sdc/gem5-fi-mmu-when5x3/provenance/OLD_workspace_full_manifest.sha256",
+  "manifest_sha256_now": "54dd39df6944745ca31da0e975087295468665200564c6191450cb4d9833ca53",
+  "manifest_sha256_recheck": "54dd39df6944745ca31da0e975087295468665200564c6191450cb4d9833ca53",
+  "manifest_sha256_recorded": "54dd39df6944745ca31da0e975087295468665200564c6191450cb4d9833ca53",
+  "old_workspace": "/home/sdc/gem5-fi-mmu-impl-v2",
+  "read_only_copy_only": true,
+  "unchanged": true
+ },
+ "A03": {
+  "disjoint": true,
+  "frozen_count": 40,
+  "intersection": [],
+  "new_count": 120
+ }
+}

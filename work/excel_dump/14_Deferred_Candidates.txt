@@ -1,0 +1,15 @@
+SHEET 14_Deferred_Candidates dims=A1:E14 rows=14 cols=5
+R1: ID | Candidate | Decision | Evidence | Reason
+R2: D01 | Memory Attribute / Cacheability | TRACE_ONLY/DEFERRED | mmu.cc:1101-1119; MemTypeSubst | Current MemTypeSubst changes mtype only; no validated SDC workload for coupled attribute effects.
+R3: D02 | Page Size Metadata N/size/tg | DEFERRED | CHAOSArmTLB.cc:1111-1131 | Mixed-page-size workload and target-specific semantics required.
+R4: D03 | TLB Replacement/Victim Selection | TRACE_ONLY | AssociativeCache and TLB::insert | Wrong victim usually creates miss/refill, not wrong translation.
+R5: D04 | PTW Walk Drop/Pairing Lost | DEFERRED | existing T08 walk family | Primarily timeout/missing completion; less direct SDC signature.
+R6: D05 | PTW Duplicate Refill | DEFERRED | existing T08 walk family | Likely idempotent; no distinct propagation signature established.
+R7: D06 | PTW Early Done | DEFERRED | existing T08 walk family | Timing-only in current model.
+R8: D07 | PTW Stale Prior-Walk Result | DEFERRED | CHAOSArmTLB::maybeCorruptWalkRefill | Interesting cross-walk association fault but overlaps refill payload and needs two-walk workload.
+R9: D08 | Access Flag bit 10 corruption | TRACE_ONLY/DEFERRED | table_walker.hh:709-715; table_walker.cc:2047-2058 | AF check traced; selected descriptor model uses valid/type bit to create Translation Fault.
+R10: D09 | Stored ASID/Global field substitution | DEFERRED | CHAOSArmTLB entry field fault | M03 isolates comparator false positive; stored-tag substitution is a related alternative.
+R11: D10 | Permission AP attribute substitution | DEFERRED | CHAOSArmTLB entry field fault; mmu.cc:650-682 | M07 isolates checker decision; AP-state mutation can be reconsidered after pilot.
+R12: D11 | Double Hit | TRACE_ONLY | CHAOSArmTLB.cc:1255-1266 | Current path counts matches but does not alter selected entry.
+R13: D12 | Stage-2/VMID Match | BLOCKED | ArmMMU.py:110-115; Stage2LookUp | No validated Stage-2 workload in supplied baseline.
+R14: D13 | Direct TLB valid-bit upset | DEFERRED | CHAOSArmTLB entry-state path | ValidSet on hit is no-op; ValidClear after lookup selection does not create a clean persistent stale mapping.

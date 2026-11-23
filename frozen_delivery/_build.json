@@ -1,0 +1,37 @@
+{
+  "zips": [
+    [
+      "MMU_FINAL_REPORT.zip",
+      "/home/sdc/gem5-fi-mmu-when5x3/exports/MMU_FINAL_FROZEN_DELIVERY/MMU_FINAL_REPORT.zip",
+      2478369,
+      21,
+      "b6a20619e2816dffb789caceabba3156d89bc38bac90715a58c2a0254657a8fb"
+    ],
+    [
+      "MMU_FINAL_CAUSAL_EVIDENCE.zip",
+      "/home/sdc/gem5-fi-mmu-when5x3/exports/MMU_FINAL_FROZEN_DELIVERY/MMU_FINAL_CAUSAL_EVIDENCE.zip",
+      6815929,
+      141,
+      "0a48c7ca17b93dc36a1d531717f656ffaee958de648c475a15ea9e5646706bc7"
+    ],
+    [
+      "MMU_FINAL_RAW_AND_SOURCE.zip",
+      "/home/sdc/gem5-fi-mmu-when5x3/exports/MMU_FINAL_FROZEN_DELIVERY/MMU_FINAL_RAW_AND_SOURCE.zip",
+      18671943,
+      400,
+      "0e688c6f6954ca3fe2010903b31e94623adf325833269cecf8ad1309eb49884f"
+    ]
+  ],
+  "archives": [
+    [
+      "MMU_Propagation_Traces.tar.zst",
+      26815513,
+      "2cc957bf46dc5048d4e56c28fb0b7a6c98c70a96249b5e70b208a8269782f836"
+    ],
+    [
+      "MMU_When_Golden_Evidence.tar.gz",
+      9506960,
+      "b7e54cddccc565d2f380d864746069dee7a97d8e23c9a2abc2c45848713bab69"
+    ]
+  ]
+}

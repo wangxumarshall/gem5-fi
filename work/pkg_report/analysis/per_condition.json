@@ -1,0 +1,6309 @@
+[
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M01-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C01",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "376",
+    "kind": "mmu_fault_arm",
+    "tick": "251277725079"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "377",
+    "kind": "tlbi_suppressed",
+    "tick": "251277725079"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M01-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C01",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "496",
+    "kind": "mmu_fault_arm",
+    "tick": "251433766548"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "497",
+    "kind": "tlbi_suppressed",
+    "tick": "251433766548"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "4",
+  "ControlID": "CTRL-M01-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C01",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C01-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "720",
+    "kind": "mmu_fault_arm",
+    "tick": "251711277093"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "721",
+    "kind": "tlbi_suppressed",
+    "tick": "251711277093"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 4,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M01-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C02",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "376",
+    "kind": "mmu_fault_arm",
+    "tick": "251277725079"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "377",
+    "kind": "tlbi_suppressed",
+    "tick": "251277725079"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M01-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C02",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "484",
+    "kind": "mmu_fault_arm",
+    "tick": "251433060921"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "485",
+    "kind": "tlbi_suppressed",
+    "tick": "251433060921"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "4",
+  "ControlID": "CTRL-M01-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C02",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C02-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "684",
+    "kind": "mmu_fault_arm",
+    "tick": "251710860843"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "685",
+    "kind": "tlbi_suppressed",
+    "tick": "251710860843"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 4,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M01-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C03",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "376",
+    "kind": "mmu_fault_arm",
+    "tick": "251276363109"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251221689171"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251231502348"
+   },
+   "mutation": {
+    "event_id": "377",
+    "kind": "tlbi_suppressed",
+    "tick": "251276363109"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251231441409"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251231501349"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251221608918"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M01-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C03",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "484",
+    "kind": "mmu_fault_arm",
+    "tick": "251432988327"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251221689171"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251231502348"
+   },
+   "mutation": {
+    "event_id": "485",
+    "kind": "tlbi_suppressed",
+    "tick": "251432988327"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251231441409"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251231501349"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251221608918"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "4",
+  "ControlID": "CTRL-M01-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C03",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "688",
+    "kind": "mmu_fault_arm",
+    "tick": "251711651052"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251221689171"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251231502348"
+   },
+   "mutation": {
+    "event_id": "689",
+    "kind": "tlbi_suppressed",
+    "tick": "251711651052"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251231441409"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251231501349"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251221608918"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 4,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M01-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C04",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "376",
+    "kind": "mmu_fault_arm",
+    "tick": "251277725079"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "377",
+    "kind": "tlbi_suppressed",
+    "tick": "251277725079"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M01-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C04",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "484",
+    "kind": "mmu_fault_arm",
+    "tick": "251433741573"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "485",
+    "kind": "tlbi_suppressed",
+    "tick": "251433741573"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "4",
+  "ControlID": "CTRL-M01-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C04",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C04-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "708",
+    "kind": "mmu_fault_arm",
+    "tick": "251711041662"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "709",
+    "kind": "tlbi_suppressed",
+    "tick": "251711041662"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 4,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M01-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C05",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "376",
+    "kind": "mmu_fault_arm",
+    "tick": "251277725079"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "377",
+    "kind": "tlbi_suppressed",
+    "tick": "251277725079"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M01-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C05",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "484",
+    "kind": "mmu_fault_arm",
+    "tick": "251433741573"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "485",
+    "kind": "tlbi_suppressed",
+    "tick": "251433741573"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "4",
+  "ControlID": "CTRL-M01-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M01-F0-W9-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M01",
+  "N": 4,
+  "NewContext": "C05",
+  "NewSampleRunID": "M01-F0-W9-W5X3-C05-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "698",
+    "kind": "mmu_fault_arm",
+    "tick": "251711437932"
+   },
+   "commit_squash": {
+    "event_id": "250",
+    "kind": "squash",
+    "tick": "251223241617"
+   },
+   "consumer": {
+    "event_id": "349",
+    "kind": "rf_writeback",
+    "tick": "251232574275"
+   },
+   "mutation": {
+    "event_id": "699",
+    "kind": "tlbi_suppressed",
+    "tick": "251711437932"
+   },
+   "request": {
+    "event_id": "311",
+    "kind": "lsu_request",
+    "tick": "251232513336"
+   },
+   "response": {
+    "event_id": "346",
+    "kind": "cache_response",
+    "tick": "251232573276"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251223175350"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 4,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W9"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M02-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1266",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284850275"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1270",
+    "kind": "fault_entry_consume",
+    "tick": "256284850275"
+   },
+   "mutation": {
+    "event_id": "1266",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284850275"
+   },
+   "request": {
+    "event_id": "1273",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1286",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M02-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2377",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263019987729"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "mutation": {
+    "event_id": "2377",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263019987729"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M02-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3490",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270924620850"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "mutation": {
+    "event_id": "3490",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270924620850"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M02-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1265",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284893565"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1269",
+    "kind": "fault_entry_consume",
+    "tick": "256284893565"
+   },
+   "mutation": {
+    "event_id": "1265",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284893565"
+   },
+   "request": {
+    "event_id": "1272",
+    "kind": "lsu_request",
+    "tick": "256284893565"
+   },
+   "response": {
+    "event_id": "1287",
+    "kind": "cache_response",
+    "tick": "256284953172"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M02-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2382",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263030716323"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1286",
+    "kind": "rf_writeback",
+    "tick": "256284954171"
+   },
+   "mutation": {
+    "event_id": "2382",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263030716323"
+   },
+   "request": {
+    "event_id": "1269",
+    "kind": "lsu_request",
+    "tick": "256284893565"
+   },
+   "response": {
+    "event_id": "1283",
+    "kind": "cache_response",
+    "tick": "256284953172"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M02-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3501",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270945667449"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1286",
+    "kind": "rf_writeback",
+    "tick": "256284954171"
+   },
+   "mutation": {
+    "event_id": "3501",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270945667449"
+   },
+   "request": {
+    "event_id": "1269",
+    "kind": "lsu_request",
+    "tick": "256284893565"
+   },
+   "response": {
+    "event_id": "1283",
+    "kind": "cache_response",
+    "tick": "256284953172"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M02-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1261",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284907884"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1265",
+    "kind": "fault_entry_consume",
+    "tick": "256284907884"
+   },
+   "mutation": {
+    "event_id": "1261",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284907884"
+   },
+   "request": {
+    "event_id": "1268",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1275",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M02-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2376",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263008415646"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "mutation": {
+    "event_id": "2376",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263008415646"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M02-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3493",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270908462358"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "mutation": {
+    "event_id": "3493",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270908462358"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M02-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1282",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284818973"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1286",
+    "kind": "fault_entry_consume",
+    "tick": "256284818973"
+   },
+   "mutation": {
+    "event_id": "1282",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256284818973"
+   },
+   "request": {
+    "event_id": "1289",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1296",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M02-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2404",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263015549172"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "mutation": {
+    "event_id": "2404",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263015549172"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M02-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C04-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3542",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270909068751"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "mutation": {
+    "event_id": "3542",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270909068751"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M02-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1282",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256285222569"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1286",
+    "kind": "fault_entry_consume",
+    "tick": "256285222569"
+   },
+   "mutation": {
+    "event_id": "1282",
+    "kind": "refill_pfn_corrupt",
+    "tick": "256285222569"
+   },
+   "request": {
+    "event_id": "1289",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1296",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M02-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2404",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263024596782"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256285283175"
+   },
+   "mutation": {
+    "event_id": "2404",
+    "kind": "refill_pfn_corrupt",
+    "tick": "263024596782"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M02-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M02-F0-W10-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M02",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M02-F0-W10-W5X3-C05-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3528",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270937854270"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256285283175"
+   },
+   "mutation": {
+    "event_id": "3528",
+    "kind": "refill_pfn_corrupt",
+    "tick": "270937854270"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M03-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "410",
+    "kind": "mmu_fault_activate",
+    "tick": "251944652484"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M03-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "787",
+    "kind": "mmu_fault_activate",
+    "tick": "253764516798"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M03-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1121",
+    "kind": "mmu_fault_activate",
+    "tick": "255465311967"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M03-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "312",
+    "kind": "mmu_fault_activate",
+    "tick": "251949231234"
+   },
+   "commit_squash": {
+    "event_id": "220",
+    "kind": "squash",
+    "tick": "251281512621"
+   },
+   "request": {
+    "event_id": "240",
+    "kind": "lsu_request",
+    "tick": "251281518282"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281510290"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M03-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "493",
+    "kind": "mmu_fault_activate",
+    "tick": "253776320316"
+   },
+   "commit_squash": {
+    "event_id": "220",
+    "kind": "squash",
+    "tick": "251281512621"
+   },
+   "request": {
+    "event_id": "240",
+    "kind": "lsu_request",
+    "tick": "251281518282"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281510290"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M03-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "676",
+    "kind": "mmu_fault_activate",
+    "tick": "255474966636"
+   },
+   "commit_squash": {
+    "event_id": "220",
+    "kind": "squash",
+    "tick": "251281512621"
+   },
+   "request": {
+    "event_id": "240",
+    "kind": "lsu_request",
+    "tick": "251281518282"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281510290"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M03-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "496",
+    "kind": "mmu_fault_activate",
+    "tick": "251946651150"
+   },
+   "commit_squash": {
+    "event_id": "341",
+    "kind": "commit",
+    "tick": "251281517616"
+   },
+   "consumer": {
+    "event_id": "326",
+    "kind": "rf_writeback",
+    "tick": "251281516950"
+   },
+   "request": {
+    "event_id": "267",
+    "kind": "lsu_request",
+    "tick": "251281456344"
+   },
+   "response": {
+    "event_id": "323",
+    "kind": "cache_response",
+    "tick": "251281515951"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281448352"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M03-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "855",
+    "kind": "mmu_fault_activate",
+    "tick": "253765414566"
+   },
+   "commit_squash": {
+    "event_id": "341",
+    "kind": "commit",
+    "tick": "251281517616"
+   },
+   "consumer": {
+    "event_id": "326",
+    "kind": "rf_writeback",
+    "tick": "251281516950"
+   },
+   "request": {
+    "event_id": "267",
+    "kind": "lsu_request",
+    "tick": "251281456344"
+   },
+   "response": {
+    "event_id": "323",
+    "kind": "cache_response",
+    "tick": "251281515951"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281448352"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M03-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1139",
+    "kind": "mmu_fault_activate",
+    "tick": "255463388559"
+   },
+   "commit_squash": {
+    "event_id": "341",
+    "kind": "commit",
+    "tick": "251281517616"
+   },
+   "consumer": {
+    "event_id": "326",
+    "kind": "rf_writeback",
+    "tick": "251281516950"
+   },
+   "request": {
+    "event_id": "267",
+    "kind": "lsu_request",
+    "tick": "251281456344"
+   },
+   "response": {
+    "event_id": "323",
+    "kind": "cache_response",
+    "tick": "251281515951"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281448352"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M03-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C04-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "442",
+    "kind": "mmu_fault_activate",
+    "tick": "251950293171"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251280271863"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251280270199"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251280209925"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251280270199"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251280201933"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M03-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C04-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "834",
+    "kind": "mmu_fault_activate",
+    "tick": "253777908726"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251280271863"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251280270199"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251280209925"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251280270199"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251280201933"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M03-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C04-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1228",
+    "kind": "mmu_fault_activate",
+    "tick": "255482699895"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251280271863"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251280270199"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251280209925"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251280270199"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251280201933"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M03-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C05-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "410",
+    "kind": "mmu_fault_activate",
+    "tick": "251944652484"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M03-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C05-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "792",
+    "kind": "mmu_fault_activate",
+    "tick": "253764541773"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M03-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M03-F0-W11-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M03",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M03-F0-W11-W5X3-C05-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1127",
+    "kind": "mmu_fault_activate",
+    "tick": "255461779836"
+   },
+   "commit_squash": {
+    "event_id": "270",
+    "kind": "squash",
+    "tick": "251281586214"
+   },
+   "consumer": {
+    "event_id": "265",
+    "kind": "rf_writeback",
+    "tick": "251281584550"
+   },
+   "request": {
+    "event_id": "247",
+    "kind": "lsu_request",
+    "tick": "251281524276"
+   },
+   "response": {
+    "event_id": "264",
+    "kind": "memory_response",
+    "tick": "251281584550"
+   },
+   "translation": {
+    "event_id": "217",
+    "kind": "ptw_start",
+    "tick": "251281516284"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W11"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2001",
+  "ControlID": "CTRL-M04-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M04",
+  "N": 20006,
+  "NewContext": "C01",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251000978436"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251000981100"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2001,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "10003",
+  "ControlID": "CTRL-M04-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M04",
+  "N": 20006,
+  "NewContext": "C01",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251022295764"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251022298428"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 10003,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "18006",
+  "ControlID": "CTRL-M04-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M04",
+  "N": 20006,
+  "NewContext": "C01",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251043615756"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251043618420"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 18006,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2001",
+  "ControlID": "CTRL-M04-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M04",
+  "N": 20005,
+  "NewContext": "C02",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "515",
+    "kind": "mmu_fault_activate",
+    "tick": "251001777969"
+   },
+   "commit_squash": {
+    "event_id": "374",
+    "kind": "commit",
+    "tick": "250953761700"
+   },
+   "request": {
+    "event_id": "272",
+    "kind": "lsu_request",
+    "tick": "250953746382"
+   },
+   "response": {
+    "event_id": "419",
+    "kind": "cache_response",
+    "tick": "250953766695"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250953738390"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2001,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "10003",
+  "ControlID": "CTRL-M04-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M04",
+  "N": 20005,
+  "NewContext": "C02",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "515",
+    "kind": "mmu_fault_activate",
+    "tick": "251023095297"
+   },
+   "commit_squash": {
+    "event_id": "374",
+    "kind": "commit",
+    "tick": "250953761700"
+   },
+   "request": {
+    "event_id": "272",
+    "kind": "lsu_request",
+    "tick": "250953746382"
+   },
+   "response": {
+    "event_id": "419",
+    "kind": "cache_response",
+    "tick": "250953766695"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250953738390"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 10003,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "18005",
+  "ControlID": "CTRL-M04-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M04",
+  "N": 20005,
+  "NewContext": "C02",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "515",
+    "kind": "mmu_fault_activate",
+    "tick": "251044412625"
+   },
+   "commit_squash": {
+    "event_id": "374",
+    "kind": "commit",
+    "tick": "250953761700"
+   },
+   "request": {
+    "event_id": "272",
+    "kind": "lsu_request",
+    "tick": "250953746382"
+   },
+   "response": {
+    "event_id": "419",
+    "kind": "cache_response",
+    "tick": "250953766695"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250953738390"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 18005,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M04-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M04",
+  "N": 12,
+  "NewContext": "C03",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "744",
+    "kind": "mmu_fault_activate",
+    "tick": "250995721698"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956502623"
+   },
+   "consumer": {
+    "event_id": "747",
+    "kind": "fault_entry_consume",
+    "tick": "250995721698"
+   },
+   "mutation": {
+    "event_id": "758",
+    "kind": "fault_entry_reuse",
+    "tick": "250995725361"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956514278"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956520272"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956500625"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "6",
+  "ControlID": "CTRL-M04-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M04",
+  "N": 12,
+  "NewContext": "C03",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "744",
+    "kind": "mmu_fault_activate",
+    "tick": "250995729690"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956502623"
+   },
+   "consumer": {
+    "event_id": "747",
+    "kind": "fault_entry_consume",
+    "tick": "250995729690"
+   },
+   "mutation": {
+    "event_id": "756",
+    "kind": "fault_entry_reuse",
+    "tick": "250995732687"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956514278"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956520272"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956500625"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 6,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "11",
+  "ControlID": "CTRL-M04-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M04",
+  "N": 12,
+  "NewContext": "C03",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "744",
+    "kind": "mmu_fault_activate",
+    "tick": "250995768318"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956502623"
+   },
+   "consumer": {
+    "event_id": "747",
+    "kind": "fault_entry_consume",
+    "tick": "250995768318"
+   },
+   "mutation": {
+    "event_id": "758",
+    "kind": "fault_entry_reuse",
+    "tick": "250995772647"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956514278"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956520272"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956500625"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 11,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2001",
+  "ControlID": "CTRL-M04-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M04",
+  "N": 20009,
+  "NewContext": "C04",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251000978436"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251000981100"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2001,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "10005",
+  "ControlID": "CTRL-M04-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M04",
+  "N": 20009,
+  "NewContext": "C04",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251022301092"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251022303756"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 10005,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "18009",
+  "ControlID": "CTRL-M04-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M04",
+  "N": 20009,
+  "NewContext": "C04",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C04-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251043623748"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251043626412"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 18009,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2001",
+  "ControlID": "CTRL-M04-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M04",
+  "N": 20007,
+  "NewContext": "C05",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251000978436"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251000981100"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2001,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "10004",
+  "ControlID": "CTRL-M04-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M04",
+  "N": 20007,
+  "NewContext": "C05",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251022298428"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251022301092"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 10004,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "18007",
+  "ControlID": "CTRL-M04-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M04-F0-W12-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M04",
+  "N": 20007,
+  "NewContext": "C05",
+  "NewSampleRunID": "M04-F0-W12-W5X3-C05-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "752",
+    "kind": "mmu_fault_activate",
+    "tick": "251043618420"
+   },
+   "commit_squash": {
+    "event_id": "262",
+    "kind": "squash",
+    "tick": "250956549909"
+   },
+   "consumer": {
+    "event_id": "740",
+    "kind": "rf_writeback",
+    "tick": "250995658761"
+   },
+   "mutation": {
+    "event_id": "765",
+    "kind": "fault_entry_reuse",
+    "tick": "251043621084"
+   },
+   "request": {
+    "event_id": "309",
+    "kind": "lsu_request",
+    "tick": "250956561564"
+   },
+   "response": {
+    "event_id": "416",
+    "kind": "cache_response",
+    "tick": "250956567558"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "250956547911"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 18007,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W12"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M05-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "267",
+    "kind": "mmu_fault_activate",
+    "tick": "251298026757"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297990793"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297990127"
+   },
+   "mutation": {
+    "event_id": "340",
+    "kind": "fault_entry_reuse",
+    "tick": "251357990067"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297985132"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297989794"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297971146"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M05-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "478",
+    "kind": "mmu_fault_activate",
+    "tick": "252620532261"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297990793"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297990127"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297985132"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297989794"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297971146"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M05-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "670",
+    "kind": "mmu_fault_activate",
+    "tick": "253843587981"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297990793"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297990127"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297985132"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297989794"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297971146"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M05-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "247",
+    "kind": "mmu_fault_activate",
+    "tick": "251304767010"
+   },
+   "consumer": {
+    "event_id": "263",
+    "kind": "fault_entry_consume",
+    "tick": "251364560490"
+   },
+   "request": {
+    "event_id": "232",
+    "kind": "lsu_request",
+    "tick": "251304749028"
+   },
+   "translation": {
+    "event_id": "211",
+    "kind": "ptw_start",
+    "tick": "251304735042"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M05-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "361",
+    "kind": "mmu_fault_activate",
+    "tick": "252664808607"
+   },
+   "consumer": {
+    "event_id": "377",
+    "kind": "fault_entry_consume",
+    "tick": "252724619403"
+   },
+   "request": {
+    "event_id": "232",
+    "kind": "lsu_request",
+    "tick": "251304749028"
+   },
+   "translation": {
+    "event_id": "211",
+    "kind": "ptw_start",
+    "tick": "251304735042"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M05-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "477",
+    "kind": "mmu_fault_activate",
+    "tick": "253928014803"
+   },
+   "consumer": {
+    "event_id": "493",
+    "kind": "fault_entry_consume",
+    "tick": "253987856901"
+   },
+   "request": {
+    "event_id": "232",
+    "kind": "lsu_request",
+    "tick": "251304749028"
+   },
+   "translation": {
+    "event_id": "211",
+    "kind": "ptw_start",
+    "tick": "251304735042"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M05-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "267",
+    "kind": "mmu_fault_activate",
+    "tick": "251297846271"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297810307"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297809641"
+   },
+   "mutation": {
+    "event_id": "340",
+    "kind": "fault_entry_reuse",
+    "tick": "251357831226"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297804646"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297809308"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297790660"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M05-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "468",
+    "kind": "mmu_fault_activate",
+    "tick": "252620976816"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297810307"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297809641"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297804646"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297809308"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297790660"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M05-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "657",
+    "kind": "mmu_fault_activate",
+    "tick": "253844446788"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297810307"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297809641"
+   },
+   "mutation": {
+    "event_id": "728",
+    "kind": "fault_entry_reuse",
+    "tick": "253904712129"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297804646"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297809308"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297790660"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M05-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "267",
+    "kind": "mmu_fault_activate",
+    "tick": "251297796321"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "mutation": {
+    "event_id": "340",
+    "kind": "fault_entry_reuse",
+    "tick": "251357759631"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M05-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "468",
+    "kind": "mmu_fault_activate",
+    "tick": "252620120673"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M05-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C04-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "650",
+    "kind": "mmu_fault_activate",
+    "tick": "253843917984"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M05-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "267",
+    "kind": "mmu_fault_activate",
+    "tick": "251297796321"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "mutation": {
+    "event_id": "340",
+    "kind": "fault_entry_reuse",
+    "tick": "251357759631"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M05-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "468",
+    "kind": "mmu_fault_activate",
+    "tick": "252620860266"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M05-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M05-F0-W13-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M05",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M05-F0-W13-W5X3-C05-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "650",
+    "kind": "mmu_fault_activate",
+    "tick": "253843877025"
+   },
+   "commit_squash": {
+    "event_id": "238",
+    "kind": "commit",
+    "tick": "251297760357"
+   },
+   "consumer": {
+    "event_id": "237",
+    "kind": "rf_writeback",
+    "tick": "251297759691"
+   },
+   "request": {
+    "event_id": "229",
+    "kind": "lsu_request",
+    "tick": "251297754696"
+   },
+   "response": {
+    "event_id": "235",
+    "kind": "cache_response",
+    "tick": "251297759358"
+   },
+   "translation": {
+    "event_id": "207",
+    "kind": "ptw_start",
+    "tick": "251297740710"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W13"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M06-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C01-T01",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1264",
+    "kind": "mmu_fault_activate",
+    "tick": "256284850275"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1266",
+    "kind": "fault_state_consumed",
+    "tick": "256284850275"
+   },
+   "request": {
+    "event_id": "1280",
+    "kind": "lsu_request",
+    "tick": "256284855270"
+   },
+   "response": {
+    "event_id": "1287",
+    "kind": "cache_response",
+    "tick": "256284914877"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M06-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C01-T02",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2375",
+    "kind": "mmu_fault_activate",
+    "tick": "263019987729"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M06-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C01-T03",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3488",
+    "kind": "mmu_fault_activate",
+    "tick": "270924620850"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M06-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C02-T01",
+  "GuestContext": "R02",
+  "ModelID": "M06",
+  "N": 5,
+  "NewContext": "C02",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C02-T01",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2311",
+    "kind": "mmu_fault_activate",
+    "tick": "257320776978"
+   },
+   "commit_squash": {
+    "event_id": "2290",
+    "kind": "commit",
+    "tick": "257310550548"
+   },
+   "consumer": {
+    "event_id": "2289",
+    "kind": "rf_writeback",
+    "tick": "257310462969"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257310388044"
+   },
+   "response": {
+    "event_id": "2286",
+    "kind": "cache_response",
+    "tick": "257310461970"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257310379719"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M06-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C02-T02",
+  "GuestContext": "R02",
+  "ModelID": "M06",
+  "N": 5,
+  "NewContext": "C02",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C02-T02",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "4528",
+    "kind": "mmu_fault_activate",
+    "tick": "265216360824"
+   },
+   "commit_squash": {
+    "event_id": "2290",
+    "kind": "commit",
+    "tick": "257310550548"
+   },
+   "consumer": {
+    "event_id": "2289",
+    "kind": "rf_writeback",
+    "tick": "257310462969"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257310388044"
+   },
+   "response": {
+    "event_id": "2286",
+    "kind": "cache_response",
+    "tick": "257310461970"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257310379719"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "5",
+  "ControlID": "CTRL-M06-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C02-T03",
+  "GuestContext": "R02",
+  "ModelID": "M06",
+  "N": 5,
+  "NewContext": "C02",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C02-T03",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "6731",
+    "kind": "mmu_fault_activate",
+    "tick": "273198828033"
+   },
+   "commit_squash": {
+    "event_id": "2290",
+    "kind": "commit",
+    "tick": "257310550548"
+   },
+   "consumer": {
+    "event_id": "2289",
+    "kind": "rf_writeback",
+    "tick": "257310462969"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257310388044"
+   },
+   "response": {
+    "event_id": "2286",
+    "kind": "cache_response",
+    "tick": "257310461970"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257310379719"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 5,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M06-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C03-T01",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1259",
+    "kind": "mmu_fault_activate",
+    "tick": "256284907884"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1261",
+    "kind": "fault_state_consumed",
+    "tick": "256284907884"
+   },
+   "request": {
+    "event_id": "1279",
+    "kind": "lsu_request",
+    "tick": "256286716740"
+   },
+   "response": {
+    "event_id": "1286",
+    "kind": "cache_response",
+    "tick": "256286776347"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M06-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C03-T02",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2374",
+    "kind": "mmu_fault_activate",
+    "tick": "263008415646"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M06-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C03-T03",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3491",
+    "kind": "mmu_fault_activate",
+    "tick": "270908462358"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M06-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C04-T01",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1280",
+    "kind": "mmu_fault_activate",
+    "tick": "256284818973"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1282",
+    "kind": "fault_state_consumed",
+    "tick": "256284818973"
+   },
+   "request": {
+    "event_id": "1300",
+    "kind": "lsu_request",
+    "tick": "256286673450"
+   },
+   "response": {
+    "event_id": "1307",
+    "kind": "cache_response",
+    "tick": "256286733057"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M06-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C04-T02",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2402",
+    "kind": "mmu_fault_activate",
+    "tick": "263015549172"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M06-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M06-F0-W10-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M06",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C04-T03",
+  "Reason": "translation-fault/delivery event",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3540",
+    "kind": "mmu_fault_activate",
+    "tick": "270909068751"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "DETECTED_CONTAINED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": "",
+  "ActualOrdinal": "",
+  "ControlID": "CTRL-M06-C05",
+  "ControlReused": false,
+  "EvidencePath": "",
+  "GuestContext": "SPEC",
+  "ModelID": "M06",
+  "N": 0,
+  "NewContext": "C05",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C05-T01",
+  "Reason": "M06-C05 speculative wrong-path has no generated rcS; pilot required",
+  "ReturnCode": "",
+  "Stages": {},
+  "Status": "N/A",
+  "TargetOrdinal": "",
+  "TerminalState": "",
+  "TimingID": "T01",
+  "TraceCompleteness": "",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": "",
+  "ActualOrdinal": "",
+  "ControlID": "CTRL-M06-C05",
+  "ControlReused": false,
+  "EvidencePath": "",
+  "GuestContext": "SPEC",
+  "ModelID": "M06",
+  "N": 0,
+  "NewContext": "C05",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C05-T02",
+  "Reason": "M06-C05 speculative wrong-path has no generated rcS; pilot required",
+  "ReturnCode": "",
+  "Stages": {},
+  "Status": "N/A",
+  "TargetOrdinal": "",
+  "TerminalState": "",
+  "TimingID": "T02",
+  "TraceCompleteness": "",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": "",
+  "ActualOrdinal": "",
+  "ControlID": "CTRL-M06-C05",
+  "ControlReused": false,
+  "EvidencePath": "",
+  "GuestContext": "SPEC",
+  "ModelID": "M06",
+  "N": 0,
+  "NewContext": "C05",
+  "NewSampleRunID": "M06-F0-W10-W5X3-C05-T03",
+  "Reason": "M06-C05 speculative wrong-path has no generated rcS; pilot required",
+  "ReturnCode": "",
+  "Stages": {},
+  "Status": "N/A",
+  "TargetOrdinal": "",
+  "TerminalState": "",
+  "TimingID": "T03",
+  "TraceCompleteness": "",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M07-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "357",
+    "kind": "mmu_fault_activate",
+    "tick": "251374411296"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251330898186"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M07-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "604",
+    "kind": "mmu_fault_activate",
+    "tick": "252632478969"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251330898186"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M07-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "852",
+    "kind": "mmu_fault_activate",
+    "tick": "253773179127"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251330898186"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M07-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C02-T01",
+  "GuestContext": "R03",
+  "ModelID": "M07",
+  "N": 6,
+  "NewContext": "C02",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C02-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "345",
+    "kind": "mmu_fault_activate",
+    "tick": "251412474528"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334115965"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M07-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C02-T02",
+  "GuestContext": "R03",
+  "ModelID": "M07",
+  "N": 6,
+  "NewContext": "C02",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C02-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "580",
+    "kind": "mmu_fault_activate",
+    "tick": "252700191189"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334115965"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "6",
+  "ControlID": "CTRL-M07-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C02-T03",
+  "GuestContext": "R03",
+  "ModelID": "M07",
+  "N": 6,
+  "NewContext": "C02",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "814",
+    "kind": "mmu_fault_activate",
+    "tick": "253879122744"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334115965"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 6,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M07-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C03-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "344",
+    "kind": "mmu_fault_activate",
+    "tick": "251412697305"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120010618"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334064350"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120546415"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120552409"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251119998297"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M07-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C03-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "600",
+    "kind": "mmu_fault_activate",
+    "tick": "252704764611"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120010618"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334064350"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120546415"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120552409"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251119998297"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M07-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C03-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "832",
+    "kind": "mmu_fault_activate",
+    "tick": "253888141383"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120010618"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334064350"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120546415"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120552409"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251119998297"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M07-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C04-T01",
+  "GuestContext": "R02",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "359",
+    "kind": "mmu_fault_activate",
+    "tick": "251377812225"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334890856"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M07-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C04-T02",
+  "GuestContext": "R02",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "608",
+    "kind": "mmu_fault_activate",
+    "tick": "252643937499"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334890856"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M07-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C04-T03",
+  "GuestContext": "R02",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C04",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C04-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "854",
+    "kind": "mmu_fault_activate",
+    "tick": "253796430186"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120475486"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251334890856"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251121011283"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251121017277"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120463165"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M07-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C05-T01",
+  "GuestContext": "R05",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "343",
+    "kind": "mmu_fault_activate",
+    "tick": "251460265689"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120207088"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251339127948"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120728899"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120734893"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120194767"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M07-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C05-T02",
+  "GuestContext": "R05",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "597",
+    "kind": "mmu_fault_activate",
+    "tick": "252793240047"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120207088"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251339127948"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120728899"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120734893"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120194767"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M07-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M07-F0-W14-W5X3-C05-T03",
+  "GuestContext": "R05",
+  "ModelID": "M07",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M07-F0-W14-W5X3-C05-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "827",
+    "kind": "mmu_fault_activate",
+    "tick": "254023916139"
+   },
+   "commit_squash": {
+    "event_id": "226",
+    "kind": "squash",
+    "tick": "251120207088"
+   },
+   "consumer": {
+    "event_id": "310",
+    "kind": "rf_writeback",
+    "tick": "251339127948"
+   },
+   "request": {
+    "event_id": "246",
+    "kind": "lsu_request",
+    "tick": "251120728899"
+   },
+   "response": {
+    "event_id": "253",
+    "kind": "cache_response",
+    "tick": "251120734893"
+   },
+   "translation": {
+    "event_id": "204",
+    "kind": "ptw_start",
+    "tick": "251120194767"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W14"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M08-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C01-T01",
+  "GuestContext": "R01",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C01-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1275",
+    "kind": "mmu_fault_activate",
+    "tick": "256284850608"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1287",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1284",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M08-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C01-T02",
+  "GuestContext": "R01",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C01-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2386",
+    "kind": "mmu_fault_activate",
+    "tick": "263019988062"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M08-C01",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C01-T03",
+  "GuestContext": "R01",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C01",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C01-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3499",
+    "kind": "mmu_fault_activate",
+    "tick": "270924621183"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1285",
+    "kind": "rf_writeback",
+    "tick": "256284911214"
+   },
+   "request": {
+    "event_id": "1270",
+    "kind": "lsu_request",
+    "tick": "256284850275"
+   },
+   "response": {
+    "event_id": "1282",
+    "kind": "cache_response",
+    "tick": "256284910215"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M08-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C02-T01",
+  "GuestContext": "R05",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C02-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2405",
+    "kind": "mmu_fault_activate",
+    "tick": "257318171253"
+   },
+   "commit_squash": {
+    "event_id": "2286",
+    "kind": "squash",
+    "tick": "257299998111"
+   },
+   "consumer": {
+    "event_id": "2313",
+    "kind": "rf_writeback",
+    "tick": "257303797308"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257299946163"
+   },
+   "response": {
+    "event_id": "2287",
+    "kind": "cache_response",
+    "tick": "257300020089"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257299937838"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M08-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C02-T02",
+  "GuestContext": "R05",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C02-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "4694",
+    "kind": "mmu_fault_activate",
+    "tick": "265212955566"
+   },
+   "commit_squash": {
+    "event_id": "2286",
+    "kind": "squash",
+    "tick": "257299998111"
+   },
+   "consumer": {
+    "event_id": "2313",
+    "kind": "rf_writeback",
+    "tick": "257303797308"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257299946163"
+   },
+   "response": {
+    "event_id": "2287",
+    "kind": "cache_response",
+    "tick": "257300020089"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257299937838"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M08-C02",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C02-T03",
+  "GuestContext": "R05",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C02",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C02-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "6985",
+    "kind": "mmu_fault_activate",
+    "tick": "273202529661"
+   },
+   "commit_squash": {
+    "event_id": "2286",
+    "kind": "squash",
+    "tick": "257299998111"
+   },
+   "consumer": {
+    "event_id": "2313",
+    "kind": "rf_writeback",
+    "tick": "257303797308"
+   },
+   "request": {
+    "event_id": "2279",
+    "kind": "lsu_request",
+    "tick": "257299946163"
+   },
+   "response": {
+    "event_id": "2287",
+    "kind": "cache_response",
+    "tick": "257300020089"
+   },
+   "translation": {
+    "event_id": "2257",
+    "kind": "ptw_start",
+    "tick": "257299937838"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M08-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C03-T01",
+  "GuestContext": "C03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C03-T01",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1265",
+    "kind": "mmu_fault_activate",
+    "tick": "256284907884"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1277",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "request": {
+    "event_id": "1267",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1274",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M08-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C03-T02",
+  "GuestContext": "C03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C03-T02",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2380",
+    "kind": "mmu_fault_activate",
+    "tick": "263008415646"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M08-C03",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C03-T03",
+  "GuestContext": "C03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C03",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C03-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3497",
+    "kind": "mmu_fault_activate",
+    "tick": "270908462358"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1275",
+    "kind": "rf_writeback",
+    "tick": "256284968823"
+   },
+   "request": {
+    "event_id": "1265",
+    "kind": "lsu_request",
+    "tick": "256284907884"
+   },
+   "response": {
+    "event_id": "1272",
+    "kind": "cache_response",
+    "tick": "256284967824"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M08-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C04-T01",
+  "GuestContext": "R04",
+  "ModelID": "M08",
+  "N": 6,
+  "NewContext": "C04",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C04-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1286",
+    "kind": "mmu_fault_activate",
+    "tick": "256284818973"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1298",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "request": {
+    "event_id": "1288",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1295",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M08-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C04-T02",
+  "GuestContext": "R04",
+  "ModelID": "M08",
+  "N": 6,
+  "NewContext": "C04",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C04-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2408",
+    "kind": "mmu_fault_activate",
+    "tick": "263015549172"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "6",
+  "ControlID": "CTRL-M08-C04",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C04-T03",
+  "GuestContext": "R04",
+  "ModelID": "M08",
+  "N": 6,
+  "NewContext": "C04",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C04-T03",
+  "Reason": "faulted oracle equals control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3559",
+    "kind": "mmu_fault_activate",
+    "tick": "270909144009"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256284879579"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256284818973"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256284878580"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 6,
+  "TerminalState": "ACTIVATED_MASKED",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "1",
+  "ControlID": "CTRL-M08-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C05-T01",
+  "GuestContext": "R03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C05-T01",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "1286",
+    "kind": "mmu_fault_activate",
+    "tick": "256285222569"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1298",
+    "kind": "rf_writeback",
+    "tick": "256285283175"
+   },
+   "request": {
+    "event_id": "1288",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1295",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 1,
+  "TerminalState": "SDC",
+  "TimingID": "T01",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "2",
+  "ControlID": "CTRL-M08-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C05-T02",
+  "GuestContext": "R03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C05-T02",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "2408",
+    "kind": "mmu_fault_activate",
+    "tick": "263024596782"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256285283175"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 2,
+  "TerminalState": "SDC",
+  "TimingID": "T02",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ },
+ {
+  "ActivationCount": 1,
+  "ActualOrdinal": "3",
+  "ControlID": "CTRL-M08-C05",
+  "ControlReused": true,
+  "EvidencePath": "runs/W5X3/M08-F0-W10-W5X3-C05-T03",
+  "GuestContext": "R03",
+  "ModelID": "M08",
+  "N": 3,
+  "NewContext": "C05",
+  "NewSampleRunID": "M08-F0-W10-W5X3-C05-T03",
+  "Reason": "faulted oracle differs from same-config control",
+  "ReturnCode": 0,
+  "Stages": {
+   "activation": {
+    "event_id": "3532",
+    "kind": "mmu_fault_activate",
+    "tick": "270937854270"
+   },
+   "commit_squash": {
+    "event_id": "1232",
+    "kind": "squash",
+    "tick": "256097836476"
+   },
+   "consumer": {
+    "event_id": "1296",
+    "kind": "rf_writeback",
+    "tick": "256285283175"
+   },
+   "request": {
+    "event_id": "1286",
+    "kind": "lsu_request",
+    "tick": "256285222569"
+   },
+   "response": {
+    "event_id": "1293",
+    "kind": "cache_response",
+    "tick": "256285282176"
+   },
+   "translation": {
+    "event_id": "1229",
+    "kind": "ptw_start",
+    "tick": "256097835144"
+   }
+  },
+  "Status": "COMPLETE",
+  "TargetOrdinal": 3,
+  "TerminalState": "SDC",
+  "TimingID": "T03",
+  "TraceCompleteness": "COMPLETE",
+  "WorkloadID": "W10"
+ }
+]

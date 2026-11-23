@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "MKCPT start"
+mkdir -p /root/w5x3_probe
+echo hello > /root/w5x3_probe/marker
+echo "MKCPT checkpointing"
+m5 checkpoint
+echo "MKCPT checkpoint rc=$?"
+m5 exit
