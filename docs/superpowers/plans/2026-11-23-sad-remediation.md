@@ -1,6 +1,6 @@
 # SAD 评审问题修复与补全（2026-11-23）
 
-- 状态：进行中
+- 状态：已完成（主链修复与验收通过；后续项见 §5）
 - 关联：`CHAOS/gem5/src/cpu/o3/sad.{hh,cc}`、`scripts/test-sad.sh`、
   `sdcfuzz/coverage_report.py`、`experiments/autousens/metrics.py`、
   `experiments/autousens/u20_templates.py`、`tests/test_coverage_report.py`、
@@ -169,3 +169,25 @@
      全量构建完成；完成后立即跑 `test-sad.sh` 与 pytest。
 4. **安全措施**：已终止第一次 `-j8` 的 scons 进程，避免两个 scons 同时
    写同一个 `build/ARM`；当前只有 `-j32` 一个构建。
+
+### 最终结果（2026-11-23 21:17）
+
+- 尝试 3 的 `-j32` 全量构建在 2852 个动作后因生成头文件竞态失败：
+  `build/ARM/params/ClockedObject.hh:15:10: fatal error:
+  params/ClockDomain.hh: No such file or directory`；`sad.o` 已在此之前
+  成功编译（21:09）。
+- 同 flags、同 source 的并行 scons（另一会话，`/tmp/ace-build-3.log`）
+  在 21:17 完成 `[LINK] -> ARM/gem5.opt`；watcher 用该二进制执行
+  `SAD_OUT=/tmp/sad-verify-final bash scripts/test-sad.sh`，**rc=0**：
+  `nop/rob/lsq/prf` 的 `roiCycles` 分别为 4311/26291/19951/5218，
+  `samples+idle==roi`；cycle `roi=100`、`samples=48`；
+  disabled `enabled=0`；unmatched `enabled=1, roi=0`。
+- 解析器：新 stats 解析 `enabled/roiCycles/idleCycles/activeCycles`；
+  disabled/unmatched `sad_from_stats` 返回 None。
+- `--sad --rf_ace` 探针：`rf_ace=1303`、`sad_roi=1303`，
+  `metrics.extract` 的 `window_consistent=True`（忽略未启用家族的 0 窗口）。
+- pytest：目标文件 29 passed；全量（忽略既有模块遮蔽的
+  `test_u20_templates.py`）227 passed；该文件单独 10 passed。
+- 边界：共享 `build/ARM` 被并行 RF ACE 任务占用，未单独做“仅 HEAD+SAD”
+  的隔离构建；`sad.o` 来自本轮源码，测试二进制包含并行未提交改动。
+- 状态：主链完成；§5 的后续项未在本轮实现。

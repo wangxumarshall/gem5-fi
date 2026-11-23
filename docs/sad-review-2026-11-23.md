@@ -202,3 +202,73 @@ python3 -m pytest tests/test_coverage_report.py tests/test_autousens_metrics.py 
   旧 binary 被删）；canonical flags 全量重建中，`gem5py_m5` 已链接，
   `gem5.opt` 未完成；`test-sad.sh` 待构建完成后自动运行
   （watcher 日志 `/tmp/sad-watch-test.log`）。
+
+## 8. 最终验收结果（2026-11-23 21:17）
+
+### 8.1 真实 gem5 测试
+
+`SAD_OUT=/tmp/sad-verify-final bash scripts/test-sad.sh` → rc=0：
+
+```text
+nop           samples=3736 roi=4311 idle=575 rob=0.132584 lq=0.000050 sq=0.000000 prf=0.166738 fu=0.008972 issue=0.028038
+rob           samples=25746 roi=26291 idle=545 rob=0.344908 lq=0.000000 sq=0.000000 prf=0.426745 fu=0.041050 issue=0.128282
+lsq           samples=19678 roi=19951 idle=273 rob=0.315577 lq=0.918110 sq=0.928165 prf=0.285977 fu=0.027972 issue=0.087414
+prf           samples=4557 roi=5218 idle=661 rob=0.330546 lq=0.000000 sq=0.000000 prf=0.452601 fu=0.232144 issue=0.725450
+SAD window, formula, direction, disabled and cycle-mode checks passed (cycle samples=48, roi=100)
+outputs: /tmp/sad-verify-final
+test_sad_rc=0
+```
+
+新增断言全部通过：`enabled`、`activeCycles==samples`、
+`samples+idleCycles==roiCycles`、work-item
+`abs(roiCycles - work_end_dump_numCycles) <= 1`、cycle `roiCycles==100`、
+disabled `enabled==0`、unmatched `enabled==1` 且 `roiCycles==0`。
+
+### 8.2 解析器/分析层真实探针
+
+- `sad_from_stats` 新 stats：`enabled=1`、`samples=activeCycles`、
+  `roiCycles`、`idleCycles` 全部解析；`nop-disabled` 与 `rob-unmatched`
+  返回 None（不再打印零表）。
+- `--sad --rf_ace` 的 `rob 10` 运行：`rf_ace=1303`、`sad_roi=1303`；
+  `metrics.extract` 的 `window_consistent=True`（忽略未启用家族的 0 窗口），
+  `active_share≈0.603`、`idle_cycles=517`。
+- `u20_templates.metric_row` 真实 stats：first `simInsts=2183` 优先于
+  `issuedOps=3045`；单测覆盖（`test_roi_insts_uses_work_end_siminsts_not_issued_ops`）。
+
+### 8.3 Python 测试
+
+- `pytest tests/test_coverage_report.py tests/test_autousens_metrics.py
+  tests/test_u20_templates.py -q` → **29 passed**。
+- `pytest tests -q --ignore=tests/test_u20_templates.py` → **227 passed**；
+  `test_u20_templates.py` 单独 → **10 passed**。
+- 全量 collection 的 `autousens` 模块遮蔽是既有问题，与本改动无关。
+
+### 8.4 构建结果与边界
+
+- `sad.cc` 已编译：`build/ARM/cpu/o3/sad.o`（21:09），无编译错误。
+- 本进程的 canonical `scons` 在 2852 个动作后因**生成头文件竞态**失败
+  （`params/ClockDomain.hh: No such file or directory`）；
+- 同 flags、同 source 的并行 scons 在 21:17 成功 `LINK -> ARM/gem5.opt`，
+  watcher 用该二进制跑通 `test-sad.sh`。这是共享构建目录中两个任务的
+  瞬态竞态，不是 SAD 代码的编译/链接错误。
+- 该二进制包含并行 RF ACE 的未提交改动；SAD 的 `sad.o` 来自本轮源码。
+  严格隔离的“仅 HEAD+SAD”构建未单独执行，原因是共享 `build/ARM` 被
+  并行任务占用；该边界已在 plan 记录。
+
+### 8.5 提交
+
+- `d5d537de docs(sad): 增加 SAD 评审、修复计划与 u20 口径更正`
+- `e265ec5f fix(coverage): SAD 解析拒绝未启用运行并暴露 ROI 周期`
+- `0318c8d8 feat(autousens): 增加 ACE/IBR/SAD 指标层并用 ROI 周期校验 SAD 窗口`
+- `31cdeb97 fix(autousens): u20 ROI 指令数改用 work_end simInsts`
+- `66cfe3c1 test(autousens): 覆盖 u20 roi_insts 选择并抽取 helper`
+- `742d32b7 fix(autousens): 忽略未启用家族的零窗口`
+- `a7284056 feat(gem5): SAD 增加 ROI/活跃/空闲周期统计并强化测试`
+- 已推送到 `origin/feat/u20-templates-vs-autousens`。
+
+### 8.6 仍留后续（不在本轮）
+
+`sadFuBusy` 去重/SMT fatal（cpu.cc 并行改动）、按 FU 类别拆分 `sad.fu`、
+`sad.retiredOps` 的 C++ 钩子（Python 用 work_end `simInsts` 替代）、
+PRF baseline 扣除/改名、u20 语料补 store、`p1_sad` 扩到 7 资源、
+Float/CC/Mat/VecPred 覆盖。
