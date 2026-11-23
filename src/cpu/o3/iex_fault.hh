@@ -28,6 +28,7 @@ namespace iex
 /* ---- lifecycle / observation hooks (called from O3) ---- */
 void noteExecuteBegin(o3::DynInst *inst);
 void noteExecuteEnd(o3::DynInst *inst);
+void noteIssue(o3::DynInst *inst);
 void noteInitiateAcc(o3::DynInst *inst);
 void noteRobInsert(o3::DynInst *inst);
 void noteCompleteAcc(o3::DynInst *inst);

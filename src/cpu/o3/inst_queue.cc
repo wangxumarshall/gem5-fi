@@ -47,6 +47,7 @@
 #include "base/logging.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/fu_pool.hh"
+#include "cpu/o3/iex_fault.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/IQ.hh"
 #include "enums/OpClass.hh"
@@ -1016,6 +1017,7 @@ InstructionQueue::scheduleReadyInsts()
             }
 
             issuing_inst->setIssued();
+            iex::noteIssue(issuing_inst.get());
             ++total_issued;
 
 #if TRACING_ON

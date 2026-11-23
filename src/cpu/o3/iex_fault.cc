@@ -90,6 +90,8 @@ struct State
     o3::DynInst *current = nullptr;
     std::unordered_map<uint64_t, InstRec> observed;
     std::unordered_map<uint64_t, RegRec> regs;
+    /* (seqNum << 8 | dest_index) -> allocation generation at ROB insert. */
+    std::unordered_map<uint64_t, uint64_t> dest_gen;
     uint64_t next_event_id = 1;
     std::unordered_map<uint64_t, uint64_t> begin_event;
     std::unordered_map<uint64_t, uint64_t> last_event;
@@ -120,6 +122,13 @@ struct State
     bool iter_have_last = false;
     uint64_t older_branch_pc_filter = 0;
     uint64_t head_pc_filter = 0;
+    /* v3 C05 context predicate: only target executions with the designed
+     * older conditional branch still unresolved at the hook are eligible. */
+    std::string core_id;
+    uint64_t encounter_count = 0;
+    uint64_t context_reject_count = 0;
+    uint64_t log_candidate_ordinal = 0;
+    bool timing_eligible = false;
     struct BranchRec
     {
         uint64_t pc = 0;
@@ -192,6 +201,7 @@ initState(State &s)
         v = getenv("IEX_HEAD_PC");
         if (v && *v)
             s.head_pc_filter = std::strtoull(v, nullptr, 0);
+        s.core_id = getenv("IEX_CORE") ? getenv("IEX_CORE") : "0";
 
         const char *path = getenv("IEX_TRACE_FILE");
         if (path && *path) {
@@ -232,6 +242,10 @@ initState(State &s)
                     "\"timing_selected_seq\":%" PRIu64 ","
                     "\"timing_selection_reason\":\"%s\","
                     "\"timing_condition_status\":\"%s\","
+                    "\"target_encounters\":%" PRIu64 ","
+                    "\"context_eligible_events\":%" PRIu64 ","
+                    "\"context_reject_events\":%" PRIu64 ","
+                    "\"core\":\"%s\","
                     "\"trace_complete\":1}\n",
                     static_cast<uint64_t>(curTick()), s.next_event_id++,
                     s.fault_config.c_str(), s.run_id.c_str(),
@@ -248,7 +262,9 @@ initState(State &s)
                     s.timing_selected_ordinal, s.timing_selected_seq,
                     s.selection_reason.c_str(),
                     s.selector_mode == "CENSUS" ? "CENSUS" :
-                    (s.timing_satisfied ? "SATISFIED" : "CONDITION_UNMET"));
+                    (s.timing_satisfied ? "SATISFIED" : "CONDITION_UNMET"),
+                    s.encounter_count, s.eligible_count,
+                    s.context_reject_count, s.core_id.c_str());
                 std::fflush(s.out);
                 std::fclose(s.out);
                 s.out = nullptr;
@@ -277,7 +293,7 @@ initState(State &s)
                 "\"select_ordinal\":%" PRIu64 ","
                 "\"calibrated_n\":%" PRIu64 ","
                 "\"iter_pc\":\"0x%016" PRIx64 "\","
-                "\"iter_init\":%" PRIu64 ","
+                "\"iter_init\":%" PRIu64 ",\"core\":\"%s\","
                 "\"trace_schema\":\"iex-trace-v1\"}\n",
                 static_cast<uint64_t>(curTick()), s.fault_config.c_str(),
                 s.run_id.c_str(), s.sample_id.c_str(), s.pair_id.c_str(),
@@ -287,7 +303,7 @@ initState(State &s)
                 s.fault_enabled ? 1 : 0, s.target_pc, s.consumer_pc,
                 s.roi_start, s.roi_end, s.timing_id.c_str(),
                 s.selector_mode.c_str(), s.select_ordinal, s.calibrated_n,
-                s.iter_pc, s.iter_init);
+                s.iter_pc, s.iter_init, s.core_id.c_str());
             std::fflush(s.out);
         }
     }
@@ -381,7 +397,7 @@ emitFull(State &s, const char *event, const std::string &body,
                   "\"context\":\"%s\",\"fault_enabled\":%d,"
                   "\"timing_id\":\"%s\",\"selector_mode\":\"%s\","
                   "\"select_ordinal\":%" PRIu64 ","
-                  "\"calibrated_n\":%" PRIu64,
+                  "\"calibrated_n\":%" PRIu64 ",\"core\":\"%s\"",
                   event, static_cast<uint64_t>(curTick()), eid,
                   parentList(parents).c_str(),
                   jstr(s.fault_config).c_str(), seq,
@@ -389,7 +405,7 @@ emitFull(State &s, const char *event, const std::string &body,
                   jstr(s.pair_id).c_str(), jstr(s.model).c_str(),
                   jstr(s.context).c_str(), s.fault_enabled ? 1 : 0,
                   jstr(s.timing_id).c_str(), jstr(s.selector_mode).c_str(),
-                  s.select_ordinal, s.calibrated_n);
+                  s.select_ordinal, s.calibrated_n, jstr(s.core_id).c_str());
     std::string line(head);
     line += ",";
     std::string full_body = body;
@@ -484,6 +500,10 @@ struct TimingSnapshot
     uint64_t older_branch_count = 0;
     uint64_t older_branch_seq = 0;
     uint64_t older_branch_pc = 0;
+    uint64_t older_branch_pred_npc = 0;
+    bool older_branch_pred_taken = false;
+    Tick older_branch_entered = 0;
+    Tick older_branch_resolved = 0;
     uint64_t iteration = 0;
     std::string iteration_basis = "eligible_ordinal";
 };
@@ -547,6 +567,10 @@ takeSnapshot(State &s, o3::DynInst *d)
             if (!t.older_branch_seq || kv.first < t.older_branch_seq) {
                 t.older_branch_seq = kv.first;
                 t.older_branch_pc = kv.second.pc;
+                t.older_branch_pred_npc = kv.second.pred_npc;
+                t.older_branch_pred_taken = kv.second.pred_taken;
+                t.older_branch_entered = kv.second.entered;
+                t.older_branch_resolved = kv.second.resolved_tick;
             }
         }
     }
@@ -578,8 +602,13 @@ timingStateJson(State &s, const TimingSnapshot &t, bool selected, bool cond,
         "\"older_unresolved_branch_count\":%" PRIu64 ","
         "\"older_unresolved_branch_seq\":%" PRIu64 ","
         "\"older_unresolved_branch_pc\":\"0x%016" PRIx64 "\","
+        "\"older_unresolved_predicted_npc\":\"0x%016" PRIx64 "\","
+        "\"older_unresolved_predicted_taken\":%d,"
+        "\"older_unresolved_entered_tick\":%" PRIu64 ","
+        "\"older_unresolved_resolved_tick\":%" PRIu64 ","
+        "\"timing_eligible\":%d,\"target_encounters\":%" PRIu64 ","
         "\"speculative\":%d",
-        s.eligible_count, t.iteration, t.iteration_basis.c_str(),
+        s.log_candidate_ordinal, t.iteration, t.iteration_basis.c_str(),
         selected ? 1 : 0, cond ? 1 : 0, reason.c_str(),
         s.timing_satisfied ? 1 : 0,
         t.rob_entries, t.head_present ? 1 : 0, t.head_seq, t.head_pc,
@@ -589,6 +618,10 @@ timingStateJson(State &s, const TimingSnapshot &t, bool selected, bool cond,
         t.head_blocked ? 1 : 0, t.head_block_reason.c_str(), t.iq_count,
         t.target_ready ? 1 : 0, t.target_issued ? 1 : 0, t.op_class,
         t.older_branch_count, t.older_branch_seq, t.older_branch_pc,
+        t.older_branch_pred_npc, t.older_branch_pred_taken ? 1 : 0,
+        static_cast<uint64_t>(t.older_branch_entered),
+        static_cast<uint64_t>(t.older_branch_resolved),
+        s.timing_eligible ? 1 : 0, s.encounter_count,
         t.older_branch_count ? 1 : 0);
     return std::string(b);
 }
@@ -606,9 +639,26 @@ select(State &s, uint64_t pc)
         if (!s.target_seq)
             s.target_seq = s.current->seqNum;
     }
-    ++s.eligible_count;
+    ++s.encounter_count;
 
     TimingSnapshot snap = takeSnapshot(s, s.current);
+
+    bool context_ok = true;
+    if (s.selector_mode == "C05_ORDINAL") {
+        /* v3 C05 frozen context predicate: the designed older conditional
+         * branch (PC-filtered) must be unresolved and older than target. */
+        context_ok = snap.older_branch_count > 0 &&
+                     snap.older_branch_seq < (s.current ? s.current->seqNum
+                                                        : 0);
+        if (!context_ok)
+            ++s.context_reject_count;
+    }
+
+    if (context_ok)
+        ++s.eligible_count;
+    s.log_candidate_ordinal = context_ok ? s.eligible_count : 0;
+    s.timing_eligible = context_ok;
+
     bool cond = false;
     bool selected = false;
     std::string reason;
@@ -619,6 +669,12 @@ select(State &s, uint64_t pc)
         cond = s.select_ordinal != 0 && s.eligible_count == s.select_ordinal;
         selected = cond;
         reason = cond ? "ordinal_match" : "ordinal_not_match";
+    } else if (s.selector_mode == "C05_ORDINAL") {
+        cond = context_ok && s.select_ordinal != 0 &&
+               s.eligible_count == s.select_ordinal;
+        selected = cond;
+        reason = !context_ok ? "c05_context_unmet" :
+                 (cond ? "c05_ordinal_match" : "c05_ordinal_not_match");
     } else if (s.selector_mode == "STATE_BRANCH") {
         cond = snap.older_branch_count > 0;
         selected = cond && !s.timing_selected_once;
@@ -799,6 +855,30 @@ endObserved(State &s, o3::DynInst *d)
 }
 
 void
+noteIssue(o3::DynInst *d)
+{
+    State &s = state();
+    if (!s.observing || !d)
+        return;
+    const uint64_t pc = d->pcState().instAddr();
+    if (!inRoi(s, pc))
+        return;
+    char bdy[512];
+    std::snprintf(
+        bdy, sizeof(bdy),
+        "\"seq\":%" PRIu64 ",\"pc\":\"0x%016" PRIx64 "\","
+        "\"tid\":%d,\"opcode\":\"%s\",\"op_class\":%d,"
+        "\"is_control\":%d,\"is_load\":%d,\"is_store\":%d,"
+        "\"predicted_taken\":%d,\"predicted_npc\":\"0x%016" PRIx64 "\"",
+        d->seqNum, pc, d->threadNumber,
+        jstr(d->staticInst->getName()).c_str(),
+        static_cast<int>(d->opClass()), d->isControl() ? 1 : 0,
+        d->isLoad() ? 1 : 0, d->isStore() ? 1 : 0,
+        d->readPredTaken() ? 1 : 0, d->readPredTarg().instAddr());
+    emitFull(s, "inst_issue", bdy, d->seqNum);
+}
+
+void
 noteExecuteBegin(o3::DynInst *d)
 {
     State &s = state();
@@ -826,7 +906,47 @@ void
 noteRobInsert(o3::DynInst *d)
 {
     State &s = state();
-    if (!d || !d->isCondCtrl())
+    if (!d)
+        return;
+
+    /* Bind every renamed destination physical register to its producing
+     * dynamic instruction at ROB insertion, before writeback.  Without
+     * this, a consumer that issues before an in-flight producer writes
+     * back would see the previous allocation's producer and fabricate a
+     * cross-iteration dependency. */
+    for (int i = 0; i < d->numDestRegs(); ++i) {
+        const PhysRegIdPtr &r = d->renamedDestIdx(i);
+        if (!r || r->is(InvalidRegClass))
+            continue;
+        const RegId &arch = d->destRegIdx(i);
+        ++s.generation;
+        s.dest_gen[(d->seqNum << 8) | static_cast<uint64_t>(i)] =
+            s.generation;
+        RegRec &rr = s.regs[regKey(r)];
+        rr.producer_seq = d->seqNum;
+        rr.generation = s.generation;
+        rr.value = 0;
+        rr.tick = curTick();
+        if (s.observing) {
+            char bdy[512];
+            std::snprintf(
+                bdy, sizeof(bdy),
+                "\"seq\":%" PRIu64 ",\"pc\":\"0x%016" PRIx64 "\","
+                "\"tid\":%d,\"cls\":\"%s\",\"class_value\":%d,"
+                "\"phys\":%u,\"flat\":%u,\"arch\":%u,\"arch_cls\":%d,"
+                "\"gen\":%" PRIu64 ",\"dest_index\":%d",
+                d->seqNum, d->pcState().instAddr(), d->threadNumber,
+                jstr(r->className()).c_str(),
+                static_cast<int>(r->classValue()),
+                static_cast<unsigned>(r->index()),
+                static_cast<unsigned>(r->flatIndex()),
+                static_cast<unsigned>(arch.index()),
+                static_cast<int>(arch.classValue()), s.generation, i);
+            emitFull(s, "reg_alloc", bdy, d->seqNum);
+        }
+    }
+
+    if (!d->isCondCtrl())
         return;
     State::BranchRec &b = s.branches[d->seqNum];
     b.pc = d->pcState().instAddr();
@@ -894,12 +1014,19 @@ noteRegWrite(o3::DynInst *d, int idx, uint64_t val, uint64_t old)
     if (!r || r->is(InvalidRegClass))
         return;
     const RegId &arch = d->destRegIdx(idx);
-    ++s.generation;
     RegRec &rr = s.regs[regKey(r)];
-    rr.producer_seq = d->seqNum;
-    rr.generation = s.generation;
-    rr.value = val;
-    rr.tick = curTick();
+    auto git = s.dest_gen.find((d->seqNum << 8) |
+                               static_cast<uint64_t>(idx));
+    uint64_t alloc_gen =
+        git == s.dest_gen.end() ? rr.generation : git->second;
+    /* The allocation generation was assigned at ROB insertion.  A later
+     * writeback of an older instruction must not overwrite a physical
+     * register that has since been renamed to a younger producer. */
+    if (rr.producer_seq == d->seqNum) {
+        rr.value = val;
+        rr.tick = curTick();
+        rr.generation = alloc_gen;
+    }
     if (s.iter_pc && it->second.pc == s.iter_pc && idx == 0 &&
         r->classValue() == IntRegClass) {
         s.iter_last_value = val;
@@ -918,7 +1045,7 @@ noteRegWrite(o3::DynInst *d, int idx, uint64_t val, uint64_t old)
         static_cast<unsigned>(r->index()),
         static_cast<unsigned>(r->flatIndex()),
         static_cast<unsigned>(arch.index()),
-        static_cast<int>(arch.classValue()), old, val, s.generation);
+        static_cast<int>(arch.classValue()), old, val, alloc_gen);
     emitFull(s, "reg_write", bdy, d->seqNum);
 }
 
@@ -1084,7 +1211,7 @@ m001_add(uint64_t pc, uint64_t a, uint64_t b, uint64_t normal)
             "\"low32_unchanged\":%d,\"delta\":\"0x%016" PRIx64 "\"",
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, a, b, c32,
+            s.log_candidate_ordinal, apply ? 1 : 0, a, b, c32,
             (a & 0xffffffffULL) + (b & 0xffffffffULL), normal, faulty,
             ((normal & 0xffffffffULL) == (faulty & 0xffffffffULL)) ? 1 : 0,
             normal - faulty);
@@ -1130,7 +1257,7 @@ m002_lslv_amt(uint64_t pc, uint64_t a, uint64_t b, uint64_t width)
             "\"result_faulty\":\"0x%016" PRIx64 "\"",
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, a, b, width, eff, alt, rn,
+            s.log_candidate_ordinal, apply ? 1 : 0, a, b, width, eff, alt, rn,
             rf);
         emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
@@ -1171,7 +1298,7 @@ m003_l214(uint64_t pc, uint64_t op1h, uint64_t op1l, uint64_t op2h,
             "\"result_l214_after\":%" PRIu64,
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, op1l, op1h, op2l, op2h, mid1,
+            s.log_candidate_ordinal, apply ? 1 : 0, op1l, op1h, op2l, op2h, mid1,
             mid2, low_product_hi, result, apply ? 0ULL : result);
         emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
@@ -1255,7 +1382,7 @@ m004_force_zero(uint64_t pc, uint64_t a, uint64_t b)
             "\"divisor_nonzero\":1,\"a_ge_b\":1,\"forced_zero\":%d",
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, a, b, apply ? 1 : 0);
+            s.log_candidate_ordinal, apply ? 1 : 0, a, b, apply ? 1 : 0);
         emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
@@ -1315,7 +1442,7 @@ m005_bcond(uint64_t pc, bool taken, uint64_t nz, uint64_t c, uint64_t v,
             "\"predicted_matches_fault\":%d",
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0,
+            s.log_candidate_ordinal, apply ? 1 : 0,
             static_cast<unsigned>(nzcv), nz, c, v, cond, taken ? 1 : 0,
             actual ? 1 : 0, pred, target_npc, fallthrough_npc,
             taken ? target_npc : fallthrough_npc,
@@ -1351,7 +1478,7 @@ m006_iz(uint64_t pc, uint64_t res_temp, uint64_t iz, uint64_t in)
             "\"iz_before\":%" PRIu64 ",\"iz_after\":%" PRIu64,
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, res_temp, in, iz,
+            s.log_candidate_ordinal, apply ? 1 : 0, res_temp, in, iz,
             apply ? (iz ^ 1) : iz);
         emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
@@ -1459,7 +1586,7 @@ m007_clz(uint64_t pc, uint64_t a, uint64_t width)
             "\"clz_faulty\":%" PRIu64,
             s.current ? s.current->seqNum : 0ULL, pc,
             s.current ? s.current->threadNumber : 0,
-            s.eligible_count, apply ? 1 : 0, a, width, msb, golden, faulty);
+            s.log_candidate_ordinal, apply ? 1 : 0, a, width, msb, golden, faulty);
         emitFull(s, eventName(s, apply), bdy,
                  s.current ? s.current->seqNum : 0);
     }
