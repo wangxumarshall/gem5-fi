@@ -12,7 +12,7 @@
 
 ```bash
 cd CHAOS/gem5
-scons build/ARM/gem5.opt -j"$(nproc)"
+scons build/ARM/gem5.opt -j16
 ls -l build/ARM/gem5.opt
 ```
 

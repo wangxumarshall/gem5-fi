@@ -38,7 +38,7 @@ build and run outside `/home/sdc/gem5-fi-LSU`.
 ```bash
 # 1. Build gem5 (from the clone root)
 cd CHAOS/gem5
-scons build/ARM/gem5.opt -j"$(nproc)"
+scons build/ARM/gem5.opt -j16
 cd ../..
 
 # 2. Check the workload binaries (prebuilt) or rebuild them
