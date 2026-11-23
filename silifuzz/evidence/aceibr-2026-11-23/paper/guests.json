@@ -1,0 +1,1422 @@
+{
+  "c1": {
+    "template": "c1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/c1_tpl.c",
+        "bin": "aceibr/bin/c1_tpl",
+        "words": 26,
+        "iters": 1000,
+        "insn_volume": 26000,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 9,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/c1_tpl_base.c",
+        "bin": "aceibr/bin/c1_tpl_base",
+        "words": 0,
+        "iters": 1000,
+        "insn_volume": 4000,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/c1_stream.c",
+        "bin": "aceibr/bin/c1_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/c1_stream_base.c",
+        "bin": "aceibr/bin/c1_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 26,
+    "stream_words": 2
+  },
+  "c3": {
+    "template": "c3",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/c3_tpl.c",
+        "bin": "aceibr/bin/c3_tpl",
+        "words": 31,
+        "iters": 923,
+        "insn_volume": 28613,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 8,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/c3_tpl_base.c",
+        "bin": "aceibr/bin/c3_tpl_base",
+        "words": 0,
+        "iters": 923,
+        "insn_volume": 3692,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/c3_stream.c",
+        "bin": "aceibr/bin/c3_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/c3_stream_base.c",
+        "bin": "aceibr/bin/c3_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 31,
+    "stream_words": 2
+  },
+  "e1": {
+    "template": "e1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/e1_tpl.c",
+        "bin": "aceibr/bin/e1_tpl",
+        "words": 29,
+        "iters": 952,
+        "insn_volume": 27608,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/e1_tpl_base.c",
+        "bin": "aceibr/bin/e1_tpl_base",
+        "words": 0,
+        "iters": 952,
+        "insn_volume": 3808,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/e1_stream.c",
+        "bin": "aceibr/bin/e1_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/e1_stream_base.c",
+        "bin": "aceibr/bin/e1_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 29,
+    "stream_words": 2
+  },
+  "e2": {
+    "template": "e2",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/e2_tpl.c",
+        "bin": "aceibr/bin/e2_tpl",
+        "words": 28,
+        "iters": 967,
+        "insn_volume": 27076,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/e2_tpl_base.c",
+        "bin": "aceibr/bin/e2_tpl_base",
+        "words": 0,
+        "iters": 967,
+        "insn_volume": 3868,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/e2_stream.c",
+        "bin": "aceibr/bin/e2_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/e2_stream_base.c",
+        "bin": "aceibr/bin/e2_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 28,
+    "stream_words": 2
+  },
+  "e3": {
+    "template": "e3",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/e3_tpl.c",
+        "bin": "aceibr/bin/e3_tpl",
+        "words": 24,
+        "iters": 1034,
+        "insn_volume": 24816,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/e3_tpl_base.c",
+        "bin": "aceibr/bin/e3_tpl_base",
+        "words": 0,
+        "iters": 1034,
+        "insn_volume": 4136,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/e3_stream.c",
+        "bin": "aceibr/bin/e3_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/e3_stream_base.c",
+        "bin": "aceibr/bin/e3_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 24,
+    "stream_words": 2
+  },
+  "f1": {
+    "template": "f1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/f1_tpl.c",
+        "bin": "aceibr/bin/f1_tpl",
+        "words": 40,
+        "iters": 810,
+        "insn_volume": 32400,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/f1_tpl_base.c",
+        "bin": "aceibr/bin/f1_tpl_base",
+        "words": 0,
+        "iters": 810,
+        "insn_volume": 3240,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/f1_stream.c",
+        "bin": "aceibr/bin/f1_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/f1_stream_base.c",
+        "bin": "aceibr/bin/f1_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 40,
+    "stream_words": 2
+  },
+  "i1": {
+    "template": "i1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/i1_tpl.c",
+        "bin": "aceibr/bin/i1_tpl",
+        "words": 81,
+        "iters": 521,
+        "insn_volume": 42201,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/i1_tpl_base.c",
+        "bin": "aceibr/bin/i1_tpl_base",
+        "words": 0,
+        "iters": 521,
+        "insn_volume": 2084,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/i1_stream.c",
+        "bin": "aceibr/bin/i1_stream",
+        "words": 3,
+        "iters": 1621,
+        "insn_volume": 4863,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/i1_stream_base.c",
+        "bin": "aceibr/bin/i1_stream_base",
+        "words": 0,
+        "iters": 1621,
+        "insn_volume": 6484,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 81,
+    "stream_words": 3
+  },
+  "i2": {
+    "template": "i2",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/i2_tpl.c",
+        "bin": "aceibr/bin/i2_tpl",
+        "words": 31,
+        "iters": 923,
+        "insn_volume": 28613,
+        "edits": {
+          "control": 20,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/i2_tpl_base.c",
+        "bin": "aceibr/bin/i2_tpl_base",
+        "words": 0,
+        "iters": 923,
+        "insn_volume": 3692,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/i2_stream.c",
+        "bin": "aceibr/bin/i2_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/i2_stream_base.c",
+        "bin": "aceibr/bin/i2_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 31,
+    "stream_words": 2
+  },
+  "l1": {
+    "template": "l1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/l1_tpl.c",
+        "bin": "aceibr/bin/l1_tpl",
+        "words": 21,
+        "iters": 1090,
+        "insn_volume": 22890,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 5,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/l1_tpl_base.c",
+        "bin": "aceibr/bin/l1_tpl_base",
+        "words": 0,
+        "iters": 1090,
+        "insn_volume": 4360,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/l1_stream.c",
+        "bin": "aceibr/bin/l1_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/l1_stream_base.c",
+        "bin": "aceibr/bin/l1_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 21,
+    "stream_words": 2
+  },
+  "l2": {
+    "template": "l2",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/l2_tpl.c",
+        "bin": "aceibr/bin/l2_tpl",
+        "words": 29,
+        "iters": 952,
+        "insn_volume": 27608,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 4,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/l2_tpl_base.c",
+        "bin": "aceibr/bin/l2_tpl_base",
+        "words": 0,
+        "iters": 952,
+        "insn_volume": 3808,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/l2_stream.c",
+        "bin": "aceibr/bin/l2_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/l2_stream_base.c",
+        "bin": "aceibr/bin/l2_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 29,
+    "stream_words": 2
+  },
+  "m1": {
+    "template": "m1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/m1_tpl.c",
+        "bin": "aceibr/bin/m1_tpl",
+        "words": 15,
+        "iters": 1224,
+        "insn_volume": 18360,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 10,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/m1_tpl_base.c",
+        "bin": "aceibr/bin/m1_tpl_base",
+        "words": 0,
+        "iters": 1224,
+        "insn_volume": 4896,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/m1_stream.c",
+        "bin": "aceibr/bin/m1_stream",
+        "words": 3,
+        "iters": 1621,
+        "insn_volume": 4863,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/m1_stream_base.c",
+        "bin": "aceibr/bin/m1_stream_base",
+        "words": 0,
+        "iters": 1621,
+        "insn_volume": 6484,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 15,
+    "stream_words": 3
+  },
+  "m3": {
+    "template": "m3",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/m3_tpl.c",
+        "bin": "aceibr/bin/m3_tpl",
+        "words": 30,
+        "iters": 937,
+        "insn_volume": 28110,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 6,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/m3_tpl_base.c",
+        "bin": "aceibr/bin/m3_tpl_base",
+        "words": 0,
+        "iters": 937,
+        "insn_volume": 3748,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/m3_stream.c",
+        "bin": "aceibr/bin/m3_stream",
+        "words": 4,
+        "iters": 1578,
+        "insn_volume": 6312,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 3,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/m3_stream_base.c",
+        "bin": "aceibr/bin/m3_stream_base",
+        "words": 0,
+        "iters": 1578,
+        "insn_volume": 6312,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 30,
+    "stream_words": 4
+  },
+  "o1": {
+    "template": "o1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/o1_tpl.c",
+        "bin": "aceibr/bin/o1_tpl",
+        "words": 34,
+        "iters": 882,
+        "insn_volume": 29988,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 1,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/o1_tpl_base.c",
+        "bin": "aceibr/bin/o1_tpl_base",
+        "words": 0,
+        "iters": 882,
+        "insn_volume": 3528,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/o1_stream.c",
+        "bin": "aceibr/bin/o1_stream",
+        "words": 3,
+        "iters": 1621,
+        "insn_volume": 4863,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 1
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/o1_stream_base.c",
+        "bin": "aceibr/bin/o1_stream_base",
+        "words": 0,
+        "iters": 1621,
+        "insn_volume": 6484,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 34,
+    "stream_words": 3
+  },
+  "o2": {
+    "template": "o2",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/o2_tpl.c",
+        "bin": "aceibr/bin/o2_tpl",
+        "words": 17,
+        "iters": 1176,
+        "insn_volume": 19992,
+        "edits": {
+          "control": 1,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/o2_tpl_base.c",
+        "bin": "aceibr/bin/o2_tpl_base",
+        "words": 0,
+        "iters": 1176,
+        "insn_volume": 4704,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/o2_stream.c",
+        "bin": "aceibr/bin/o2_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/o2_stream_base.c",
+        "bin": "aceibr/bin/o2_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 17,
+    "stream_words": 2
+  },
+  "v1": {
+    "template": "v1",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v1_tpl.c",
+        "bin": "aceibr/bin/v1_tpl",
+        "words": 73,
+        "iters": 560,
+        "insn_volume": 40880,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v1_tpl_base.c",
+        "bin": "aceibr/bin/v1_tpl_base",
+        "words": 0,
+        "iters": 560,
+        "insn_volume": 2240,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v1_stream.c",
+        "bin": "aceibr/bin/v1_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v1_stream_base.c",
+        "bin": "aceibr/bin/v1_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 73,
+    "stream_words": 2
+  },
+  "v2": {
+    "template": "v2",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v2_tpl.c",
+        "bin": "aceibr/bin/v2_tpl",
+        "words": 43,
+        "iters": 779,
+        "insn_volume": 33497,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v2_tpl_base.c",
+        "bin": "aceibr/bin/v2_tpl_base",
+        "words": 0,
+        "iters": 779,
+        "insn_volume": 3116,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v2_stream.c",
+        "bin": "aceibr/bin/v2_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v2_stream_base.c",
+        "bin": "aceibr/bin/v2_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 43,
+    "stream_words": 2
+  },
+  "v3": {
+    "template": "v3",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v3_tpl.c",
+        "bin": "aceibr/bin/v3_tpl",
+        "words": 64,
+        "iters": 612,
+        "insn_volume": 39168,
+        "edits": {
+          "control": 1,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v3_tpl_base.c",
+        "bin": "aceibr/bin/v3_tpl_base",
+        "words": 0,
+        "iters": 612,
+        "insn_volume": 2448,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v3_stream.c",
+        "bin": "aceibr/bin/v3_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v3_stream_base.c",
+        "bin": "aceibr/bin/v3_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 64,
+    "stream_words": 2
+  },
+  "v4": {
+    "template": "v4",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v4_tpl.c",
+        "bin": "aceibr/bin/v4_tpl",
+        "words": 37,
+        "iters": 845,
+        "insn_volume": 31265,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 10,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v4_tpl_base.c",
+        "bin": "aceibr/bin/v4_tpl_base",
+        "words": 0,
+        "iters": 845,
+        "insn_volume": 3380,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v4_stream.c",
+        "bin": "aceibr/bin/v4_stream",
+        "words": 4,
+        "iters": 1578,
+        "insn_volume": 6312,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 3,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v4_stream_base.c",
+        "bin": "aceibr/bin/v4_stream_base",
+        "words": 0,
+        "iters": 1578,
+        "insn_volume": 6312,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 37,
+    "stream_words": 4
+  },
+  "v5": {
+    "template": "v5",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v5_tpl.c",
+        "bin": "aceibr/bin/v5_tpl",
+        "words": 42,
+        "iters": 789,
+        "insn_volume": 33138,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 11,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v5_tpl_base.c",
+        "bin": "aceibr/bin/v5_tpl_base",
+        "words": 0,
+        "iters": 789,
+        "insn_volume": 3156,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v5_stream.c",
+        "bin": "aceibr/bin/v5_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v5_stream_base.c",
+        "bin": "aceibr/bin/v5_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 42,
+    "stream_words": 2
+  },
+  "v6": {
+    "template": "v6",
+    "guests": {
+      "tpl": {
+        "src": "aceibr/src/v6_tpl.c",
+        "bin": "aceibr/bin/v6_tpl",
+        "words": 38,
+        "iters": 833,
+        "insn_volume": 31654,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "tpl_base": {
+        "src": "aceibr/src/v6_tpl_base.c",
+        "bin": "aceibr/bin/v6_tpl_base",
+        "words": 0,
+        "iters": 833,
+        "insn_volume": 3332,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream": {
+        "src": "aceibr/src/v6_stream.c",
+        "bin": "aceibr/bin/v6_stream",
+        "words": 2,
+        "iters": 1666,
+        "insn_volume": 3332,
+        "edits": {
+          "control": 0,
+          "privileged": 0,
+          "sp_write": 0,
+          "base_rewrite": 0,
+          "unallocated": 0
+        },
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      },
+      "stream_base": {
+        "src": "aceibr/src/v6_stream_base.c",
+        "bin": "aceibr/bin/v6_stream_base",
+        "words": 0,
+        "iters": 1666,
+        "insn_volume": 6664,
+        "edits": {},
+        "dropped_words": [],
+        "native": {
+          "rc": 0,
+          "pass": true
+        }
+      }
+    },
+    "template_words": 38,
+    "stream_words": 2
+  }
+}

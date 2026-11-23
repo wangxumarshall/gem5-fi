@@ -133,6 +133,23 @@ python3 tools/pairgen.py verify   --work work/pairs-20261123 --cores 0-127
 python3 tools/pairgen.py report   --work work/pairs-20261123 --copy-to <dir>
 ```
 
+## ACE / IBR 结构指标（2026-11-23）
+
+`tools/aceibr_compare.py` 把一条指令序列编成 gem5 SE guest（`m5_work_begin/end` 界定 ROI），
+读 `rfAce` / `l1Ace` / `fuIbr` 计数器，回答"这条流在硬件结构上压到了多少"：
+
+- **定向流**（`work/target-20261123`，1–256 条指令）：RF 覆盖条目中位 **3.0 → 6.8**，
+  L1D 覆盖行 **5.0 → 7.9**（模板 → 流）。
+- **原文口径流**（`work/paper-20261123`，2–4 条指令）：RF 条目 **3.0 → 0.6**，
+  L1D 行 **5.2 → 1.2**——只有模板的零头。
+
+方法、归一化规则、逐模板表与边界见
+[`docs/aceibr-2026-11-23.md`](docs/aceibr-2026-11-23.md)，
+证据在 [`evidence/aceibr-2026-11-23/`](evidence/aceibr-2026-11-23/)。
+
+两条必须记住的口径：**IBR 在本仓库是"端口×位宽"的结构量，不是数据相关翻转率**；
+**访存基址统一改写到 x19**（否则长访存流缺页，gem5 SE 会整场中止）。
+
 ## 目录
 
 ```text
