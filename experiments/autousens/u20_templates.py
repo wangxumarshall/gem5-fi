@@ -667,21 +667,29 @@ def run_gem5(gem5, run_dir, guest, workload_args, timeout=900):
     }
 
 
+def roi_insts_from_dumps(dumps, flat):
+    """ROI retired instructions: first (work_end) dump, not issuedOps.
+
+    m5_work_begin resets the gem5 statistics and m5_work_end dumps them before
+    the Auto guest runs its post-ROI checksum/print, so ``simInsts`` in the
+    first dump is ROI-scoped.  ``sad.issuedOps`` is an issue-event count
+    (gem5 iq.instsIssued semantics; ldxr is 7.849x retired) and must not be
+    used as the instruction denominator.  Fall back to it only when there is
+    no work_end dump.
+    """
+
+    roi = numeric(dumps[0], "simInsts") if len(dumps) > 1 else None
+    if not roi or roi <= 0:
+        roi = flat.get("sad.globals.issuedOps")
+    return roi
+
+
 def metric_row(stats_path):
     doc = metrics.from_stats_path(stats_path)
     flat = metrics.flatten(doc)
     dumps = TOOL.stat_dumps(Path(stats_path))
     last = dumps[-1]
-    first = dumps[0]
-    # ``simInsts`` at the first dump is ROI-scoped: m5_work_begin resets the
-    # gem5 statistics and m5_work_end dumps them before the Auto guest runs its
-    # post-ROI checksum/print.  Do NOT use sad.issuedOps here: it counts issue
-    # events (gem5 iq.instsIssued semantics; ldxr reports 7.849x the retired
-    # count), not retired instructions.  Fall back to it only when a run has no
-    # work_end dump at all.
-    roi_insts = numeric(first, "simInsts") if len(dumps) > 1 else None
-    if not roi_insts or roi_insts <= 0:
-        roi_insts = flat.get("sad.globals.issuedOps")
+    roi_insts = roi_insts_from_dumps(dumps, flat)
     roi_cycles = flat.get("ace.rf.measuredCycles") or doc["windows"]["rf_ace"]
     meta = {
         "sim_insts": roi_insts,

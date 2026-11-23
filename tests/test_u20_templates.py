@@ -131,3 +131,13 @@ def test_stabilise_expected_handles_the_target_oracle_renderer():
     assert "static volatile const uint64_t expected_storage" in stable
     assert stable.count("expected = expected_storage;") == 2
     assert "expected = UINT64_C" not in stable
+
+
+def test_roi_insts_uses_work_end_siminsts_not_issued_ops():
+    flat = {"sad.globals.issuedOps": 3045.0}
+    dumps = [{"simInsts": 2183.0}, {"simInsts": 2187.0}]
+    assert u20.roi_insts_from_dumps(dumps, flat) == 2183.0
+    # No work_end dump: fall back to the issue-event counter.
+    assert u20.roi_insts_from_dumps([{"simInsts": 2187.0}], flat) == 3045.0
+    # A zero first-dump ROI also falls back.
+    assert u20.roi_insts_from_dumps([{"simInsts": 0.0}], flat) == 3045.0
