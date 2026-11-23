@@ -1,0 +1,45 @@
+{
+  "sweep": {
+    "mode": "sweep",
+    "corpus_files": 20,
+    "cores": 128,
+    "seconds": 30,
+    "elapsed_s": 0.194,
+    "executions": 2560,
+    "exec_per_s": 13189.7,
+    "mismatches": 0,
+    "timeouts": 0,
+    "errors": 0,
+    "batches": 1,
+    "snapshot_loads": 20,
+    "bytes_read": 63394,
+    "io_bytes_per_exec": 24.8,
+    "batch_size": 50,
+    "execs_per_batch": 1000,
+    "seed": 1
+  },
+  "sampled": {
+    "mode": "sampled",
+    "corpus_files": 20,
+    "cores": 128,
+    "seconds": 30,
+    "elapsed_s": 30.052,
+    "executions": 1320568,
+    "exec_per_s": 43942.7,
+    "mismatches": 0,
+    "timeouts": 0,
+    "errors": 0,
+    "batches": 1421,
+    "snapshot_loads": 71050,
+    "bytes_read": 225210141,
+    "io_bytes_per_exec": 170.5,
+    "batch_size": 50,
+    "execs_per_batch": 1000,
+    "seed": 1
+  },
+  "fleet": {
+    "summary": [
+      "{\"windows\": 2, \"executions\": 160, \"mismatches\": 0, \"db\": \"work/target-20261123/verify/fleet.db\"}"
+    ]
+  }
+}

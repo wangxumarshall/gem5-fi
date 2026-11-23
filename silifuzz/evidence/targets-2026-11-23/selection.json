@@ -1,0 +1,1934 @@
+{
+  "c1": {
+    "snapshot": "corpus/c1/28/286a02f6ee763567aa9977e9ababd84eb23845e9c3fd9e0cc564ef0ef529af72.sfs",
+    "snapshot_sha": "370b0968f4b49cd0b1be5be6420eb9c6162b109b9dbb134ac925ee617c43961c",
+    "candidate_sha": "4a4889be85f35f7236ff8c543ac3970ffe90352963c63a9bea7df68ae23d2e97",
+    "insns": 1,
+    "code_bytes": 4,
+    "pc_offset": 4,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.3731,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "eor"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "ldr",
+      "mov",
+      "movk",
+      "str"
+    ],
+    "uc": {
+      "target_size": 232,
+      "stream_size": 68,
+      "precision": 0.8529,
+      "recall": 0.25
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 181,
+        "insns": 161,
+        "cap_hit": 0.6866,
+        "purity": 0.1429,
+        "snapshot": "corpus/c1/56/56fb91cfdb436db6f107c56ba5c41313d36fb39141b84e5b652bce1e30379495.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 67,
+      "uc_size": 232,
+      "scenario": "centered"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": "hit",
+    "distinct_words": 1,
+    "mutated": true,
+    "status": "gap",
+    "exec_frontier": 1
+  },
+  "c3": {
+    "snapshot": "corpus/c3/36/361594737db7f523ec9591aea457deaa7b9dd39e46b60ddefacb982fb464f735.sfs",
+    "snapshot_sha": "79e331e0ce4119f8ccae90b9e0967983780312330670a4c8d9ccb1e116c70439",
+    "candidate_sha": "43458a2d89d78f834eb99bdb7ac05b69e346023850466203d86a0efb34c3bdda",
+    "insns": 251,
+    "code_bytes": 1004,
+    "pc_offset": 263888,
+    "signal": 11,
+    "trailer": true,
+    "cap_hit": 0.9901,
+    "purity": 0.8,
+    "foreign_mnemonics": [
+      "cbnz",
+      "orn"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "cbnz",
+      "eor",
+      "ldp",
+      "ldr",
+      "mov",
+      "movk",
+      "orn",
+      "stp",
+      "str"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "ldp",
+      "ldr",
+      "mov",
+      "movk",
+      "stp",
+      "str"
+    ],
+    "uc": {
+      "target_size": 278,
+      "stream_size": 402,
+      "precision": 0.6915,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 10,
+        "insns": 249,
+        "cap_hit": 0.9901,
+        "purity": 1.0,
+        "snapshot": "corpus/c3/5c/5c79638edc55bb68017322c6853b27c65de196bafdf2d0d265d30f60c3ee463e.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 10,
+        "insns": 249,
+        "cap_hit": 0.9901,
+        "purity": 1.0,
+        "snapshot": "corpus/c3/5c/5c79638edc55bb68017322c6853b27c65de196bafdf2d0d265d30f60c3ee463e.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 12,
+        "insns": 251,
+        "cap_hit": 0.9901,
+        "purity": 0.8,
+        "snapshot": "corpus/c3/36/361594737db7f523ec9591aea457deaa7b9dd39e46b60ddefacb982fb464f735.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 12,
+        "insns": 251,
+        "cap_hit": 0.9901,
+        "purity": 0.8,
+        "snapshot": "corpus/c3/36/361594737db7f523ec9591aea457deaa7b9dd39e46b60ddefacb982fb464f735.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 231,
+        "insns": 256,
+        "cap_hit": 0.9901,
+        "purity": 0.6667,
+        "snapshot": "corpus/c3/50/500581884dcffab9d4e8e15e9a07fc1ef89640817f299ec0f8300b658fc5c78d.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 101,
+      "uc_size": 278,
+      "scenario": "centered"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 34,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 251
+  },
+  "e1": {
+    "snapshot": "corpus/e1/86/86f88a98c6e1ab92b958df1cb062009d59d0d9d728191bb00ca8038f2380a727.sfs",
+    "snapshot_sha": "22602385f9c28a593c0080a074f261dadc393f440eac1c6e445c185b96045a08",
+    "candidate_sha": "d18eea1813f87ad613a93d30aff3af00f8b6f6fbb716a707b54cb15b2f9ed582",
+    "insns": 180,
+    "code_bytes": 720,
+    "pc_offset": 106321180,
+    "signal": 11,
+    "trailer": true,
+    "cap_hit": 0.9844,
+    "purity": 0.8333,
+    "foreign_mnemonics": [
+      "bl"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "adds",
+      "bl",
+      "eor",
+      "mov",
+      "movk"
+    ],
+    "template_mnemonics": [
+      "add",
+      "adds",
+      "eor",
+      "mov",
+      "movk"
+    ],
+    "uc": {
+      "target_size": 211,
+      "stream_size": 288,
+      "precision": 0.7326,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 6,
+        "insns": 142,
+        "cap_hit": 0.9844,
+        "purity": 1.0,
+        "snapshot": "corpus/e1/ad/addc2db3e6dffeddc44528c2da5522e4601ffa04037783ad564f67d442fd5751.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 6,
+        "insns": 142,
+        "cap_hit": 0.9844,
+        "purity": 1.0,
+        "snapshot": "corpus/e1/ad/addc2db3e6dffeddc44528c2da5522e4601ffa04037783ad564f67d442fd5751.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 7,
+        "insns": 180,
+        "cap_hit": 0.9844,
+        "purity": 0.8333,
+        "snapshot": "corpus/e1/86/86f88a98c6e1ab92b958df1cb062009d59d0d9d728191bb00ca8038f2380a727.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 7,
+        "insns": 180,
+        "cap_hit": 0.9844,
+        "purity": 0.8333,
+        "snapshot": "corpus/e1/86/86f88a98c6e1ab92b958df1cb062009d59d0d9d728191bb00ca8038f2380a727.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 199,
+        "insns": 254,
+        "cap_hit": 0.9844,
+        "purity": 0.3846,
+        "snapshot": "corpus/e1/eb/eb7be738a9632ab95123498a7415da5da646fb947fbde376d58c7cd472aa7175.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 64,
+      "uc_size": 211,
+      "scenario": "small"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 62,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 180
+  },
+  "e2": {
+    "snapshot": "corpus/e2/82/828ea3308df6a7454f6f9a367bbd1f77f6add09d2a8e189e75bb71c8e99c0332.sfs",
+    "snapshot_sha": "7561049e7bdbd95aa71ec12a3f4c32a0a76d25b110087531e0ebf77933e61015",
+    "candidate_sha": "759a23e9f50d6c76a0ae6235ec8eb783925776e60aa4c6ab2b92d5425d8a4ee3",
+    "insns": 225,
+    "code_bytes": 900,
+    "pc_offset": 76149472,
+    "signal": 11,
+    "trailer": true,
+    "cap_hit": 0.9851,
+    "purity": 0.9,
+    "foreign_mnemonics": [
+      "b"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "b",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "msub",
+      "mul",
+      "smull",
+      "umull"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "msub",
+      "mul",
+      "smull",
+      "umull"
+    ],
+    "uc": {
+      "target_size": 177,
+      "stream_size": 235,
+      "precision": 0.7532,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 8,
+        "insns": 112,
+        "cap_hit": 0.9851,
+        "purity": 1.0,
+        "snapshot": "corpus/e2/b5/b52c7f98b90f525ef48b41d245351d1d70d865b589d700c2d094cdca06e65816.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 24,
+        "insns": 225,
+        "cap_hit": 0.9851,
+        "purity": 0.9,
+        "snapshot": "corpus/e2/82/828ea3308df6a7454f6f9a367bbd1f77f6add09d2a8e189e75bb71c8e99c0332.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 28,
+        "insns": 225,
+        "cap_hit": 0.9851,
+        "purity": 0.9,
+        "snapshot": "corpus/e2/82/828ea3308df6a7454f6f9a367bbd1f77f6add09d2a8e189e75bb71c8e99c0332.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 28,
+        "insns": 225,
+        "cap_hit": 0.9851,
+        "purity": 0.9,
+        "snapshot": "corpus/e2/82/828ea3308df6a7454f6f9a367bbd1f77f6add09d2a8e189e75bb71c8e99c0332.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 242,
+        "insns": 256,
+        "cap_hit": 0.9851,
+        "purity": 0.45,
+        "snapshot": "corpus/e2/8d/8db506a8af899f08a2906a2490ae77b5cb5337682708afd8590cdcf52a4172fd.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 67,
+      "uc_size": 177,
+      "scenario": "small"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 30,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 225
+  },
+  "e3": {
+    "snapshot": "corpus/e3/d4/d4c5700309fd96227ff0ef8eed9fbc119d7aa8437f7dd7ca1827d1f6ce85d8e7.sfs",
+    "snapshot_sha": "f31970a09f1d28eafcdc242d07642cb981dc3e1b4cb7a2e80daffd52411f4e0a",
+    "candidate_sha": "d0e30860c268dc5ab8073c4e39b7b90354885410a99722d54e4527fab74ebe33",
+    "insns": 193,
+    "code_bytes": 772,
+    "pc_offset": 772,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9851,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "and",
+      "bic",
+      "eon",
+      "eor",
+      "mov",
+      "movk",
+      "orn",
+      "orr",
+      "sub"
+    ],
+    "template_mnemonics": [
+      "add",
+      "and",
+      "bic",
+      "eon",
+      "eor",
+      "mov",
+      "movk",
+      "orn",
+      "orr",
+      "sub"
+    ],
+    "uc": {
+      "target_size": 185,
+      "stream_size": 204,
+      "precision": 0.9069,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 16,
+        "insns": 193,
+        "cap_hit": 0.9851,
+        "purity": 1.0,
+        "snapshot": "corpus/e3/d4/d4c5700309fd96227ff0ef8eed9fbc119d7aa8437f7dd7ca1827d1f6ce85d8e7.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 24,
+        "insns": 193,
+        "cap_hit": 0.9851,
+        "purity": 1.0,
+        "snapshot": "corpus/e3/d4/d4c5700309fd96227ff0ef8eed9fbc119d7aa8437f7dd7ca1827d1f6ce85d8e7.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 24,
+        "insns": 193,
+        "cap_hit": 0.9851,
+        "purity": 1.0,
+        "snapshot": "corpus/e3/d4/d4c5700309fd96227ff0ef8eed9fbc119d7aa8437f7dd7ca1827d1f6ce85d8e7.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 24,
+        "insns": 193,
+        "cap_hit": 0.9851,
+        "purity": 1.0,
+        "snapshot": "corpus/e3/d4/d4c5700309fd96227ff0ef8eed9fbc119d7aa8437f7dd7ca1827d1f6ce85d8e7.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 265,
+        "insns": 252,
+        "cap_hit": 0.9851,
+        "purity": 0.5882,
+        "snapshot": "corpus/e3/fd/fd7a304e7283cf3f1323d10f26b01bc534b28536138b037a5dd38c67cda99535.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 67,
+      "uc_size": 185,
+      "scenario": "small"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 27,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 193
+  },
+  "f1": {
+    "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs",
+    "snapshot_sha": "6d40b8137c5756da658e0a630c044d1ed41b97a7258d3eedc45c05a3593aaf59",
+    "candidate_sha": "d55e3964b49571fed77c773fc0fac56f7db91736cdbbc786eb287f2d18679d68",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9855,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "fadd",
+      "fcmp",
+      "fdiv",
+      "fmov",
+      "fmul",
+      "fsub",
+      "mov",
+      "movi",
+      "movk"
+    ],
+    "template_mnemonics": [
+      "fadd",
+      "fcmp",
+      "fdiv",
+      "fmov",
+      "fmul",
+      "fsub",
+      "mov",
+      "movi",
+      "movk"
+    ],
+    "uc": {
+      "target_size": 287,
+      "stream_size": 287,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 11,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 23,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 33,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 33,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 240,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/f1/7f/7f75420fc35f49c6b77fa4d2c71165089ba14f72d4fa9e21bdea65b7a0a2c69c.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 69,
+      "uc_size": 287,
+      "scenario": "fp1"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 42,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "i1": {
+    "snapshot": "corpus/i1/c3/c393a749c839fc7d0da12a6ed18c72b7c91076f7c4d6d5d9fc87032ff456e419.sfs",
+    "snapshot_sha": "3b645c5b584b42e69b1afdc271fb6213ed53d7774ac4ecbbf23023326e6d71da",
+    "candidate_sha": "c7aef050cca2388115be845431ec9642dd119272199b2f4cdcdff0b4587ef8aa",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1020,
+    "signal": 4,
+    "trailer": true,
+    "cap_hit": 0.9737,
+    "purity": 0.8,
+    "foreign_mnemonics": [
+      "msr"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "madd",
+      "msr",
+      "nop"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "madd",
+      "nop"
+    ],
+    "uc": {
+      "target_size": 112,
+      "stream_size": 130,
+      "precision": 0.8615,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 1,
+        "insns": 117,
+        "cap_hit": 0.9737,
+        "purity": 1.0,
+        "snapshot": "corpus/i1/ce/ce2f094bc32875b42e93d982b8c071ff645f5d678cad696aa9442214860ae782.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 1,
+        "insns": 117,
+        "cap_hit": 0.9737,
+        "purity": 1.0,
+        "snapshot": "corpus/i1/ce/ce2f094bc32875b42e93d982b8c071ff645f5d678cad696aa9442214860ae782.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 3,
+        "insns": 256,
+        "cap_hit": 0.9737,
+        "purity": 0.8,
+        "snapshot": "corpus/i1/c3/c393a749c839fc7d0da12a6ed18c72b7c91076f7c4d6d5d9fc87032ff456e419.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 8,
+        "insns": 256,
+        "cap_hit": 0.9737,
+        "purity": 0.8,
+        "snapshot": "corpus/i1/c3/c393a749c839fc7d0da12a6ed18c72b7c91076f7c4d6d5d9fc87032ff456e419.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 104,
+        "insns": 256,
+        "cap_hit": 0.9737,
+        "purity": 0.8,
+        "snapshot": "corpus/i1/c3/c393a749c839fc7d0da12a6ed18c72b7c91076f7c4d6d5d9fc87032ff456e419.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 38,
+      "uc_size": 112,
+      "scenario": "branch"
+    },
+    "excluded_seed_like": 1,
+    "floor_relaxed": null,
+    "distinct_words": 8,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "i2": {
+    "snapshot": "corpus/i2/fa/fa0fa055bf029b56a28d8930c6f393c520c14eb62bd9c95437fcf1ef9efb00ba.sfs",
+    "snapshot_sha": "a0ec6019d768f148f14eb6fa9ee6488bd9bcf3499a61838ed196e9b1ee1ef2cb",
+    "candidate_sha": "dc9d0ab1dd4fdb9cb61e0fca3861fc337285992dfa0c83c6c8930e0e6a4ae9b5",
+    "insns": 251,
+    "code_bytes": 1004,
+    "pc_offset": 65908,
+    "signal": 11,
+    "trailer": true,
+    "cap_hit": 0.9855,
+    "purity": 0.8571,
+    "foreign_mnemonics": [
+      "and"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "and",
+      "b",
+      "eor",
+      "madd",
+      "mov",
+      "movk"
+    ],
+    "template_mnemonics": [
+      "add",
+      "b",
+      "eor",
+      "madd",
+      "mov",
+      "movk"
+    ],
+    "uc": {
+      "target_size": 179,
+      "stream_size": 274,
+      "precision": 0.6533,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 25,
+        "insns": 249,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/i2/e6/e65a12ca766ed129e7112f8dcc6dc1f9741c8f1d92a0016c9c41cfbc281a64a9.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 25,
+        "insns": 249,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/i2/e6/e65a12ca766ed129e7112f8dcc6dc1f9741c8f1d92a0016c9c41cfbc281a64a9.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 36,
+        "insns": 251,
+        "cap_hit": 0.9855,
+        "purity": 0.8571,
+        "snapshot": "corpus/i2/fa/fa0fa055bf029b56a28d8930c6f393c520c14eb62bd9c95437fcf1ef9efb00ba.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 36,
+        "insns": 251,
+        "cap_hit": 0.9855,
+        "purity": 0.8571,
+        "snapshot": "corpus/i2/fa/fa0fa055bf029b56a28d8930c6f393c520c14eb62bd9c95437fcf1ef9efb00ba.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 262,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 0.5,
+        "snapshot": "corpus/i2/46/4625fb03df8cea7773eec01bc64617817f004931d8a8aa52ada113d2538c1cff.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 69,
+      "uc_size": 179,
+      "scenario": "branch"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 26,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 251
+  },
+  "l1": {
+    "snapshot": "corpus/l1/d1/d1b5f46d5d5b10d1b02ee96fb0f77511fb7176605fe583eba85a3da27a397b1c.sfs",
+    "snapshot_sha": "aa93948a0d7d9d194d7a64741b79db8559926fd9f0dcb0394fec727450cd47c8",
+    "candidate_sha": "3dca01ed867c59458834495c614694154bf27e619b6a10f7057ad7f9a61777c0",
+    "insns": 168,
+    "code_bytes": 672,
+    "pc_offset": 672,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9886,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "ldr",
+      "mov",
+      "movk",
+      "mul",
+      "str"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "ldr",
+      "mov",
+      "movk",
+      "mul",
+      "str"
+    ],
+    "uc": {
+      "target_size": 258,
+      "stream_size": 259,
+      "precision": 0.9961,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 2,
+        "insns": 168,
+        "cap_hit": 0.9886,
+        "purity": 1.0,
+        "snapshot": "corpus/l1/d1/d1b5f46d5d5b10d1b02ee96fb0f77511fb7176605fe583eba85a3da27a397b1c.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 2,
+        "insns": 168,
+        "cap_hit": 0.9886,
+        "purity": 1.0,
+        "snapshot": "corpus/l1/d1/d1b5f46d5d5b10d1b02ee96fb0f77511fb7176605fe583eba85a3da27a397b1c.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 3,
+        "insns": 168,
+        "cap_hit": 0.9886,
+        "purity": 1.0,
+        "snapshot": "corpus/l1/d1/d1b5f46d5d5b10d1b02ee96fb0f77511fb7176605fe583eba85a3da27a397b1c.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 3,
+        "insns": 168,
+        "cap_hit": 0.9886,
+        "purity": 1.0,
+        "snapshot": "corpus/l1/d1/d1b5f46d5d5b10d1b02ee96fb0f77511fb7176605fe583eba85a3da27a397b1c.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 190,
+        "insns": 207,
+        "cap_hit": 0.9886,
+        "purity": 0.4375,
+        "snapshot": "corpus/l1/62/6239a28482d6c99a7d6e02b5316a92582de9ae8190577c71e4f9a32094be5548.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 88,
+      "uc_size": 258,
+      "scenario": "centered"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 22,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 168
+  },
+  "l2": {
+    "snapshot": "corpus/l2/9c/9ca07e0632db0b38e10d518cf7070375045c443d50967ab6ac7125975fc8f18b.sfs",
+    "snapshot_sha": "da3818a4bf591797f62106ec97582c685cbd3d4d23267c736e39b30db2b68d71",
+    "candidate_sha": "2f7cc82dfec35ec51a211704dbb7e101729b5f62d0963f745af9470d1efeb8d3",
+    "insns": 233,
+    "code_bytes": 932,
+    "pc_offset": 932,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9889,
+    "purity": 0.8571,
+    "foreign_mnemonics": [
+      "orn"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "ldp",
+      "mov",
+      "movk",
+      "orn",
+      "stp"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "ldp",
+      "mov",
+      "movk",
+      "stp"
+    ],
+    "uc": {
+      "target_size": 256,
+      "stream_size": 281,
+      "precision": 0.911,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 5,
+        "insns": 232,
+        "cap_hit": 0.9889,
+        "purity": 1.0,
+        "snapshot": "corpus/l2/23/23e4403b6da7ab114fa1dd881c518d47e183999f7e4a4a5b2782b56926e05e64.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 8,
+        "insns": 232,
+        "cap_hit": 0.9889,
+        "purity": 1.0,
+        "snapshot": "corpus/l2/23/23e4403b6da7ab114fa1dd881c518d47e183999f7e4a4a5b2782b56926e05e64.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 11,
+        "insns": 233,
+        "cap_hit": 0.9889,
+        "purity": 0.8571,
+        "snapshot": "corpus/l2/9c/9ca07e0632db0b38e10d518cf7070375045c443d50967ab6ac7125975fc8f18b.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 11,
+        "insns": 233,
+        "cap_hit": 0.9889,
+        "purity": 0.8571,
+        "snapshot": "corpus/l2/9c/9ca07e0632db0b38e10d518cf7070375045c443d50967ab6ac7125975fc8f18b.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 252,
+        "insns": 256,
+        "cap_hit": 0.9889,
+        "purity": 0.3158,
+        "snapshot": "corpus/l2/8a/8a2c069aefdae475bf275122af98ab51cc80eb2c0fb3ca2185580cf587b6cfc7.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 90,
+      "uc_size": 256,
+      "scenario": "centered"
+    },
+    "excluded_seed_like": 1,
+    "floor_relaxed": null,
+    "distinct_words": 31,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 233
+  },
+  "m1": {
+    "snapshot": "corpus/m1/54/54f095471867862664bec1cf6305fe3ff6328cb1567a40d879b7ad397b177658.sfs",
+    "snapshot_sha": "1d743991b77fbeec3a59c4ff0e15d23329d5e811c6df0ce467f7f2fa9b1ad1f5",
+    "candidate_sha": "43740dda65ba1a01f71b1ebbdb4cefea7efd87014ce26c75509594bcaa2da775",
+    "insns": 60,
+    "code_bytes": 240,
+    "pc_offset": 240,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9796,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "ldr",
+      "str"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "ldr",
+      "str"
+    ],
+    "uc": {
+      "target_size": 208,
+      "stream_size": 222,
+      "precision": 0.9369,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 5,
+        "insns": 60,
+        "cap_hit": 0.9796,
+        "purity": 1.0,
+        "snapshot": "corpus/m1/54/54f095471867862664bec1cf6305fe3ff6328cb1567a40d879b7ad397b177658.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 6,
+        "insns": 60,
+        "cap_hit": 0.9796,
+        "purity": 1.0,
+        "snapshot": "corpus/m1/54/54f095471867862664bec1cf6305fe3ff6328cb1567a40d879b7ad397b177658.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 6,
+        "insns": 60,
+        "cap_hit": 0.9796,
+        "purity": 1.0,
+        "snapshot": "corpus/m1/54/54f095471867862664bec1cf6305fe3ff6328cb1567a40d879b7ad397b177658.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 25,
+        "insns": 60,
+        "cap_hit": 0.9796,
+        "purity": 1.0,
+        "snapshot": "corpus/m1/54/54f095471867862664bec1cf6305fe3ff6328cb1567a40d879b7ad397b177658.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 191,
+        "insns": 175,
+        "cap_hit": 0.9388,
+        "purity": 0.2857,
+        "snapshot": "corpus/m1/c4/c456ef3dda7d170ba6f44468be2012c8b1eda26fdcf04cf10df0c70400a9cdee.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 49,
+      "uc_size": 208,
+      "scenario": "mem_unmapped"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 16,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 60
+  },
+  "m3": {
+    "snapshot": "corpus/m3/4a/4ab64cccc0444e2c7960b00d14007550cf4c4fdfe5e3d7a923780589a5afb8fb.sfs",
+    "snapshot_sha": "cc04ce74d08cbf2696bc121e3771aec0bebe1b0d3a3f162e38529a4fa51e9bf7",
+    "candidate_sha": "f1c8c40ed9ae31cd2b4f7a6203b0cf6b9e000560a73b3686454866d7d3e83db0",
+    "insns": 240,
+    "code_bytes": 960,
+    "pc_offset": 960,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9902,
+    "purity": 0.9,
+    "foreign_mnemonics": [
+      "orn"
+    ],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "fmov",
+      "ldp",
+      "ldur",
+      "mov",
+      "movk",
+      "orn",
+      "stp",
+      "stur"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "fmov",
+      "ldp",
+      "ldur",
+      "mov",
+      "movk",
+      "stp",
+      "stur"
+    ],
+    "uc": {
+      "target_size": 283,
+      "stream_size": 306,
+      "precision": 0.9248,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 9,
+        "insns": 120,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/m3/af/af189ce27fa1a18b7f33d5a2a81c89ed53f9c56e6dbfc8e28fac06051dcef426.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 33,
+        "insns": 240,
+        "cap_hit": 0.9902,
+        "purity": 0.9,
+        "snapshot": "corpus/m3/4a/4ab64cccc0444e2c7960b00d14007550cf4c4fdfe5e3d7a923780589a5afb8fb.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 36,
+        "insns": 240,
+        "cap_hit": 0.9902,
+        "purity": 0.9,
+        "snapshot": "corpus/m3/4a/4ab64cccc0444e2c7960b00d14007550cf4c4fdfe5e3d7a923780589a5afb8fb.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 36,
+        "insns": 240,
+        "cap_hit": 0.9902,
+        "purity": 0.9,
+        "snapshot": "corpus/m3/4a/4ab64cccc0444e2c7960b00d14007550cf4c4fdfe5e3d7a923780589a5afb8fb.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 267,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 0.36,
+        "snapshot": "corpus/m3/ed/ed04e5a327a9561f66970f9a1fc952f6f24aa38389627d4794814af1e4992e2f.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 102,
+      "uc_size": 283,
+      "scenario": "mem_unmapped"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 31,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 240
+  },
+  "o1": {
+    "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs",
+    "snapshot_sha": "28c8f33e6d495320e8c3cf31da7c77063e0ade6f06e1d5d0b2f9a281b54b04e7",
+    "candidate_sha": "4bef02cc6475cd8dd7e24a5ad3342e1637ebb514d7b0722119a6ae04325d2e0a",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9855,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "adds",
+      "and",
+      "eor",
+      "ldr",
+      "madd",
+      "orr",
+      "sub",
+      "subs"
+    ],
+    "template_mnemonics": [
+      "add",
+      "adds",
+      "and",
+      "eor",
+      "ldr",
+      "madd",
+      "orr",
+      "sub",
+      "subs"
+    ],
+    "uc": {
+      "target_size": 345,
+      "stream_size": 348,
+      "precision": 0.9914,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 15,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 29,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 30,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 30,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 219,
+        "insns": 256,
+        "cap_hit": 0.9855,
+        "purity": 1.0,
+        "snapshot": "corpus/o1/1f/1fcf57bb4cb37ac7dd750c9438fda5cb8641a9d066925bfc880f4ce5093064ac.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 69,
+      "uc_size": 345,
+      "scenario": "small"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 40,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "o2": {
+    "snapshot": "corpus/o2/7f/7f993e4d1e577555ae831f9228519c705cb11a8a98d8a42834e6bee8d28fd64e.sfs",
+    "snapshot_sha": "b162a148095314cf8901d546cb999abd79451361f2cc11dd658b77c4e7842f79",
+    "candidate_sha": "f038fe0169f9c4ab6479f95b86cc1ab5fbdd4d64a69f534a0c79dede8b04fd3c",
+    "insns": 128,
+    "code_bytes": 512,
+    "pc_offset": 512,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9884,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "b.ne",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "subs"
+    ],
+    "template_mnemonics": [
+      "add",
+      "b.ne",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "subs"
+    ],
+    "uc": {
+      "target_size": 336,
+      "stream_size": 336,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 6,
+        "insns": 128,
+        "cap_hit": 0.9884,
+        "purity": 1.0,
+        "snapshot": "corpus/o2/7f/7f993e4d1e577555ae831f9228519c705cb11a8a98d8a42834e6bee8d28fd64e.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 6,
+        "insns": 128,
+        "cap_hit": 0.9884,
+        "purity": 1.0,
+        "snapshot": "corpus/o2/7f/7f993e4d1e577555ae831f9228519c705cb11a8a98d8a42834e6bee8d28fd64e.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 9,
+        "insns": 128,
+        "cap_hit": 0.9884,
+        "purity": 1.0,
+        "snapshot": "corpus/o2/7f/7f993e4d1e577555ae831f9228519c705cb11a8a98d8a42834e6bee8d28fd64e.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 9,
+        "insns": 128,
+        "cap_hit": 0.9884,
+        "purity": 1.0,
+        "snapshot": "corpus/o2/7f/7f993e4d1e577555ae831f9228519c705cb11a8a98d8a42834e6bee8d28fd64e.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 215,
+        "insns": 244,
+        "cap_hit": 0.9884,
+        "purity": 0.4375,
+        "snapshot": "corpus/o2/43/433d1bf3284445655d20cd6d90892970199087cc05432b2b7493c47542b72d5d.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 86,
+      "uc_size": 336,
+      "scenario": "small"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 22,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 128
+  },
+  "v1": {
+    "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs",
+    "snapshot_sha": "b5b556a964b506d784dcaf9ac782890355dd6d232a74676eafba5fa6980ecce2",
+    "candidate_sha": "e2e4a83a3a7a473a7636d7df4fa95d3e1edb26287d44197f54a7a9c361d185b4",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9903,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "dup",
+      "eor",
+      "fmla",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "nop"
+    ],
+    "template_mnemonics": [
+      "add",
+      "dup",
+      "eor",
+      "fmla",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "nop"
+    ],
+    "uc": {
+      "target_size": 291,
+      "stream_size": 291,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 15,
+        "insns": 256,
+        "cap_hit": 0.9903,
+        "purity": 1.0,
+        "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 46,
+        "insns": 256,
+        "cap_hit": 0.9903,
+        "purity": 1.0,
+        "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 52,
+        "insns": 256,
+        "cap_hit": 0.9903,
+        "purity": 1.0,
+        "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 52,
+        "insns": 256,
+        "cap_hit": 0.9903,
+        "purity": 1.0,
+        "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 268,
+        "insns": 256,
+        "cap_hit": 0.9903,
+        "purity": 1.0,
+        "snapshot": "corpus/v1/ad/ad6c8b368135b580b7d90cfe362ffdd3b927a2196c6361706777e6258d16b2af.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 103,
+      "uc_size": 291,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 59,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "v2": {
+    "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs",
+    "snapshot_sha": "fe50a19194e919e72db0d7aa10b6600955c5abb341431a908bb3714bccf53545",
+    "candidate_sha": "df27ff8954adb8a7328a76dbf8aae05fc2a9b1f62ca7047c631e431622dd22e2",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.987,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "adds",
+      "and",
+      "bic",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "msub",
+      "mul",
+      "orn",
+      "orr",
+      "smull",
+      "sub",
+      "subs",
+      "umull"
+    ],
+    "template_mnemonics": [
+      "add",
+      "adds",
+      "and",
+      "bic",
+      "eor",
+      "madd",
+      "mov",
+      "movk",
+      "msub",
+      "mul",
+      "orn",
+      "orr",
+      "smull",
+      "sub",
+      "subs",
+      "umull"
+    ],
+    "uc": {
+      "target_size": 312,
+      "stream_size": 312,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 7,
+        "insns": 256,
+        "cap_hit": 0.987,
+        "purity": 1.0,
+        "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 31,
+        "insns": 256,
+        "cap_hit": 0.987,
+        "purity": 1.0,
+        "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 47,
+        "insns": 256,
+        "cap_hit": 0.987,
+        "purity": 1.0,
+        "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 47,
+        "insns": 256,
+        "cap_hit": 0.987,
+        "purity": 1.0,
+        "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 255,
+        "insns": 256,
+        "cap_hit": 0.987,
+        "purity": 1.0,
+        "snapshot": "corpus/v2/63/6335cd3cfc999e88ad5f6cf485b3575ac3abef86fa0ca1e073905d16f631e1df.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 77,
+      "uc_size": 312,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 45,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "v3": {
+    "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs",
+    "snapshot_sha": "5340f851c71be80f92bb174dea843d404a4440857ba278e52ccbc1079b70bdb3",
+    "candidate_sha": "3bbd0a4f8070c61514d744b918b081ce06de20bff2478b02224f4d237c74a335",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9881,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "adds",
+      "b.eq",
+      "cmp",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "subs"
+    ],
+    "template_mnemonics": [
+      "add",
+      "adds",
+      "b.eq",
+      "cmp",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "subs"
+    ],
+    "uc": {
+      "target_size": 362,
+      "stream_size": 363,
+      "precision": 0.9972,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 4,
+        "insns": 256,
+        "cap_hit": 0.9881,
+        "purity": 1.0,
+        "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 27,
+        "insns": 256,
+        "cap_hit": 0.9881,
+        "purity": 1.0,
+        "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 37,
+        "insns": 256,
+        "cap_hit": 0.9881,
+        "purity": 1.0,
+        "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 37,
+        "insns": 256,
+        "cap_hit": 0.9881,
+        "purity": 1.0,
+        "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 262,
+        "insns": 256,
+        "cap_hit": 0.9881,
+        "purity": 1.0,
+        "snapshot": "corpus/v3/f3/f318123f5de83f736c7fe16f6e480c2e19ce27d10b94b322d6dc57f2faabbb57.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 84,
+      "uc_size": 362,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 65,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "v4": {
+    "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs",
+    "snapshot_sha": "617ac1db4bb69f1a550486a3085a10b450e9ca2531c7d7ff4bb18198525e9067",
+    "candidate_sha": "3d971c479ef29572c05da56d1beacb097030f3b51d6aa8d04d9b777f095d5036",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9902,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "eor",
+      "fmov",
+      "ldp",
+      "ldur",
+      "mov",
+      "movk",
+      "stp",
+      "stur"
+    ],
+    "template_mnemonics": [
+      "add",
+      "eor",
+      "fmov",
+      "ldp",
+      "ldur",
+      "mov",
+      "movk",
+      "stp",
+      "stur"
+    ],
+    "uc": {
+      "target_size": 295,
+      "stream_size": 295,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 5,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 10,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 10,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 10,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 212,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v4/c8/c87121bc5a89b080f56210cecf1f1a21c1545342c09797e973e283f2fd1e0a75.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 102,
+      "uc_size": 295,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 38,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  },
+  "v5": {
+    "snapshot": "corpus/v5/ff/ffb367e97c0cf72896119361f1e2516a183be23c94ef1389b2e5ee6805806cbc.sfs",
+    "snapshot_sha": "91fc16909917a739f0633cf7ecbbb0e742df1768fb015feac7b4ca7cac29dd88",
+    "candidate_sha": "ca14c270f0fe0aa13602c27a3e7a835cc388f92c749bf71e59ca9d1c96fca668",
+    "insns": 1,
+    "code_bytes": 4,
+    "pc_offset": 4,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.4333,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add"
+    ],
+    "template_mnemonics": [
+      "add",
+      "casa",
+      "casal",
+      "eor",
+      "ldadd",
+      "ldadda",
+      "ldaddl",
+      "mov",
+      "movk",
+      "swp",
+      "swpal"
+    ],
+    "uc": {
+      "target_size": 157,
+      "stream_size": 67,
+      "precision": 1.0,
+      "recall": 0.4268
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 0
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 216,
+        "insns": 150,
+        "cap_hit": 0.7222,
+        "purity": 0.1579,
+        "snapshot": "corpus/v5/c1/c18b89cc88fd20a4c325dfe1a933e80be479bb36176956af5cb618fc16b2886d.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 90,
+      "uc_size": 157,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": "hit",
+    "distinct_words": 1,
+    "mutated": true,
+    "status": "gap",
+    "exec_frontier": 1
+  },
+  "v6": {
+    "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs",
+    "snapshot_sha": "58a2a94e4867388e96b0a053a43942a4104ff303137d5a8f6b5b07eaa9ea69eb",
+    "candidate_sha": "1f61e744648903ca8de9529e7a14063ebe6cb226dd2c0930a7b4299284642f05",
+    "insns": 256,
+    "code_bytes": 1024,
+    "pc_offset": 1024,
+    "signal": 5,
+    "trailer": true,
+    "cap_hit": 0.9902,
+    "purity": 1.0,
+    "foreign_mnemonics": [],
+    "stream_mnemonics": [
+      "add",
+      "aese",
+      "aesmc",
+      "crc32cw",
+      "crc32cx",
+      "dup",
+      "eor",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "mul",
+      "sha1c",
+      "sha256h",
+      "sub"
+    ],
+    "template_mnemonics": [
+      "add",
+      "aese",
+      "aesmc",
+      "crc32cw",
+      "crc32cx",
+      "dup",
+      "eor",
+      "fmov",
+      "madd",
+      "mov",
+      "movk",
+      "mul",
+      "sha1c",
+      "sha256h",
+      "sub"
+    ],
+    "uc": {
+      "target_size": 263,
+      "stream_size": 278,
+      "precision": 0.946,
+      "recall": 1.0
+    },
+    "ladder": [
+      {
+        "hit_gate": 0.9,
+        "purity_gate": 0.95,
+        "available": 6,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs"
+      },
+      {
+        "hit_gate": 0.8,
+        "purity_gate": 0.9,
+        "available": 30,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs"
+      },
+      {
+        "hit_gate": 0.7,
+        "purity_gate": 0.8,
+        "available": 41,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs"
+      },
+      {
+        "hit_gate": 0.6,
+        "purity_gate": 0.8,
+        "available": 41,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs"
+      },
+      {
+        "hit_gate": 0.0,
+        "purity_gate": 0.0,
+        "available": 240,
+        "insns": 256,
+        "cap_hit": 0.9902,
+        "purity": 1.0,
+        "snapshot": "corpus/v6/83/838d5d3ea7951c8fd379a5fd558b7f7ad70194dff37eb30365946064825c9770.sfs"
+      }
+    ],
+    "target": {
+      "cap_size": 102,
+      "uc_size": 263,
+      "scenario": "vec_sat"
+    },
+    "excluded_seed_like": 0,
+    "floor_relaxed": null,
+    "distinct_words": 40,
+    "mutated": true,
+    "status": "ok",
+    "exec_frontier": 256
+  }
+}
