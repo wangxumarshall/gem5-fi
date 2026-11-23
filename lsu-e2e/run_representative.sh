@@ -38,8 +38,14 @@ esac
 mkdir -p "$OUT"
 echo "gem5: $GEM5"
 echo "out : $OUT"
-"$GEM5" --outdir="$OUT" "$CFG" "${COMMON[@]}" "${EXTRA[@]}"
+set +e
+"$GEM5" --outdir="$OUT" "$CFG" "${COMMON[@]}" "${EXTRA[@]}" 2>&1 | tee "$OUT/stdout.log"
+rc=${PIPESTATUS[0]}
+set -e
+[ "$rc" -eq 0 ] || { echo "gem5 exited $rc" >&2; exit "$rc"; }
 
+missing=0
 for f in prop_trace.csv.gz commit_trace.csv.gz micro_snap.csv.gz stdout.log; do
-    if [ -e "$OUT/$f" ]; then echo "OK $OUT/$f"; else echo "MISSING $OUT/$f"; fi
+    if [ -e "$OUT/$f" ]; then echo "OK $OUT/$f"; else echo "MISSING $OUT/$f"; missing=1; fi
 done
+exit "$missing"
