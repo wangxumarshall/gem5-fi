@@ -1,0 +1,28 @@
+{
+  "generated": "2026-11-23T16:29:59",
+  "candidates": {
+    "ifuzz": 96982,
+    "capstone": 1626,
+    "unicorn": 1226
+  },
+  "fixer": {
+    "source": "paper-three-proxies",
+    "candidates": 99834,
+    "accepted": 95475,
+    "duplicates": 31,
+    "executions": 574191,
+    "elapsed_s": 592.72,
+    "reasons": {
+      "size": 2,
+      "syscall": 2990,
+      "timeout": 1336
+    }
+  },
+  "accepted": 95475,
+  "accepted_by_source": {
+    "ifuzz": 92634,
+    "proxy": 315,
+    "capstone": 1622,
+    "unicorn": 904
+  }
+}

@@ -1,0 +1,3518 @@
+{
+  "generated": "2026-11-23T16:32:27",
+  "reachability": {
+    "c1": {
+      "template_mnemonics": 6,
+      "reachable": 6,
+      "unreachable": []
+    },
+    "c3": {
+      "template_mnemonics": 8,
+      "reachable": 8,
+      "unreachable": []
+    },
+    "e1": {
+      "template_mnemonics": 5,
+      "reachable": 5,
+      "unreachable": []
+    },
+    "e2": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "e3": {
+      "template_mnemonics": 10,
+      "reachable": 10,
+      "unreachable": []
+    },
+    "f1": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "i1": {
+      "template_mnemonics": 4,
+      "reachable": 4,
+      "unreachable": []
+    },
+    "i2": {
+      "template_mnemonics": 6,
+      "reachable": 6,
+      "unreachable": []
+    },
+    "l1": {
+      "template_mnemonics": 7,
+      "reachable": 7,
+      "unreachable": []
+    },
+    "l2": {
+      "template_mnemonics": 6,
+      "reachable": 6,
+      "unreachable": []
+    },
+    "m1": {
+      "template_mnemonics": 4,
+      "reachable": 4,
+      "unreachable": []
+    },
+    "m3": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "o1": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "o2": {
+      "template_mnemonics": 7,
+      "reachable": 6,
+      "unreachable": [
+        "b.ne"
+      ]
+    },
+    "v1": {
+      "template_mnemonics": 9,
+      "reachable": 8,
+      "unreachable": [
+        "dup"
+      ]
+    },
+    "v2": {
+      "template_mnemonics": 16,
+      "reachable": 16,
+      "unreachable": []
+    },
+    "v3": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "v4": {
+      "template_mnemonics": 9,
+      "reachable": 9,
+      "unreachable": []
+    },
+    "v5": {
+      "template_mnemonics": 11,
+      "reachable": 4,
+      "unreachable": [
+        "casa",
+        "casal",
+        "ldadd",
+        "ldadda",
+        "ldaddl",
+        "swp",
+        "swpal"
+      ]
+    },
+    "v6": {
+      "template_mnemonics": 15,
+      "reachable": 14,
+      "unreachable": [
+        "dup"
+      ]
+    }
+  },
+  "templates": {
+    "c1": {
+      "id": "c1",
+      "module": "cache / L2-L3 eviction",
+      "source": "c1_l2_eviction.S",
+      "source_sha256": "da62120eb09698782afa27422630edf933988f2b194f9eac92fa69991ae46235",
+      "insns": 26,
+      "text_sha256": "67ec1b84608f9a15e679544ff1e5209d38afe62e734079d1a41cc4a1ef22827b",
+      "region_size": 66,
+      "distinct_forms": 8
+    },
+    "c3": {
+      "id": "c3",
+      "module": "cache / L2-L3 eviction",
+      "source": "c3_l3_128b.S",
+      "source_sha256": "6d4d144eecf6abe1cf8761baa8bd45439012c414c57ec83cafca9c3921b99d0d",
+      "insns": 31,
+      "text_sha256": "66996a6b0b380be7863d0f8cbab842425687c13e04113e62c15569d0915c99be",
+      "region_size": 100,
+      "distinct_forms": 11
+    },
+    "e1": {
+      "id": "e1",
+      "module": "execution unit carry chains",
+      "source": "e1_carry_chain.S",
+      "source_sha256": "017ae755a1f66cfdab4f4df655d1639c524e193e1c5eb480c66aeae4b7f6fb10",
+      "insns": 29,
+      "text_sha256": "04b97e1973793f1f41412c18a41c4216bda2f27ccdcd696f4990c3df2fba1132",
+      "region_size": 63,
+      "distinct_forms": 7
+    },
+    "e2": {
+      "id": "e2",
+      "module": "execution unit carry chains",
+      "source": "e2_mul_extreme.S",
+      "source_sha256": "53c79833109cb3faa1c1492b7f0da1dd09b818f7f8172081fb3363a68a59a100",
+      "insns": 28,
+      "text_sha256": "e53bf8eddcbb9d60fc095c96b1bfcc4f3bd401ae3077de43093ccbe38ee662cb",
+      "region_size": 66,
+      "distinct_forms": 8
+    },
+    "e3": {
+      "id": "e3",
+      "module": "execution unit carry chains",
+      "source": "e3_toggle_rate.S",
+      "source_sha256": "47fab53aa7851fbd74ce2c180681cc483997c4d690ecde253e46d7ba3dfdc0cc",
+      "insns": 24,
+      "text_sha256": "b3fdb4c6a6a682bb486da16ab86d074dc2bbbc5cd2b81fce4103c43a31189ebe",
+      "region_size": 66,
+      "distinct_forms": 10
+    },
+    "f1": {
+      "id": "f1",
+      "module": "FSU special operands",
+      "source": "f1_subnormal_nan.S",
+      "source_sha256": "cd75814de599301e342b6c2e48bf2ce42db6f57c05cb1b83864367de6a849559",
+      "insns": 40,
+      "text_sha256": "e9d137eb5ae13fa3b375815ffe930c6ba84526c9b9d7e7f12a78d4340f5f4f27",
+      "region_size": 68,
+      "distinct_forms": 10
+    },
+    "i1": {
+      "id": "i1",
+      "module": "instruction fetch / branch",
+      "source": "i1_icache_boundary.S",
+      "source_sha256": "2a095368eb8bb698b5cdaeaf1343599993fd487a104784dee1e40414219e8391",
+      "insns": 81,
+      "text_sha256": "49c5855efc61e3237370166a623d24cf07e5ccc19aa6a668c034c65e6dbfbaa5",
+      "region_size": 37,
+      "distinct_forms": 4
+    },
+    "i2": {
+      "id": "i2",
+      "module": "instruction fetch / branch",
+      "source": "i2_branch_dense.S",
+      "source_sha256": "d00ddb7cab821c7843d578bed27393636768022697afc2d44528dfa8b0d84ae2",
+      "insns": 31,
+      "text_sha256": "6f9776bbc43ee623ebda29bdbd584da4fdd8451d6c297e8718ff37fe17a53dbb",
+      "region_size": 68,
+      "distinct_forms": 6
+    },
+    "l1": {
+      "id": "l1",
+      "module": "load-store disambiguation",
+      "source": "l1_disambig.S",
+      "source_sha256": "54c9d976ad3e51dc9ce51871db799a7e48deb1f5c758b871839250e1fdd1fadf",
+      "insns": 21,
+      "text_sha256": "27ba6fff6f3c2d42e654900da653ed4ef9aa3e610cafe05544d8af4ea65f9a47",
+      "region_size": 87,
+      "distinct_forms": 9
+    },
+    "l2": {
+      "id": "l2",
+      "module": "load-store disambiguation",
+      "source": "l2_dualagu_split.S",
+      "source_sha256": "b3129fbcde28b3222cbd65d2fb3e1ad4f103afe6c6f3852b77c91bfdb055f034",
+      "insns": 29,
+      "text_sha256": "79b5795cec766f2e608f5783984b6880858318313f80de6b23b643b31d7552c4",
+      "region_size": 89,
+      "distinct_forms": 7
+    },
+    "m1": {
+      "id": "m1",
+      "module": "MMU / TLB / cross-page",
+      "source": "m1_tlb_thrash.S",
+      "source_sha256": "ecefdd3c5be499756046ec18eaa8d93dc8d6269d226361fc887319360bb38ef6",
+      "insns": 15,
+      "text_sha256": "855ffe413a2573136bf0bde997c87d05d20efcb55496a9aa590ecc5fec44b6b9",
+      "region_size": 48,
+      "distinct_forms": 6
+    },
+    "m3": {
+      "id": "m3",
+      "module": "MMU / TLB / cross-page",
+      "source": "m3_cross_page.S",
+      "source_sha256": "5a2e3d60138697ee9ae97bcf58564517227374a3346d4aaee00496afe915aa9e",
+      "insns": 30,
+      "text_sha256": "d9f715603e58ed067a33829ba829800fff3e2e449aba872c1157348650951a2a",
+      "region_size": 101,
+      "distinct_forms": 10
+    },
+    "o1": {
+      "id": "o1",
+      "module": "out-of-order ROB / mispredict",
+      "source": "o1_rob_full_wakeup.S",
+      "source_sha256": "221c979219f1e0341c4e6607797a4e652bf4c4c65ef81fa18690856ef17f1916",
+      "insns": 34,
+      "text_sha256": "e246a646481a915f1d8ba4c21e1c2bdd1567e690613b6eebe620ff865a7e1c50",
+      "region_size": 68,
+      "distinct_forms": 10
+    },
+    "o2": {
+      "id": "o2",
+      "module": "out-of-order ROB / mispredict",
+      "source": "o2_mispredict_rollback.S",
+      "source_sha256": "aa260bb2407226bbc6a5131f821a75a372d9339dfc6fcbe40cdaee349528d112",
+      "insns": 17,
+      "text_sha256": "8f0096f28e1c80c333510bae2509fc726dfc58caf6b7511717ad9b5a4464150f",
+      "region_size": 85,
+      "distinct_forms": 7
+    },
+    "v1": {
+      "id": "v1",
+      "module": "vector FSU power stress",
+      "source": "v1_fsu_vdroop.S",
+      "source_sha256": "54fa6b2de400130c7238fcdabd40593cf03025aa09af5e9401852dd176ea04e3",
+      "insns": 73,
+      "text_sha256": "26ed47a81f7758a00d5b91f2f1d6b1534e365fa9fe7889c26545eb9763dfd5ac",
+      "region_size": 102,
+      "distinct_forms": 15
+    },
+    "v2": {
+      "id": "v2",
+      "module": "vector FSU power stress",
+      "source": "v2_alu_complex_saturation.S",
+      "source_sha256": "4f6aeba40268f1104a4cb7f6b293b440bc56014efb13450967e74e57b563680b",
+      "insns": 43,
+      "text_sha256": "ddbedafd2f47d82513bc400b0accda319255206c70af251a577275e7ed1ef7a2",
+      "region_size": 76,
+      "distinct_forms": 15
+    },
+    "v3": {
+      "id": "v3",
+      "module": "vector FSU power stress",
+      "source": "v3_prf_mispredict.S",
+      "source_sha256": "697405507f082a9652ceed6a1e9600f31522d28af95de4b761cec24ff4275a06",
+      "insns": 64,
+      "text_sha256": "835fd8cd131c5d565edfb4a9e3103d87c7a12cb84a7c46f99195dd06ff39d415",
+      "region_size": 83,
+      "distinct_forms": 11
+    },
+    "v4": {
+      "id": "v4",
+      "module": "vector FSU power stress",
+      "source": "v4_lsu_cross_boundary.S",
+      "source_sha256": "db17c27cdeef3509da2fd835bec7ed8420b5baf9e5692db549bbdc1fc792dea6",
+      "insns": 37,
+      "text_sha256": "352f3380205fa0007bef90820ea063bd5046ab019a8a7abf9eb4adcfbb2b1ecd",
+      "region_size": 101,
+      "distinct_forms": 10
+    },
+    "v5": {
+      "id": "v5",
+      "module": "vector FSU power stress",
+      "source": "v5_lse_cross_die.S",
+      "source_sha256": "22e99a2f3bd408711433a4437131965cbf08a72c265b9a113a0e82ba98798c48",
+      "insns": 42,
+      "text_sha256": "a1b4143e570dd26f812644ee5a9130192b80ba51734da10a5a1fc5aa3b371b3c",
+      "region_size": 89,
+      "distinct_forms": 8
+    },
+    "v6": {
+      "id": "v6",
+      "module": "vector FSU power stress",
+      "source": "v6_crypto_toggle.S",
+      "source_sha256": "6c73e17891d93ca2f63511f98a1ef36b8dd3997c80072dbd579d9f7ec3a98fce",
+      "insns": 38,
+      "text_sha256": "63f54fe31d024070c4af8770d6efcb2ba151b5c76798335e9d285df060211980",
+      "region_size": 101,
+      "distinct_forms": 15
+    }
+  },
+  "selection": {
+    "c1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5303,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5303,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5303,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8889,
+          "counter_recall": 0.4848,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8889,
+          "counter_recall": 0.4848,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 292,
+          "purity": 0.5,
+          "coverage": 0.5,
+          "counter_precision": 0.5179,
+          "counter_recall": 0.4394,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.6667,
+          "counter_precision": 0.3908,
+          "counter_recall": 0.5152,
+          "insns": 12,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.3333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 1.0,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+      "candidate_sha256": "57459c46ebca44de336c7fa85da2d337030648e9f7433572fdfaccc7e3881f13",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.5303,
+      "f1": 0.6931,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.3333,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "ldr",
+        "mov",
+        "movk",
+        "str"
+      ],
+      "stream_mnemonics": [
+        "add",
+        "mov"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 35,
+      "template_region_size": 66,
+      "shared_with": [
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0136a4c62ff60e27036e215f5e04eb6cf56631cfc37b49d85ccca77ad9307aed.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "08c5f5a4a1afc2d48df3e1cfb190802d39b2fb55cbb27783ead4240e8dd62943.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "1ff3a7d1aae70db098f59a7a852757b2e6749875afa4688b42e73b741484c4a6.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 3,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 232,
+        "stream_size": 84,
+        "precision": 0.9405,
+        "recall": 0.3405
+      }
+    },
+    "c3": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.41,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.9268,
+          "counter_recall": 0.38,
+          "insns": 2,
+          "shared": 3
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.9268,
+          "counter_recall": 0.38,
+          "insns": 2,
+          "shared": 3
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 11,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.45,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 18,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.45,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 526,
+          "purity": 1.0,
+          "coverage": 0.375,
+          "counter_precision": 0.6984,
+          "counter_recall": 0.44,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.25,
+          "coverage": 0.625,
+          "counter_precision": 0.3433,
+          "counter_recall": 0.69,
+          "insns": 24,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9535,
+        "coverage": 0.25
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.875,
+        "max_coverage_at_full_purity": 0.375,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9535,
+      "recall": 0.41,
+      "f1": 0.5734,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.25,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "ldp",
+        "ldr",
+        "mov",
+        "movk",
+        "stp",
+        "str"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 100,
+      "shared_with": [
+        "c1",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "3f5ead961f8916f58b2fe4c4200806bd46c97d1db4b7517ee5dc9f3147c218b4.sfs",
+          "purity": 1.0,
+          "coverage": 0.375,
+          "insns": 3,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "0136a4c62ff60e27036e215f5e04eb6cf56631cfc37b49d85ccca77ad9307aed.sfs",
+          "purity": 1.0,
+          "coverage": 0.25,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "08c5f5a4a1afc2d48df3e1cfb190802d39b2fb55cbb27783ead4240e8dd62943.sfs",
+          "purity": 1.0,
+          "coverage": 0.25,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 283,
+        "stream_size": 84,
+        "precision": 0.8929,
+        "recall": 0.265
+      }
+    },
+    "e1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.9767,
+          "counter_recall": 0.6667,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.9767,
+          "counter_recall": 0.6667,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.9767,
+          "counter_recall": 0.6667,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 6,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.8611,
+          "counter_recall": 0.4921,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 11,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.8611,
+          "counter_recall": 0.4921,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 207,
+          "purity": 1.0,
+          "coverage": 0.4,
+          "counter_precision": 0.8611,
+          "counter_recall": 0.4921,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.2,
+          "coverage": 0.8,
+          "counter_precision": 0.2189,
+          "counter_recall": 0.6984,
+          "insns": 24,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9767,
+        "coverage": 0.4
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.8,
+        "max_coverage_at_full_purity": 0.4,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9767,
+      "recall": 0.6667,
+      "f1": 0.7925,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.4,
+      "template_mnemonics": [
+        "add",
+        "adds",
+        "eor",
+        "mov",
+        "movk"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 63,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.4,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.4,
+          "insns": 2,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+          "purity": 1.0,
+          "coverage": 0.4,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 214,
+        "stream_size": 84,
+        "precision": 0.9167,
+        "recall": 0.3598
+      }
+    },
+    "e2": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.4848,
+          "insns": 2,
+          "shared": 9
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.4848,
+          "insns": 2,
+          "shared": 9
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.4848,
+          "insns": 2,
+          "shared": 9
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 9,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.4545,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 9,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.4545,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 239,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.6667,
+          "counter_recall": 0.5758,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.6667,
+          "counter_recall": 0.5758,
+          "insns": 4,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.2222
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.5556,
+        "max_coverage_at_full_purity": 0.2222,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "dcc57ce9619be2b402be8a714a767b9686a63afca9addb2edb1aae45f5163d6a.sfs",
+      "candidate_sha256": "1b1603cc423b6182f91ad36881dd8c6fd3e2439f4042e3c392b8833177581d8d",
+      "source": "proxy",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.4848,
+      "f1": 0.6531,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2222,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "madd",
+        "mov",
+        "movk",
+        "msub",
+        "mul",
+        "smull",
+        "umull"
+      ],
+      "stream_mnemonics": [
+        "madd",
+        "mul"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 32,
+      "template_region_size": 66,
+      "shared_with": [
+        "i1",
+        "i2",
+        "l1",
+        "o1",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0a6c142e36062ff12025b50119748fdd6d422757a6a912e39bdece309ba824ba.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "unicorn"
+        }
+      ],
+      "unicorn": {
+        "template_size": 180,
+        "stream_size": 81,
+        "precision": 0.9877,
+        "recall": 0.4444
+      }
+    },
+    "e3": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.2,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6212,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6212,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6212,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.2,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.4394,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 20,
+          "purity": 1.0,
+          "coverage": 0.2,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.4394,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 344,
+          "purity": 0.75,
+          "coverage": 0.3,
+          "counter_precision": 0.5833,
+          "counter_recall": 0.5303,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3846,
+          "coverage": 0.5,
+          "counter_precision": 0.3465,
+          "counter_recall": 0.6667,
+          "insns": 14,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9535,
+        "coverage": 0.2
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6,
+        "max_coverage_at_full_purity": 0.2,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9535,
+      "recall": 0.6212,
+      "f1": 0.7523,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2,
+      "template_mnemonics": [
+        "add",
+        "and",
+        "bic",
+        "eon",
+        "eor",
+        "mov",
+        "movk",
+        "orn",
+        "orr",
+        "sub"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 66,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "09e5914fe470fd7053ef15fff40214a6e2e7949776532747f5b0b3c717eaa481.sfs",
+          "purity": 1.0,
+          "coverage": 0.2,
+          "insns": 4,
+          "source": "proxy"
+        },
+        {
+          "snapshot": "180b7e2dc88be3bb32e3fba0326825582f7245f7932b40d10cfafd0f2f1b5e40.sfs",
+          "purity": 1.0,
+          "coverage": 0.2,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "1a0071508ab728819c1f86eff6f7c2b4ff1e6b87fbc70b85e497138c94387631.sfs",
+          "purity": 1.0,
+          "coverage": 0.2,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 188,
+        "stream_size": 84,
+        "precision": 0.881,
+        "recall": 0.3936
+      }
+    },
+    "f1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9722,
+          "counter_recall": 0.5147,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9722,
+          "counter_recall": 0.5147,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9722,
+          "counter_recall": 0.5147,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9722,
+          "counter_recall": 0.5147,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 6,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9722,
+          "counter_recall": 0.5147,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 308,
+          "purity": 0.6,
+          "coverage": 0.3333,
+          "counter_precision": 0.9118,
+          "counter_recall": 0.4559,
+          "insns": 5,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4444,
+          "coverage": 0.4444,
+          "counter_precision": 0.3778,
+          "counter_recall": 0.5,
+          "insns": 9,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9722,
+        "coverage": 0.2222
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.2222,
+        "max_insns_at_full_purity": 3
+      },
+      "snapshot": "c0e12cf34c49e87b6ed9dc1687f144e2b85619d4fc33668548806e06931f2e65.sfs",
+      "candidate_sha256": "fc3f44ebb0454d9ca886576de40ef8486f75a9d53b8478b9a024950e93065a79",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9722,
+      "recall": 0.5147,
+      "f1": 0.6731,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2222,
+      "template_mnemonics": [
+        "fadd",
+        "fcmp",
+        "fdiv",
+        "fmov",
+        "fmul",
+        "fsub",
+        "mov",
+        "movi",
+        "movk"
+      ],
+      "stream_mnemonics": [
+        "fcmp",
+        "movi"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 36,
+      "template_region_size": 68,
+      "shared_with": [],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "006d468df1f84a3c2991a68ee71ea8ae74caf42d29dffaba90ccefac10abbd47.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "unicorn"
+        }
+      ],
+      "unicorn": {
+        "template_size": 323,
+        "stream_size": 211,
+        "precision": 0.9384,
+        "recall": 0.613
+      }
+    },
+    "i1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 61,
+          "purity": 0.6667,
+          "coverage": 0.5,
+          "counter_precision": 0.5,
+          "counter_recall": 0.8108,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.5,
+          "counter_precision": 0.5957,
+          "counter_recall": 0.7568,
+          "insns": 5,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 0.6667,
+        "counter_precision": 0.5,
+        "coverage": 0.5
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.75,
+        "max_coverage_at_full_purity": 0.25,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "4d21def497d30060eef47c05bb70f659a3fcfea6d2ed1e2bf480829858d818da.sfs",
+      "candidate_sha256": "970c98aeb4a0d13f0f15a2af53768ae4bf26af01f8da417451ebd80f5223bda7",
+      "source": "ifuzz",
+      "insns": 3,
+      "precision": 0.5,
+      "recall": 0.8108,
+      "f1": 0.6186,
+      "mnemonic_precision": 0.6667,
+      "mnemonic_recall": 0.5,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "madd",
+        "nop"
+      ],
+      "stream_mnemonics": [
+        "add",
+        "eor",
+        "ucvtf"
+      ],
+      "foreign_mnemonics": [
+        "ucvtf"
+      ],
+      "trailer": true,
+      "pc_offset": 12,
+      "code_bytes": 12,
+      "region_size": 60,
+      "template_region_size": 37,
+      "shared_with": [],
+      "match": "partial",
+      "alternatives": [
+        {
+          "snapshot": "01390ca9055d695baa809a0a1d38722ab8a44eccaf2c74f0c23532bdc638fd61.sfs",
+          "purity": 1.0,
+          "coverage": 0.25,
+          "insns": 3,
+          "source": "proxy"
+        },
+        {
+          "snapshot": "135cd0781d4dacd4eb7d393130d8eb6a029946a6ed76dc87c3f954edccb26e03.sfs",
+          "purity": 1.0,
+          "coverage": 0.25,
+          "insns": 2,
+          "source": "proxy"
+        },
+        {
+          "snapshot": "169845ddd57275f37497644bd85c3c097692e8e4d32d69c667154e73d6128340.sfs",
+          "purity": 1.0,
+          "coverage": 0.25,
+          "insns": 3,
+          "source": "proxy"
+        }
+      ],
+      "unicorn": {
+        "template_size": 115,
+        "stream_size": 150,
+        "precision": 0.4933,
+        "recall": 0.6435
+      }
+    },
+    "i2": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6029,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6029,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.6029,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.4265,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.4265,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 198,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.4265,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.2,
+          "coverage": 0.6667,
+          "counter_precision": 0.2438,
+          "counter_recall": 0.7206,
+          "insns": 24,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9535,
+        "coverage": 0.3333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9535,
+      "recall": 0.6029,
+      "f1": 0.7387,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.3333,
+      "template_mnemonics": [
+        "add",
+        "b",
+        "eor",
+        "madd",
+        "mov",
+        "movk"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 68,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 188,
+        "stream_size": 84,
+        "precision": 0.881,
+        "recall": 0.3936
+      }
+    },
+    "l1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.9714,
+          "counter_recall": 0.3908,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.9714,
+          "counter_recall": 0.3908,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.9714,
+          "counter_recall": 0.3908,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.8519,
+          "counter_recall": 0.5287,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 12,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.8519,
+          "counter_recall": 0.5287,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 429,
+          "purity": 0.5,
+          "coverage": 0.4286,
+          "counter_precision": 0.5179,
+          "counter_recall": 0.3333,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.5714,
+          "counter_precision": 0.4713,
+          "counter_recall": 0.4713,
+          "insns": 12,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9714,
+        "coverage": 0.2857
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.8571,
+        "max_coverage_at_full_purity": 0.2857,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+      "candidate_sha256": "57459c46ebca44de336c7fa85da2d337030648e9f7433572fdfaccc7e3881f13",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9714,
+      "recall": 0.3908,
+      "f1": 0.5574,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2857,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "ldr",
+        "mov",
+        "movk",
+        "mul",
+        "str"
+      ],
+      "stream_mnemonics": [
+        "add",
+        "mov"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 35,
+      "template_region_size": 87,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0136a4c62ff60e27036e215f5e04eb6cf56631cfc37b49d85ccca77ad9307aed.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "08c5f5a4a1afc2d48df3e1cfb190802d39b2fb55cbb27783ead4240e8dd62943.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "1ff3a7d1aae70db098f59a7a852757b2e6749875afa4688b42e73b741484c4a6.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 3,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 261,
+        "stream_size": 84,
+        "precision": 0.9286,
+        "recall": 0.2989
+      }
+    },
+    "l2": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.4607,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9268,
+          "counter_recall": 0.427,
+          "insns": 2,
+          "shared": 3
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9268,
+          "counter_recall": 0.427,
+          "insns": 2,
+          "shared": 3
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 11,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.5056,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 13,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.5056,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 286,
+          "purity": 0.6,
+          "coverage": 0.5,
+          "counter_precision": 0.5146,
+          "counter_recall": 0.5955,
+          "insns": 5,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.2,
+          "coverage": 0.6667,
+          "counter_precision": 0.3284,
+          "counter_recall": 0.7416,
+          "insns": 24,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9535,
+        "coverage": 0.3333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.8333,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9535,
+      "recall": 0.4607,
+      "f1": 0.6212,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.3333,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "ldp",
+        "mov",
+        "movk",
+        "stp"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 89,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0caaa8bd73bf40c84fce693a3780527ac59922c4d1b8fa904e530e9ca541e477.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 4,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 2,
+          "source": "unicorn"
+        }
+      ],
+      "unicorn": {
+        "template_size": 261,
+        "stream_size": 84,
+        "precision": 0.8929,
+        "recall": 0.2874
+      }
+    },
+    "m1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 1,
+          "purity": 1.0,
+          "coverage": 0.25,
+          "counter_precision": 0.7273,
+          "counter_recall": 0.5,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 175,
+          "purity": 0.6667,
+          "coverage": 0.5,
+          "counter_precision": 0.7045,
+          "counter_recall": 0.6458,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3,
+          "coverage": 0.75,
+          "counter_precision": 0.3793,
+          "counter_recall": 0.6875,
+          "insns": 12,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.7273,
+        "coverage": 0.25
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 1.0,
+        "max_coverage_at_full_purity": 0.5,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "169845ddd57275f37497644bd85c3c097692e8e4d32d69c667154e73d6128340.sfs",
+      "candidate_sha256": "3593ae877f88eedb54acf99e55e74524105fd91947644e3e99cdbe28c9405c41",
+      "source": "proxy",
+      "insns": 3,
+      "precision": 0.7273,
+      "recall": 0.5,
+      "f1": 0.5926,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.25,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "ldr",
+        "str"
+      ],
+      "stream_mnemonics": [
+        "eor"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 12,
+      "code_bytes": 12,
+      "region_size": 33,
+      "template_region_size": 48,
+      "shared_with": [],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0136a4c62ff60e27036e215f5e04eb6cf56631cfc37b49d85ccca77ad9307aed.sfs",
+          "purity": 1.0,
+          "coverage": 0.5,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "08c5f5a4a1afc2d48df3e1cfb190802d39b2fb55cbb27783ead4240e8dd62943.sfs",
+          "purity": 1.0,
+          "coverage": 0.5,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "1ff3a7d1aae70db098f59a7a852757b2e6749875afa4688b42e73b741484c4a6.sfs",
+          "purity": 1.0,
+          "coverage": 0.5,
+          "insns": 3,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 221,
+        "stream_size": 85,
+        "precision": 0.8588,
+        "recall": 0.3303
+      }
+    },
+    "m3": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 16,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 22,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.7391,
+          "counter_recall": 0.505,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 473,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.7391,
+          "counter_recall": 0.505,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.4444,
+          "counter_precision": 0.5,
+          "counter_recall": 0.5842,
+          "insns": 10,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9512,
+        "coverage": 0.3333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "9a80181584e8c79e4d7da279b738ebf2c5356b9964fa47c42b2fbf568d25e65e.sfs",
+      "candidate_sha256": "b03cebf994119bf0f187da8fe3017685bf729d33d624437e7d44a4515813a24e",
+      "source": "ifuzz",
+      "insns": 4,
+      "precision": 0.9512,
+      "recall": 0.3861,
+      "f1": 0.5493,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.3333,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "fmov",
+        "ldp",
+        "ldur",
+        "mov",
+        "movk",
+        "stp",
+        "stur"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "ldur",
+        "stp"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 12,
+      "code_bytes": 16,
+      "region_size": 41,
+      "template_region_size": 101,
+      "shared_with": [
+        "v4"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0caaa8bd73bf40c84fce693a3780527ac59922c4d1b8fa904e530e9ca541e477.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 4,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "183a777555920629a437bbde2ae88c251f264fcee42e6ea0ff26ecdf6cc029be.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 300,
+        "stream_size": 236,
+        "precision": 0.8686,
+        "recall": 0.6833
+      }
+    },
+    "o1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 7,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.95,
+          "counter_recall": 0.5588,
+          "insns": 3,
+          "shared": 6
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.95,
+          "counter_recall": 0.5588,
+          "insns": 3,
+          "shared": 6
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.95,
+          "counter_recall": 0.5588,
+          "insns": 3,
+          "shared": 6
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 11,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8824,
+          "counter_recall": 0.4412,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 27,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.717,
+          "counter_recall": 0.5588,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 380,
+          "purity": 0.8,
+          "coverage": 0.4444,
+          "counter_precision": 0.6269,
+          "counter_recall": 0.6176,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3846,
+          "coverage": 0.5556,
+          "counter_precision": 0.3562,
+          "counter_recall": 0.7647,
+          "insns": 14,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.95,
+        "coverage": 0.2222
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "a7f7b13170bcbf47fa3d594f6e3391576a21e846c8bbda71b875a42c164d73e9.sfs",
+      "candidate_sha256": "24504828bd58517472e9d352b92c1dbd46f8a3dc5ab0e8860929913e5d7aa248",
+      "source": "ifuzz",
+      "insns": 3,
+      "precision": 0.95,
+      "recall": 0.5588,
+      "f1": 0.7037,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2222,
+      "template_mnemonics": [
+        "add",
+        "adds",
+        "and",
+        "eor",
+        "ldr",
+        "madd",
+        "orr",
+        "sub",
+        "subs"
+      ],
+      "stream_mnemonics": [
+        "add",
+        "adds"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 12,
+      "region_size": 40,
+      "template_region_size": 68,
+      "shared_with": [
+        "c3",
+        "l1",
+        "l2",
+        "m3",
+        "v4",
+        "v5"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "34ebc2b5e28bb3f89ce2d3ed81d6f64f883494485f1a6aea6f7c61eb6df8a0bb.sfs",
+          "purity": 0.8,
+          "coverage": 0.4444,
+          "insns": 6,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "efa20cf49c0582bf2fef2f8ac1f784c56854c070c923d1cd38f65e6cd12c1620.sfs",
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "insns": 4,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "14b4f5e887d40fd5a28ee4ac4f4ecc5a0a97edd7f0a00bd835554b9f1c1c6e2f.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 363,
+        "stream_size": 186,
+        "precision": 0.871,
+        "recall": 0.4463
+      }
+    },
+    "o2": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5294,
+          "insns": 2,
+          "shared": 7
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5294,
+          "insns": 2,
+          "shared": 7
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 1.0,
+          "counter_recall": 0.5294,
+          "insns": 2,
+          "shared": 7
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 14,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.3412,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 16,
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.3412,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 260,
+          "purity": 0.6667,
+          "coverage": 0.2857,
+          "counter_precision": 0.8167,
+          "counter_recall": 0.5765,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3,
+          "coverage": 0.4286,
+          "counter_precision": 0.5962,
+          "counter_recall": 0.7294,
+          "insns": 11,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.2857
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.7143,
+        "max_coverage_at_full_purity": 0.2857,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "f29598ebf8c9175c704939ab7bfec8aacb63f744e3450d314a43f604b99c1f56.sfs",
+      "candidate_sha256": "e8318287d58e6c7d3b5b68abdc8dc831eb726721722cc55a950ebef0b7cc1b43",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.5294,
+      "f1": 0.6923,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2857,
+      "template_mnemonics": [
+        "add",
+        "b.ne",
+        "eor",
+        "madd",
+        "mov",
+        "movk",
+        "subs"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "subs"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 45,
+      "template_region_size": 85,
+      "shared_with": [
+        "c3",
+        "l1",
+        "l2",
+        "m3",
+        "o1",
+        "v4",
+        "v5"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "14b4f5e887d40fd5a28ee4ac4f4ecc5a0a97edd7f0a00bd835554b9f1c1c6e2f.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.2857,
+          "insns": 2,
+          "source": "unicorn"
+        }
+      ],
+      "unicorn": {
+        "template_size": 321,
+        "stream_size": 177,
+        "precision": 0.8418,
+        "recall": 0.4642
+      }
+    },
+    "v1": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.3431,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.3431,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 1.0,
+          "counter_recall": 0.3431,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8889,
+          "counter_recall": 0.3137,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 11,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8889,
+          "counter_recall": 0.3137,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 388,
+          "purity": 0.5,
+          "coverage": 0.3333,
+          "counter_precision": 0.6719,
+          "counter_recall": 0.4216,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.4444,
+          "counter_precision": 0.5632,
+          "counter_recall": 0.4804,
+          "insns": 12,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.2222
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.5556,
+        "max_coverage_at_full_purity": 0.2222,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+      "candidate_sha256": "57459c46ebca44de336c7fa85da2d337030648e9f7433572fdfaccc7e3881f13",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.3431,
+      "f1": 0.5109,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2222,
+      "template_mnemonics": [
+        "add",
+        "dup",
+        "eor",
+        "fmla",
+        "fmov",
+        "madd",
+        "mov",
+        "movk",
+        "nop"
+      ],
+      "stream_mnemonics": [
+        "add",
+        "mov"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 35,
+      "template_region_size": 102,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "21ef7b5dbb159ca117318fb67436138919a0df171c4a9e878c2a639f79d14786.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "unicorn"
+        }
+      ],
+      "unicorn": {
+        "template_size": 346,
+        "stream_size": 84,
+        "precision": 0.9643,
+        "recall": 0.2341
+      }
+    },
+    "v2": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.125,
+          "counter_precision": 1.0,
+          "counter_recall": 0.4211,
+          "insns": 2,
+          "shared": 9
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.125,
+          "counter_precision": 0.9091,
+          "counter_recall": 0.5263,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 8,
+          "purity": 1.0,
+          "coverage": 0.125,
+          "counter_precision": 0.9091,
+          "counter_recall": 0.5263,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 25,
+          "purity": 1.0,
+          "coverage": 0.125,
+          "counter_precision": 0.9091,
+          "counter_recall": 0.5263,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 30,
+          "purity": 0.75,
+          "coverage": 0.1875,
+          "counter_precision": 0.7846,
+          "counter_recall": 0.6711,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 525,
+          "purity": 0.75,
+          "coverage": 0.1875,
+          "counter_precision": 0.7846,
+          "counter_recall": 0.6711,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3846,
+          "coverage": 0.3125,
+          "counter_precision": 0.3858,
+          "counter_recall": 0.6447,
+          "insns": 14,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.125
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.4375,
+        "max_coverage_at_full_purity": 0.1875,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "dcc57ce9619be2b402be8a714a767b9686a63afca9addb2edb1aae45f5163d6a.sfs",
+      "candidate_sha256": "1b1603cc423b6182f91ad36881dd8c6fd3e2439f4042e3c392b8833177581d8d",
+      "source": "proxy",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.4211,
+      "f1": 0.5926,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.125,
+      "template_mnemonics": [
+        "add",
+        "adds",
+        "and",
+        "bic",
+        "eor",
+        "madd",
+        "mov",
+        "movk",
+        "msub",
+        "mul",
+        "orn",
+        "orr",
+        "smull",
+        "sub",
+        "subs",
+        "umull"
+      ],
+      "stream_mnemonics": [
+        "madd",
+        "mul"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 32,
+      "template_region_size": 76,
+      "shared_with": [
+        "e2",
+        "i1",
+        "i2",
+        "l1",
+        "o1",
+        "o2",
+        "v1",
+        "v3",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "efa20cf49c0582bf2fef2f8ac1f784c56854c070c923d1cd38f65e6cd12c1620.sfs",
+          "purity": 1.0,
+          "coverage": 0.1875,
+          "insns": 4,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "00df69fab21fa84a14114d019d124592f5d92460936b27efe52f1febe3c44228.sfs",
+          "purity": 1.0,
+          "coverage": 0.125,
+          "insns": 2,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "09e5914fe470fd7053ef15fff40214a6e2e7949776532747f5b0b3c717eaa481.sfs",
+          "purity": 1.0,
+          "coverage": 0.125,
+          "insns": 4,
+          "source": "proxy"
+        }
+      ],
+      "unicorn": {
+        "template_size": 314,
+        "stream_size": 81,
+        "precision": 0.963,
+        "recall": 0.2484
+      }
+    },
+    "v3": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9737,
+          "counter_recall": 0.4458,
+          "insns": 2,
+          "shared": 16
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9429,
+          "counter_recall": 0.3976,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.9429,
+          "counter_recall": 0.3976,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 7,
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.3614,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 9,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.8,
+          "counter_recall": 0.6265,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 413,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.8,
+          "counter_recall": 0.6265,
+          "insns": 4,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4444,
+          "coverage": 0.4444,
+          "counter_precision": 0.5556,
+          "counter_recall": 0.6024,
+          "insns": 9,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9737,
+        "coverage": 0.2222
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.2222,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+      "candidate_sha256": "23d3068ae98a0aa51b5b9d0b019760a077ff69c57d3a0190d522795b2c8ac61a",
+      "source": "unicorn",
+      "insns": 2,
+      "precision": 0.9737,
+      "recall": 0.4458,
+      "f1": 0.6116,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.2222,
+      "template_mnemonics": [
+        "add",
+        "adds",
+        "b.eq",
+        "cmp",
+        "fmov",
+        "madd",
+        "mov",
+        "movk",
+        "subs"
+      ],
+      "stream_mnemonics": [
+        "mov",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 38,
+      "template_region_size": 83,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "f1",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v4",
+        "v5",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "14b4f5e887d40fd5a28ee4ac4f4ecc5a0a97edd7f0a00bd835554b9f1c1c6e2f.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 353,
+        "stream_size": 58,
+        "precision": 0.9483,
+        "recall": 0.1558
+      }
+    },
+    "v4": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 16,
+          "purity": 1.0,
+          "coverage": 0.3333,
+          "counter_precision": 0.9512,
+          "counter_recall": 0.3861,
+          "insns": 4,
+          "shared": 1
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 22,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.7391,
+          "counter_recall": 0.505,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 473,
+          "purity": 0.75,
+          "coverage": 0.3333,
+          "counter_precision": 0.7391,
+          "counter_recall": 0.505,
+          "insns": 6,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4,
+          "coverage": 0.4444,
+          "counter_precision": 0.5,
+          "counter_recall": 0.5842,
+          "insns": 10,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9512,
+        "coverage": 0.3333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.6667,
+        "max_coverage_at_full_purity": 0.3333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "9a80181584e8c79e4d7da279b738ebf2c5356b9964fa47c42b2fbf568d25e65e.sfs",
+      "candidate_sha256": "b03cebf994119bf0f187da8fe3017685bf729d33d624437e7d44a4515813a24e",
+      "source": "ifuzz",
+      "insns": 4,
+      "precision": 0.9512,
+      "recall": 0.3861,
+      "f1": 0.5493,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.3333,
+      "template_mnemonics": [
+        "add",
+        "eor",
+        "fmov",
+        "ldp",
+        "ldur",
+        "mov",
+        "movk",
+        "stp",
+        "stur"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "ldur",
+        "stp"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 12,
+      "code_bytes": 16,
+      "region_size": 41,
+      "template_region_size": 101,
+      "shared_with": [
+        "m3"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "0caaa8bd73bf40c84fce693a3780527ac59922c4d1b8fa904e530e9ca541e477.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 4,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "183a777555920629a437bbde2ae88c251f264fcee42e6ea0ff26ecdf6cc029be.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.2222,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 298,
+        "stream_size": 236,
+        "precision": 0.8729,
+        "recall": 0.6913
+      }
+    },
+    "v5": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 2,
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.4607,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.4607,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 4,
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "counter_precision": 0.9535,
+          "counter_recall": 0.4607,
+          "insns": 2,
+          "shared": 15
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.5056,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "counter_precision": 0.8333,
+          "counter_recall": 0.5056,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 215,
+          "purity": 0.6667,
+          "coverage": 0.1818,
+          "counter_precision": 0.8667,
+          "counter_recall": 0.5843,
+          "insns": 3,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.3,
+          "coverage": 0.2727,
+          "counter_precision": 0.4368,
+          "counter_recall": 0.427,
+          "insns": 12,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 0.9535,
+        "coverage": 0.1818
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.3636,
+        "max_coverage_at_full_purity": 0.1818,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "e2ed67082ba2f27c4efee4c2c607988b8f0a9e6ab3f8ad96a4ab2cd53adb2465.sfs",
+      "candidate_sha256": "f4a00da6a18ca8029b80606e8d6e610b274780c4d138a6944e43e755f9132e19",
+      "source": "ifuzz",
+      "insns": 2,
+      "precision": 0.9535,
+      "recall": 0.4607,
+      "f1": 0.6212,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.1818,
+      "template_mnemonics": [
+        "add",
+        "casa",
+        "casal",
+        "eor",
+        "ldadd",
+        "ldadda",
+        "ldaddl",
+        "mov",
+        "movk",
+        "swp",
+        "swpal"
+      ],
+      "stream_mnemonics": [
+        "eor",
+        "movk"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 43,
+      "template_region_size": 89,
+      "shared_with": [
+        "c1",
+        "c3",
+        "e1",
+        "e2",
+        "e3",
+        "i2",
+        "l1",
+        "l2",
+        "m3",
+        "o2",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v6"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "insns": 2,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+          "purity": 1.0,
+          "coverage": 0.1818,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 61,
+        "stream_size": 84,
+        "precision": 0.5357,
+        "recall": 0.7377
+      }
+    },
+    "v6": {
+      "ladder": [
+        {
+          "mnemonic_purity_gate": 1.0,
+          "counter_precision_gate": 0.95,
+          "available": 3,
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "counter_precision": 1.0,
+          "counter_recall": 0.3168,
+          "insns": 2,
+          "shared": 9
+        },
+        {
+          "mnemonic_purity_gate": 0.9,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "counter_precision": 0.9412,
+          "counter_recall": 0.3168,
+          "insns": 2,
+          "shared": 4
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.9,
+          "available": 5,
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "counter_precision": 0.9412,
+          "counter_recall": 0.3168,
+          "insns": 2,
+          "shared": 4
+        },
+        {
+          "mnemonic_purity_gate": 0.8,
+          "counter_precision_gate": 0.8,
+          "available": 10,
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.2871,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.7,
+          "counter_precision_gate": 0.7,
+          "available": 13,
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "counter_precision": 0.8056,
+          "counter_recall": 0.2871,
+          "insns": 2,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.5,
+          "counter_precision_gate": 0.5,
+          "available": 479,
+          "purity": 0.5,
+          "coverage": 0.2667,
+          "counter_precision": 0.5,
+          "counter_recall": 0.5644,
+          "insns": 8,
+          "shared": 0
+        },
+        {
+          "mnemonic_purity_gate": 0.0,
+          "counter_precision_gate": 0.0,
+          "available": 11416,
+          "purity": 0.4444,
+          "coverage": 0.2667,
+          "counter_precision": 0.6556,
+          "counter_recall": 0.5842,
+          "insns": 9,
+          "shared": 0
+        }
+      ],
+      "operating_point": {
+        "mnemonic_purity": 1.0,
+        "counter_precision": 1.0,
+        "coverage": 0.1333
+      },
+      "ceiling": {
+        "max_coverage_any_purity": 0.4,
+        "max_coverage_at_full_purity": 0.1333,
+        "max_insns_at_full_purity": 4
+      },
+      "snapshot": "dcc57ce9619be2b402be8a714a767b9686a63afca9addb2edb1aae45f5163d6a.sfs",
+      "candidate_sha256": "1b1603cc423b6182f91ad36881dd8c6fd3e2439f4042e3c392b8833177581d8d",
+      "source": "proxy",
+      "insns": 2,
+      "precision": 1.0,
+      "recall": 0.3168,
+      "f1": 0.4812,
+      "mnemonic_precision": 1.0,
+      "mnemonic_recall": 0.1333,
+      "template_mnemonics": [
+        "add",
+        "aese",
+        "aesmc",
+        "crc32cw",
+        "crc32cx",
+        "dup",
+        "eor",
+        "fmov",
+        "madd",
+        "mov",
+        "movk",
+        "mul",
+        "sha1c",
+        "sha256h",
+        "sub"
+      ],
+      "stream_mnemonics": [
+        "madd",
+        "mul"
+      ],
+      "foreign_mnemonics": [],
+      "trailer": true,
+      "pc_offset": 8,
+      "code_bytes": 8,
+      "region_size": 32,
+      "template_region_size": 101,
+      "shared_with": [
+        "e2",
+        "i1",
+        "i2",
+        "l1",
+        "o1",
+        "o2",
+        "v1",
+        "v2",
+        "v3"
+      ],
+      "match": "pure",
+      "alternatives": [
+        {
+          "snapshot": "24ec2a8719ba2a2426285f2062d732ff348e9a71d1e92f437207e690a7672b22.sfs",
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "insns": 2,
+          "source": "ifuzz"
+        },
+        {
+          "snapshot": "2bf66b59f44198e1eff50cf8318a4638c86f326a787eb4f44d21f3c6072801c9.sfs",
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "insns": 2,
+          "source": "unicorn"
+        },
+        {
+          "snapshot": "30242d8a87b0f638112a989e8f1fb8362b4a16b63d0bc67d94698d3e278aca30.sfs",
+          "purity": 1.0,
+          "coverage": 0.1333,
+          "insns": 2,
+          "source": "ifuzz"
+        }
+      ],
+      "unicorn": {
+        "template_size": 265,
+        "stream_size": 81,
+        "precision": 0.963,
+        "recall": 0.2943
+      }
+    }
+  },
+  "fingerprint": {
+    "driver_cap_sha256": "83651b2102df697d9f55fee30747c93a864d8e557e3e11b8ae51760ed8b13f6e",
+    "driver_uc_sha256": "7b32a7285e8f4c19a51670f1923017a81760cadeb9fa8ee61745a23890292085",
+    "baseline_counters": 68,
+    "distinct_words": 4609,
+    "candidates_measured": 89966
+  }
+}
