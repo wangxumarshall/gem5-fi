@@ -672,10 +672,16 @@ def metric_row(stats_path):
     flat = metrics.flatten(doc)
     dumps = TOOL.stat_dumps(Path(stats_path))
     last = dumps[-1]
-    # ``simInsts`` is a global counter that keeps counting after m5_work_end
-    # (the Auto guest computes a checksum and prints after the ROI).  The
-    # windowed SAD issued-op counter is the ROI instruction count.
-    roi_insts = flat.get("sad.globals.issuedOps")
+    first = dumps[0]
+    # ``simInsts`` at the first dump is ROI-scoped: m5_work_begin resets the
+    # gem5 statistics and m5_work_end dumps them before the Auto guest runs its
+    # post-ROI checksum/print.  Do NOT use sad.issuedOps here: it counts issue
+    # events (gem5 iq.instsIssued semantics; ldxr reports 7.849x the retired
+    # count), not retired instructions.  Fall back to it only when a run has no
+    # work_end dump at all.
+    roi_insts = numeric(first, "simInsts") if len(dumps) > 1 else None
+    if not roi_insts or roi_insts <= 0:
+        roi_insts = flat.get("sad.globals.issuedOps")
     roi_cycles = flat.get("ace.rf.measuredCycles") or doc["windows"]["rf_ace"]
     meta = {
         "sim_insts": roi_insts,
