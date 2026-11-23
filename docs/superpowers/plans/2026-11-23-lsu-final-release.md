@@ -15,11 +15,11 @@
       (recorded `d8fcc14d91fa0e97461562390ed1728cd2e193a1`).
 - [x] Fresh `--single-branch --branch lsu` clone.
 - [x] Run code-level tests in the clone (50 passed).
-- [ ] Fresh gem5 build in the clone (`scons -j16 build/ARM/gem5.opt`).
+- [x] Fresh gem5 build in the clone (`scons -j16 build/ARM/gem5.opt`): done.
 - [x] Representative fault and control run from the clone; prop/commit/
       micro/stdout artifacts present.
-- [ ] Server cleanup after clone/build validation, with deletion manifest.
-- [ ] Final report.
+- [x] Server cleanup after clone/build validation, with deletion manifest.
+- [x] Final report.
 
 Notes: the frozen experiment code is unchanged except path resolution
 (`LSU_E2E_ROOT`, `LSU_WORKSPACE_ROOT`, `LSU_GEM5_ROOT`, `LSU_INPUT_XLSX`).
