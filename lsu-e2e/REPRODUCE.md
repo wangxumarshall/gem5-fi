@@ -21,7 +21,7 @@ The build must produce the ARM `gem5.opt` binary.
 
 ## 3. Workloads
 
-The 60 E2E-instrumented binaries (12 families x 5 contexts) are included
+The 40 E2E-instrumented binaries (8 workload families x 5 contexts; the 12 LSU models map onto these families) are included
 under `lsu-e2e/code/workloads/bin/`, with `MANIFEST.csv` and `SHA256SUMS`.
 To rebuild and re-check them against the frozen goldens:
 
