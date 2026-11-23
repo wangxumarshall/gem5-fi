@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Aggregate Phase-1 structure coverage into a reviewable report.
 
-Input is ``coverage_matrix.json`` produced by
-``scripts/test-template-coverage.py`` (schema
-``sdcfuzz.phase1.coverage_matrix.v1``).  The report answers three questions
+Input is a ``coverage_matrix.json`` document (schema
+``sdcfuzz.phase1.coverage_matrix.v1``), for example one produced by a gem5
+measurement run.  The report answers three questions
 that a raw matrix does not:
 
 * which structures are covered by at least one template (and by how much);
@@ -166,22 +166,54 @@ def summarize_matrix(matrix):
     }
 
 
+def _last_dump_lines(text):
+    """Return the lines of the final statistics dump, or the whole file."""
+    blocks, current = [], None
+    for line in text.splitlines():
+        if "Begin Simulation Statistics" in line:
+            current = []
+        elif "End Simulation Statistics" in line:
+            if current is not None:
+                blocks.append(current)
+                current = None
+        elif current is not None:
+            current.append(line)
+    return blocks[-1] if blocks else text.splitlines()
+
+
 def sad_from_stats(path):
-    """Parse SAD counters from a gem5 stats.txt, or return None.
+    """Parse SAD counters from the final dump of a gem5 stats.txt, or None.
 
     Only the last statistics dump is used, matching ``autousens`` and the
     template matrix.  The function is deliberately suffix-based because the
-    stat hierarchy differs between the SE and board configurations.
+    stat hierarchy differs between the SE and board configurations.  ``issue``
+    is a scalar family (``issueRatio``/``issuedOps``/``issueWidth``), not part
+    of the ``ratio::`` vector, so it is parsed explicitly.
+
+    A newer build emits ``sad.enabled``.  ``enabled == 0`` means SAD was not
+    requested: the statistics group is still dumped as zeros by gem5, so this
+    function returns None instead of a zero document.  The same applies to an
+    enabled tracker whose selected ROI never started (no work item, or a
+    mismatched work id).  ``samples`` counts only active CPU cycles; the ROI
+    length (including idle cycles) is ``roi_cycles`` and is the field to
+    compare with ACE/IBR ``measuredCycles``.
     """
 
     path = Path(path)
     if not path.is_file():
         return None
     samples = None
+    enabled = None
+    roi_cycles = None
+    idle_cycles = None
+    active_cycles = None
+    window_begins = None
+    window_ends = None
     ratio = {}
     used = {}
     capacity = {}
-    for line in path.read_text(errors="replace").splitlines():
+    issue = {}
+    for line in _last_dump_lines(path.read_text(errors="replace")):
         fields = line.split()
         if len(fields) < 2:
             continue
@@ -194,23 +226,57 @@ def sad_from_stats(path):
             continue
         if name.endswith(".sad.samples"):
             samples = value
+        elif name.endswith(".sad.enabled"):
+            enabled = value
+        elif name.endswith(".sad.roiCycles"):
+            roi_cycles = value
+        elif name.endswith(".sad.idleCycles"):
+            idle_cycles = value
+        elif name.endswith(".sad.activeCycles"):
+            active_cycles = value
+        elif name.endswith(".sad.windowBegins"):
+            window_begins = value
+        elif name.endswith(".sad.windowEnds"):
+            window_ends = value
+        elif name.endswith(".sad.issueRatio"):
+            issue["ratio"] = value
+        elif name.endswith(".sad.issuedOps"):
+            issue["issued_ops"] = value
+        elif name.endswith(".sad.issueWidth"):
+            issue["width"] = value
         elif ".sad.ratio::" in name:
             ratio[name.split("::", 1)[1]] = value
         elif ".sad.usedSum::" in name:
             used[name.split("::", 1)[1]] = value
         elif ".sad.capacity::" in name:
             capacity[name.split("::", 1)[1]] = value
-    if not ratio and samples is None:
+    if not ratio and samples is None and not issue:
+        return None
+    if enabled is not None and enabled == 0:
+        return None
+    if (samples == 0 and (window_begins is None or window_begins == 0)
+            and (roi_cycles is None or roi_cycles == 0)):
         return None
     resources = [name for name in SAD_RESOURCES if name in ratio]
     resources += sorted(set(ratio) - set(resources))
-    return {
+    document = {
+        "enabled": enabled,
         "samples": samples,
+        "active_cycles": active_cycles if active_cycles is not None
+        else samples,
+        "roi_cycles": roi_cycles,
+        "idle_cycles": idle_cycles,
+        "window_begins": window_begins,
+        "window_ends": window_ends,
         "ratio": {name: ratio[name] for name in resources},
         "used_sum": {name: used[name] for name in resources if name in used},
         "capacity": {name: capacity[name] for name in resources
                      if name in capacity},
+        "attribution": "per-active-cycle resource occupancy; not coverage",
     }
+    if issue:
+        document["issue"] = issue
+    return document
 
 
 def _write_csv(matrix, summary, path):
@@ -263,15 +329,31 @@ def _write_markdown(summary, path, source, sad):
                   "必需指标覆盖（例如 `rf`、`vec`），属于支撑指标，不是缺陷。"]
     if sad:
         lines += ["", "## SAD 占用（可选）", "",
-                  "| 资源 | ratio | usedSum | capacity |",
+                  "占用是结构与容量之比，不是结构功能覆盖率。",
+                  "", "| 资源 | ratio | usedSum | capacity |",
                   "|---|---:|---:|---:|"]
         for name in sad["ratio"]:
             lines.append(
                 f"| `{name}` | {sad['ratio'][name]:.6f} | "
                 f"{sad['used_sum'].get(name, '-')} | "
                 f"{sad['capacity'].get(name, '-')} |")
+        issue = sad.get("issue") or {}
+        if issue.get("ratio") is not None:
+            lines.append(
+                f"| `issue` | {issue['ratio']:.6f} | "
+                f"{issue.get('issued_ops', '-')} | "
+                f"{issue.get('width', '-')} |")
         if sad.get("samples") is not None:
-            lines += ["", f"samples={sad['samples']:.0f}"]
+            lines += ["", f"samples(active cycles)={sad['samples']:.0f}"]
+            if sad.get("roi_cycles") is not None:
+                lines.append(f"roiCycles={sad['roi_cycles']:.0f}")
+            if sad.get("idle_cycles") is not None:
+                lines.append(f"idleCycles={sad['idle_cycles']:.0f}")
+            if sad.get("active_cycles") is not None:
+                lines.append(f"activeCycles={sad['active_cycles']:.0f}")
+            lines += ["", "SAD samples are active CPU cycles; roiCycles includes "
+                      "idle/unscheduled cycles and is the field to compare with "
+                      "ACE/IBR measuredCycles."]
     path.write_text("\n".join(lines) + "\n")
 
 

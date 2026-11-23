@@ -110,6 +110,57 @@ def test_sad_from_stats_returns_none_without_sad_counters(tmp_path):
     assert sad_from_stats(stats) is None
 
 
+def test_sad_from_stats_returns_none_when_disabled(tmp_path):
+    stats = tmp_path / "stats.txt"
+    stats.write_text(
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.enabled 0\n"
+        "board.processor.cores.core.sad.samples 0\n"
+        "board.processor.cores.core.sad.roiCycles 0\n"
+        "board.processor.cores.core.sad.idleCycles 0\n"
+        "board.processor.cores.core.sad.windowBegins 0\n"
+        "board.processor.cores.core.sad.ratio::rob 0.00000000\n"
+        "board.processor.cores.core.sad.capacity::rob 128\n"
+        "End Simulation Statistics\n")
+    assert sad_from_stats(stats) is None
+
+
+def test_sad_from_stats_reads_roi_window(tmp_path):
+    stats = tmp_path / "stats.txt"
+    stats.write_text(
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.enabled 1\n"
+        "board.processor.cores.core.sad.samples 90\n"
+        "board.processor.cores.core.sad.activeCycles 90\n"
+        "board.processor.cores.core.sad.roiCycles 100\n"
+        "board.processor.cores.core.sad.idleCycles 10\n"
+        "board.processor.cores.core.sad.windowBegins 1\n"
+        "board.processor.cores.core.sad.windowEnds 1\n"
+        "board.processor.cores.core.sad.ratio::rob 0.50000000\n"
+        "End Simulation Statistics\n")
+    sad = sad_from_stats(stats)
+    assert sad["enabled"] == 1.0
+    assert sad["samples"] == 90.0
+    assert sad["active_cycles"] == 90.0
+    assert sad["roi_cycles"] == 100.0
+    assert sad["idle_cycles"] == 10.0
+    assert sad["window_begins"] == 1.0
+
+
+def test_sad_from_stats_returns_none_when_roi_never_started(tmp_path):
+    stats = tmp_path / "stats.txt"
+    stats.write_text(
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.enabled 1\n"
+        "board.processor.cores.core.sad.samples 0\n"
+        "board.processor.cores.core.sad.roiCycles 0\n"
+        "board.processor.cores.core.sad.idleCycles 0\n"
+        "board.processor.cores.core.sad.windowBegins 0\n"
+        "board.processor.cores.core.sad.ratio::rob 0.00000000\n"
+        "End Simulation Statistics\n")
+    assert sad_from_stats(stats) is None
+
+
 def test_write_report_emits_json_csv_and_markdown(tmp_path):
     matrix_path = tmp_path / "coverage_matrix.json"
     matrix_path.write_text(json.dumps(matrix_document()))
@@ -128,3 +179,50 @@ def test_write_report_emits_json_csv_and_markdown(tmp_path):
     markdown = (out / "coverage_summary.md").read_text()
     assert "SAD 占用" in markdown
     assert "`rob`" in markdown
+
+
+def test_sad_issue_scalars_are_parsed_from_last_dump(tmp_path):
+    stats = tmp_path / "stats.txt"
+    stats.write_text(
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.issueRatio 0.900000\n"
+        "board.processor.cores.core.sad.samples 100\n"
+        "End Simulation Statistics\n"
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.samples 200\n"
+        "board.processor.cores.core.sad.ratio::rob 0.5\n"
+        "board.processor.cores.core.sad.issueRatio 0.25\n"
+        "board.processor.cores.core.sad.issuedOps 400\n"
+        "board.processor.cores.core.sad.issueWidth 4\n"
+        "End Simulation Statistics\n")
+    sad = sad_from_stats(stats)
+    assert sad["samples"] == 200.0
+    assert sad["ratio"] == {"rob": 0.5}
+    assert sad["issue"] == {"ratio": 0.25, "issued_ops": 400.0, "width": 4.0}
+
+
+def test_sad_last_dump_missing_field_does_not_inherit_earlier_value(tmp_path):
+    stats = tmp_path / "stats.txt"
+    stats.write_text(
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.ratio::rob 0.9\n"
+        "End Simulation Statistics\n"
+        "Begin Simulation Statistics\n"
+        "board.processor.cores.core.sad.samples 10\n"
+        "End Simulation Statistics\n")
+    sad = sad_from_stats(stats)
+    assert sad["samples"] == 10.0
+    assert sad["ratio"] == {}
+
+
+def test_markdown_reports_issue_utilisation_separately(tmp_path):
+    matrix_path = tmp_path / "coverage_matrix.json"
+    matrix_path.write_text(json.dumps(matrix_document()))
+    sad = {"samples": 10.0, "ratio": {"rob": 0.5}, "used_sum": {"rob": 5.0},
+           "capacity": {"rob": 10.0},
+           "issue": {"ratio": 0.25, "issued_ops": 40.0, "width": 4.0}}
+    write_report(load_matrix(matrix_path), tmp_path / "report", sad=sad,
+                 source=matrix_path)
+    markdown = (tmp_path / "report/coverage_summary.md").read_text()
+    assert "| `issue` | 0.250000 | 40.0 | 4.0 |" in markdown
+    assert "不是结构功能覆盖率" in markdown
