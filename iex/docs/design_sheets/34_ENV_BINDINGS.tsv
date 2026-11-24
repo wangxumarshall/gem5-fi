@@ -1,0 +1,19 @@
+Parameter	Requirement	SuggestedValue_非实际证据	BindingRule	ActualValue	SHA256_or_Evidence	Status
+SourceRoot	REQUIRED	/home/sdc/gem5-fi-IEX/	只读查找实际IEX工程，核对是否与原baseline一致			UNBOUND
+BaselineCommit	REQUIRED	226778cf7d71e5cd47c8153fe7ef4eeabf82b858	原表00/03设计基线；若服务器已冻结v1在另一commit，记录两者差异、hook映射和v1证据，不能静默替换			UNBOUND
+V1EvidenceArchive	REQUIRED	IEX_Final_Evidence.tar.gz	记录绝对路径和SHA256；不存在不得声称已复核v1完成证据			UNBOUND
+WorkingRoot	REQUIRED	<SourceRoot>/when_5x3_v3	独立worktree/源码副本路径；不得直接修改冻结原工程			UNBOUND
+IEX_WHEN_ROOT	REQUIRED	<WorkingRoot>/results/IEX_WHEN_5x3_v3_2026-11-23	本版manifest/control/pilot/runs/audit结果根目录			UNBOUND
+Gem5Binary	REQUIRED	待构建绑定	可执行文件绝对路径及SHA256；验证debug/release配置			UNBOUND
+SEConfigScript	REQUIRED	待查找绑定	真实SE脚本与参数；不编造gem5 CLI flag			UNBOUND
+CPUAndFUConfig	REQUIRED	AArch64 O3 SE，单核单线程	实际CPU类型、ROB/IQ/物理寄存器、各FU与latency配置序列化hash；不得为了结果改模型延迟			UNBOUND
+CompilerAndObjdump	REQUIRED	aarch64-linux-gnu-gcc / aarch64-linux-gnu-objdump	记录实际路径/版本；建议-O2 -static -fno-lto -march=armv8-a + 独立.S；依服务器工具链验证			UNBOUND
+BuildCommand	REQUIRED	待源码审计后绑定	完整gem5与35Context负载构建命令，含cwd/env，归档日志			UNBOUND
+TargetPCAndROIMap	REQUIRED	每Context由objdump+符号定位	35Context对应唯一target PC/opcode；ROI起止、core/tid；C05 older和consumer branch PC			UNBOUND
+InputAndGoldenManifest	REQUIRED	从28固定hex输入和独立Oracle生成	输入SHA、每episode正常final/aux；原R仅作输入来源不混用旧样本ID			UNBOUND
+SeedPolicy	REQUIRED	固定seed或N/A_DETERMINISTIC	有随机组件必须绑定所有seed；同Context三T保持相同			UNBOUND
+TimeoutPolicy	REQUIRED	先测Control时长再绑定	每Case wall-time与sim-tick上限、progress采样周期；正式Fault前冻结，不按Fault结果临时延长			UNBOUND
+ParallelismAndRetry	REQUIRED	初始1个gem5进程；自动重试上限1	Pilot后按资源预算绑定并发；重试新AttemptID；C05预检scaffold最多3个版本，仍失败标阻塞/N_A并保存证据			UNBOUND
+HookPatchAndBuildHash	REQUIRED	待实现/审计	七模型hook、selector、trace patch SHA256与生成C++锚点			UNBOUND
+RunnerAndCommands	REQUIRED	实现33建议接口后绑定	真实runner路径、--help输出、Control/Pilot/Fault/Audit精确命令			UNBOUND
+SpecVersion	REQUIRED	IEX_WHEN_5x3_v3_2026-11-23	输入、guard、负载scaffold或环境变化须升版本并重做受影响Control/Pilot			UNBOUND

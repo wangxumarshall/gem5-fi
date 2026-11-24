@@ -1,0 +1,81 @@
+{
+  "spec": "IEX_WHEN_5x3_v3_2026-11-23",
+  "generated": "2026-11-23T13:40:20+0800",
+  "checks": [
+    {
+      "check": "105 unique CaseIDs",
+      "pass": true
+    },
+    {
+      "check": "7x5x3 matrix complete",
+      "pass": true
+    },
+    {
+      "check": "35 unique ControlIDs",
+      "pass": true
+    },
+    {
+      "check": "every fault references an existing control",
+      "pass": true
+    },
+    {
+      "check": "every fault has exactly one applied injection",
+      "pass": true
+    },
+    {
+      "check": "every ActualOrdinal equals TargetOrdinal",
+      "pass": true
+    },
+    {
+      "check": "every N>=20 and 1<=K<=N",
+      "pass": true
+    },
+    {
+      "check": "every fault trace complete",
+      "pass": true
+    },
+    {
+      "check": "every selected-slot oracle match",
+      "pass": true
+    },
+    {
+      "check": "every control N>=20",
+      "pass": true
+    },
+    {
+      "check": "every control has 3 distinct ordinals",
+      "pass": true
+    },
+    {
+      "check": "every control census repeatable",
+      "pass": true
+    },
+    {
+      "check": "every control output all-golden",
+      "pass": true
+    },
+    {
+      "check": "no timeout / crash / unknown terminal",
+      "pass": true
+    },
+    {
+      "check": "C03 all MASKED with overwrite evidence",
+      "pass": true
+    },
+    {
+      "check": "non-C03 all SDC",
+      "pass": true
+    }
+  ],
+  "all_pass": true,
+  "coverage": {
+    "faults": 105,
+    "controls": 35,
+    "full_evidence": 105,
+    "terminals": {
+      "SDC": 84,
+      "MASKED": 21
+    },
+    "anomalous_attempts": 1
+  }
+}

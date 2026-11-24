@@ -1,0 +1,18 @@
+项目	设计定义
+单元与版本	IEX / INT EU · 当前 v3 5×3计划见27_SERVER_START；原00–17保留历史设计定义
+范围	当前新增计划：7模型×5机制上下文×3动态分位=105 Fault；35 Control。原35个R上下文保留，CRC暂缓。
+基线	/home/sdc/gem5-fi-ding · fix/0202-six-chain-20261026 · 226778cf7d71e5cd47c8153fe7ef4eeabf82b858
+设计环境	AArch64 O3 SE，单核单线程。实际 SE 脚本、CPU/FU 参数、gem5 二进制及 ROI 映射待绑定。
+实验阶段	源码审计和设计。七个主 hook 为待实现方案，未构建负载、未运行预检或 Pilot。
+审核与冻结	FreezeStatus=BLOCKED；ConfigFrozen=NO。M003 五组离线乘法验证通过。M006 五组离线 NZCV 验证通过；实际同一 CC 分配版本、配对基线及传播仍待 0202 取证。
+复用规范	ARM_CPU_Global_Fault_Injection_Standard.md；以 gem5-fi-LSU.xlsx 和 gem5-fi-MMU.xlsx 为组织参考。
+证据定位	工作簿 03 源码审计、16_M003_Arithmetic_Audit、17_Data_Consistency_Report；项目内 .planning/iex-v021/0202_source_evidence.txt 和 0202_condition_evidence.txt。
+读表方法	当前执行请先读27_SERVER_START及28–35；旧18–26为历史v2，不得作为本轮执行矩阵。原Contexts理论值仍是历史设计值。
+运行结果	ActualTerminal、实际输出、Oracle、提交与因果均为 PENDING_RUNTIME_VALIDATION。
+实际终态规则	SDC 需可归因的外部差异且未检测。MASKED 需实际掩蔽边。SQUASHED 需目标受影响路径被撤销。CRASH 区分客体与模拟器。HANG/TIMEOUT 需超时和进展证据。缺证据保留待验证或未决。
+基线校验和	计划用 SHA256 校验实际无故障输出的规范字节：唯一 ContextID,raw,aux 行，十六进制大写，ASCII 编码并以 LF 结尾。
+哈希口径	InputHash：实际输入载荷。WorkloadHash：AArch64 ELF。BinaryHash：gem5 可执行文件。ConfigHash：共用运行配置及 ROI，不含独立记录的 FaultEnabled。
+FaultAbstractionLevel	ISA semantic execution-level injection | O3 dynamic instruction execution context | Architectural result/control effect
+论文方法表述	通过 gem5 指令语义执行层构造等效执行功能故障，在 O3 动态执行环境观察激活和传播。物理门级、晶体管级与物理进位网络均超出本模型范围。
+工作树与基线	0202 HEAD 226778cf7d71e5cd47c8153fe7ef4eeabf82b858；全树有 3 个未跟踪项；已取证源码 blob 均匹配 HEAD。
+历史终态列	LegacyExpectedTerminal 仅供 v0.2 历史兼容。有效字段为 ExpectedTerminalHypothesis 与 ActualTerminal。

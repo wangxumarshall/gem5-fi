@@ -1,0 +1,33 @@
+{
+  "spec": "IEX_WHEN_5x3_v3_2026-11-23",
+  "generated": "2026-11-23T13:40:20+0800",
+  "source_git_commit": "1e8214e25b0518836c9778fd710794c023b9ca7b",
+  "faults_planned": 105,
+  "faults_completed": 105,
+  "faults_valid_injection": 105,
+  "faults_trace_complete": 105,
+  "faults_gate_pass": 105,
+  "terminals": {
+    "SDC": 84,
+    "MASKED": 21
+  },
+  "controls_planned": 35,
+  "controls_completed": 35,
+  "controls_n_ge_20": 35,
+  "na_faults": 0,
+  "failed_faults": 0,
+  "anomalous_attempts_recorded": 1,
+  "artifacts": {
+    "fault_runs": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/fault_runs.csv",
+    "controls": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/controls.csv",
+    "injections": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/injections.csv",
+    "propagation_edges": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/propagation_edges.csv",
+    "lifecycle": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/lifecycle.csv",
+    "oracle_comparison": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/oracle_comparison.csv",
+    "attempt_history": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/attempt_history.csv",
+    "evidence_index": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/evidence_index.json",
+    "workbook": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/IEX_WHEN_5x3_v3_RESULTS_2026-11-23.xlsx",
+    "results_root": "/home/sdc/gem5-fi-IEX/when_5x3_v3/results/IEX_WHEN_5x3_v3_2026-11-23",
+    "raw_trace_archive": "/home/sdc/gem5-fi-IEX/when_5x3_v3/delivery/IEX_WHEN_5x3_v3_2026-11-23/All_Raw_Traces.tar.zst"
+  }
+}

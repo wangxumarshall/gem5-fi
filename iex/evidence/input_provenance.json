@@ -1,0 +1,10 @@
+{
+  "path": "/home/sdc/gem5-fi-IEX/inputs/gem5-fi-IEX-Final-Paper-Experiment-Plan.xlsx",
+  "sha256": "029e4550b0ae06f7d5a618f7476ab3b2616a27f33a53b930deba67a8234bba58",
+  "size": 192405,
+  "mtime": 1795406112.117634,
+  "version_claimed_by_27": "IEX_WHEN_5x3_v3_2026-11-23",
+  "sha_recorded_by_27": "a6487eb2529321c9c33322b262d31e97e47ad0e6b31e1764217001fe1975f34d",
+  "sha_matches_27": false,
+  "note": "Current input file was read-only; structure QC (7 models, 35 contexts, 105 cases, 35 controls) passed. The SHA mismatch is recorded, not corrected; the file was not modified."
+}

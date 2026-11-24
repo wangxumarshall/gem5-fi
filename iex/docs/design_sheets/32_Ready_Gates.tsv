@@ -1,0 +1,14 @@
+GateID	阶段	通过条件	必须证据	失败状态	Scope	Status	EvidencePath
+G01	环境与隔离	34必填字段全部实测绑定；原始HEAD/blob、已有hook与旧结果归档hash一致；只在独立worktree/results执行	manifest/environment.json, baseline.sha256	BLOCKED_ENV	ALL	NOT_CHECKED	
+G02	冻结语义	逐模型复核02/03/04锚点、目标opcode、X位宽、ONE；复用已存在合规hook，否则只在副本实现；无模型语义变化	source_audit.json, hook.diff, generated_cpp,objdump	INVALID_SEMANTICS	7 models	NOT_CHECKED	
+G03	独立算术Oracle	用独立Python bigint重算28所有local/final/aux；M003分解中间项；M005按NZCV/cond；M006完整NZCV与CSEL候选映射。不得仅抄理论表	oracle_vectors.json, oracle_selfcheck.log	ORACLE_MISMATCH	35 contexts	NOT_CHECKED	
+G04	上下文成立	C01直接链；C02输入差异且guard成立；C03实际消费后覆盖无可见数据边；C04四级链；C05真实older未解析。编译后与动态trace核验	objdump, context_witness.json	CONTEXT_UNMET	35 contexts	NOT_CHECKED	
+G05	足够合格事件	每Context Control N≥20（默认100）；3个ceil(Np)正整数互异且≤N；目标PC/opcode及原guard固定	census.jsonl, census.sha256	NO_ELIGIBLE_EVENT	35 controls	NOT_CHECKED	
+G06	重复与复用	重新预检同Context候选顺序/输入/配置一致；每T注入前prefix与Control匹配；C05尤其核对older状态。不能复用则建立独立匹配Control并记录增加次数	repeat_census, pair_prefix_diff	PAIR_MISMATCH	ALL	NOT_CHECKED	
+G07	无故障Oracle	Control zero applied，完整ROI每episode final/aux匹配28独立重算结果，正常退出；验证C03隔离输出无污染数据	control_oracle.json	BASELINE_FAIL	35 controls	NOT_CHECKED	
+G08	Pilot与负控	每模型C01/T02一个Fault Pilot及1个guard拒绝/零施加负控（M005使用FaultEnabled=NO，不创造伪guard）；每C05须额外状态Pilot；不计105正式行	pilot_manifest, raw traces	PILOT_FAIL	7 base + 7 C05 pilots	NOT_CHECKED	
+G09	正式运行准备	该模型G02/03/08通过，该Context G04–07通过，G01环境绑定通过；29 TargetOrdinal有效。允许按已通过Context分批，不绕过失败条件	ready_manifest.json	NOT_READY	each case	NOT_CHECKED	
+G10	有效注入	TimingSatisfied=PASS；ActualOrdinal=TargetOrdinal；applied=1、changed=PASS、原guard和上下文成立；实际变异符合冻结模型	target event + before/after	INVALID_INJECTION	105 Fault	NOT_CHECKED	
+G11	证据链	PairMatch=PASS；目标与所声称依赖的tag、值、commit/squash完整；TraceComplete=PASS；缺边不得写FULL	causal_edges.jsonl	TRACE_INCOMPLETE	each attempt	NOT_CHECKED	
+G12	终态	SDC=可归因外部差异且未检测；MASKED=故障已生效且有实际隔离/掩蔽边；SQUASHED=受影响路径被撤销且核对其他存活影响；DETECTED有检测证据；CRASH分guest/simulator；HANG_TIMEOUT用预定限额与进展；否则UNKNOWN	terminal_audit.json, oracle_diff	UNKNOWN	each attempt	NOT_CHECKED	
+G13	闭环交付	105唯一Case保留；35Control引用有效；N/A/FAILED有证据原因；attempt追加；全部文件hash；报告实际有效覆盖率而非只报计划105	manifest.csv, hashes.sha256, closure.json	INCOMPLETE_DELIVERY	campaign	NOT_CHECKED	

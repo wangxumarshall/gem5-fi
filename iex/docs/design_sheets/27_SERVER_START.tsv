@@ -1,0 +1,22 @@
+项目	当前规范
+版本	IEX_WHEN_5x3_v3_2026-11-23
+当前执行规范	27_SERVER_START 与 28–35 新表为 v3 当前执行规范。00–17 仅提供冻结故障定义/历史上下文；18–26 是被本版取代的 v2 时机计划，不得同时执行或混计。
+研究设计	7 个入选模型 × C01–C05 五类机制上下文 × T01/T02/T03 三个动态事件分位 = 105 条 Fault 条件。35 个完整 ROI Control 可在验证通过后复用。CRC 继续 DEFERRED。
+当前可开始工作	服务器 AI 可立即从 33_SERVER_RUNBOOK 的 S01 开始做基线审计、独立实现、构建和预检；目前不是已编译或已通过服务器验收的可直接运行产物。
+执行顺序	34_ENV_BINDINGS 绑定环境 → 复核 02/03/04 冻结 hook → 按28实现35个上下文 → 构建与独立 Oracle → 35条Control/census → Pilot → 105条Fault → 完整性审计。
+读取入口	28_Context_5x7：输入、guard、指令序列、精确理论值；29_When_5x3_105：唯一执行矩阵；30_Control_Baselines：无故障事件清单与三时机准备；31_How_Contract：证据契约；32_Ready_Gates：正式运行条件。
+时间定义	N 是同一(Model,Context)无故障完整ROI的合格目标动态指令数；T01/T02/T03=ceil(N×0.10/0.50/0.90)。不按tick/cycle百分比取点。N≥20，默认构造100个合格事件。
+比较约束	同一(Model,Context)三个T共用相同ELF/输入/ROI/seed/CPU/FU配置和候选序列；只改变目标ordinal。跨Context本来存在程序差异，不宣称只改变时机。
+注入语义	每次Fault运行只对选定core/tid/target-PC/SeqNum施加一次冻结变异。Control启用同样选择器和观测但FaultEnabled=NO。不得改变hook、位宽、原guard或物理结构抽象。
+状态原则	C05采用较老未解析分支窗口，额外上下文guard是hook时older_seq<target_seq且未解析；三个T仍是该上下文合格事件的百分位。不能把状态当作T04/T05，也不要求最终squash。
+负结果	CONDITION_UNMET/NO_ELIGIBLE_EVENT/NO_EFFECT/PAIR_MISMATCH/TRACE_INCOMPLETE 逐次保留。不得删行、改guard或追求SDC比例；N/A必须附预检证据与原因。
+模型边界	所有模型保持64位X形式。M003保留L214的c214=1→0而非直接改最终结果；M006保留SUBS→CSEL EQ同一Nz物理版本，C05再用CSEL结果控制分支。
+实施状态	当前矩阵完整性可在本地核验；源码、ELF、运行命令、时序状态、实际终态需服务器填证据，所有运行状态初始NOT_RUN。
+计数口径	105 Fault + 35可复用Control = 140次基础运行。Pilot/负控/复现/失败重试另计；Control复用失败时重建对应基线，必要时逐T配对。旧35对及旧v2不计入本轮。
+结果输出	每个episode保留可观察final和aux；模拟器trace保留故障前后raw及消费者。C03禁止在隔离前把污染raw写入客体stdout或可见内存，以免改变有限依赖定义。
+Oracle口径	28表LocalGolden/LocalFault及FinalGolden/FinalFault均为理论值；FinalFault仅在选中目标和依赖链确实存活提交时适用，C05被撤销时按真实trace分类。不得把理论值写入实际结果列。
+恢复执行	按唯一CaseID与AttemptID追加结果，重启不得把已有完成行覆盖。35个Control、105个Fault及N/A原因全部交付。
+填写说明	黄色为空缺运行证据输入。数值N必须填整数；SHA必须填实际SHA256。先生成manifest和环境绑定，Gate通过后才能标READY或执行正式Fault。
+最小填写示例	示例仅说明格式：若首个Control有N=100，则三时机ordinal为10、50、90；实际N未测量前保留空白，不把本例作为真实运行结果。
+来源	故障定义来自用户IEX原表02_Models/03_SourceAudit/04_InjectionConfig；数据常量来自06_Contexts明确R行；5×3编排参考MMU 19_Context_5x8/20_When_5x3_120；新上下文和负载链为本次设计。
+原文件SHA256	a6487eb2529321c9c33322b262d31e97e47ad0e6b31e1764217001fe1975f34d

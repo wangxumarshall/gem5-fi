@@ -1,0 +1,8 @@
+{
+  "spec": "IEX_WHEN_5x3_v3_2026-11-23",
+  "faults_checked": 105,
+  "controls_checked": 35,
+  "checks_failed": 0,
+  "failures": [],
+  "all_pass": true
+}

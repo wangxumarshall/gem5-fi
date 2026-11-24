@@ -1,0 +1,9 @@
+SubunitID	子单元	Gem5Implementation	CoverageStatus	ModelID	范围和理由
+IEX-SU01	ALU	AddXSReg::execute	SELECTED	IEX-M001	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU02	Shifter	Lslv64::execute	SELECTED	IEX-M002	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU03	Multiplier	Umulh64::execute	SELECTED	IEX-M003	UMULH 中间项可证。MADD 及硬件部分积阵列单独暂缓。
+IEX-SU04	Divider	Udiv64::execute	SELECTED	IEX-M004	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU05	Branch Execution Unit	BCond64::execute	SELECTED	IEX-M005	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU06	Condition Flags Logic	SubXSRegCc::execute	SELECTED	IEX-M006	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU07	Bit Manipulation Unit	Clz64::execute	SELECTED	IEX-M007	以代表机制覆盖所列语义。其余指令或等价位/模式不单列。
+IEX-SU08	CRC Unit	data64.isa:229–262；CRC32/CRC32C → SimdCrcOp	DEFERRED		DEFERRED。ArmDefaultSERelease 默认声明 FEAT_CRC32，源码实现标量 CRC32/CRC32C，默认 O3 IQ FU 池将 SimdCrc 归 SIMD_Unit。功能分类相关，整数 FU 调度范围不纳入。实际实验配置尚未绑定。

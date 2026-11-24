@@ -1,0 +1,1220 @@
+[
+  {
+    "CaseID": "IEX-M001-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C01-T02",
+    "AttemptID": "attempt-0006",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M001-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M001-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M001-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M001-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M001-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M001-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M001-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7275500
+  },
+  {
+    "CaseID": "IEX-M001-C05-T02",
+    "AttemptID": "attempt-0004",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7165500
+  },
+  {
+    "CaseID": "IEX-M001-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7028000
+  },
+  {
+    "CaseID": "IEX-M002-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5213000
+  },
+  {
+    "CaseID": "IEX-M002-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M002-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M002-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5248000
+  },
+  {
+    "CaseID": "IEX-M002-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M002-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M002-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250000
+  },
+  {
+    "CaseID": "IEX-M002-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7275500
+  },
+  {
+    "CaseID": "IEX-M002-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7165500
+  },
+  {
+    "CaseID": "IEX-M002-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7029500
+  },
+  {
+    "CaseID": "IEX-M003-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214000
+  },
+  {
+    "CaseID": "IEX-M003-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249000
+  },
+  {
+    "CaseID": "IEX-M003-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249000
+  },
+  {
+    "CaseID": "IEX-M003-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249000
+  },
+  {
+    "CaseID": "IEX-M003-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5251000
+  },
+  {
+    "CaseID": "IEX-M003-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5251000
+  },
+  {
+    "CaseID": "IEX-M003-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5251000
+  },
+  {
+    "CaseID": "IEX-M003-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7177500
+  },
+  {
+    "CaseID": "IEX-M003-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7195500
+  },
+  {
+    "CaseID": "IEX-M003-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7143000
+  },
+  {
+    "CaseID": "IEX-M004-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5922000
+  },
+  {
+    "CaseID": "IEX-M004-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5922000
+  },
+  {
+    "CaseID": "IEX-M004-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5922000
+  },
+  {
+    "CaseID": "IEX-M004-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5923000
+  },
+  {
+    "CaseID": "IEX-M004-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5923000
+  },
+  {
+    "CaseID": "IEX-M004-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5923000
+  },
+  {
+    "CaseID": "IEX-M004-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5393000
+  },
+  {
+    "CaseID": "IEX-M004-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5393000
+  },
+  {
+    "CaseID": "IEX-M004-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5393000
+  },
+  {
+    "CaseID": "IEX-M004-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5951500
+  },
+  {
+    "CaseID": "IEX-M004-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5951500
+  },
+  {
+    "CaseID": "IEX-M004-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5951500
+  },
+  {
+    "CaseID": "IEX-M004-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7663500
+  },
+  {
+    "CaseID": "IEX-M004-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7437000
+  },
+  {
+    "CaseID": "IEX-M004-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7408000
+  },
+  {
+    "CaseID": "IEX-M005-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5220500
+  },
+  {
+    "CaseID": "IEX-M005-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5217000
+  },
+  {
+    "CaseID": "IEX-M005-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5191000
+  },
+  {
+    "CaseID": "IEX-M005-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5214500
+  },
+  {
+    "CaseID": "IEX-M005-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5245500
+  },
+  {
+    "CaseID": "IEX-M005-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5250500
+  },
+  {
+    "CaseID": "IEX-M005-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5235000
+  },
+  {
+    "CaseID": "IEX-M005-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5229500
+  },
+  {
+    "CaseID": "IEX-M005-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5203500
+  },
+  {
+    "CaseID": "IEX-M005-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5216000
+  },
+  {
+    "CaseID": "IEX-M005-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5245000
+  },
+  {
+    "CaseID": "IEX-M005-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5225000
+  },
+  {
+    "CaseID": "IEX-M005-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7054500
+  },
+  {
+    "CaseID": "IEX-M005-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 6976000
+  },
+  {
+    "CaseID": "IEX-M005-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 6978000
+  },
+  {
+    "CaseID": "IEX-M006-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5172000
+  },
+  {
+    "CaseID": "IEX-M006-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5177000
+  },
+  {
+    "CaseID": "IEX-M006-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5177000
+  },
+  {
+    "CaseID": "IEX-M006-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5177000
+  },
+  {
+    "CaseID": "IEX-M006-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5185500
+  },
+  {
+    "CaseID": "IEX-M006-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 64 carries the committed fault value",
+    "external_delta": [
+      64
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5185500
+  },
+  {
+    "CaseID": "IEX-M006-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 116 carries the committed fault value",
+    "external_delta": [
+      116
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5185500
+  },
+  {
+    "CaseID": "IEX-M006-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7159500
+  },
+  {
+    "CaseID": "IEX-M006-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7089500
+  },
+  {
+    "CaseID": "IEX-M006-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7174000
+  },
+  {
+    "CaseID": "IEX-M007-C01-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C01-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 64 carries the committed fault value",
+    "external_delta": [
+      64
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C01-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 116 carries the committed fault value",
+    "external_delta": [
+      116
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C02-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C02-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 64 carries the committed fault value",
+    "external_delta": [
+      64
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C02-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 116 carries the committed fault value",
+    "external_delta": [
+      116
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5212500
+  },
+  {
+    "CaseID": "IEX-M007-C03-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5247500
+  },
+  {
+    "CaseID": "IEX-M007-C03-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5247500
+  },
+  {
+    "CaseID": "IEX-M007-C03-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "MASKED",
+    "ClassificationReason": "single EOR consumer then both raw and EOR result overwritten before the only store",
+    "external_delta": [],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5247500
+  },
+  {
+    "CaseID": "IEX-M007-C04-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249500
+  },
+  {
+    "CaseID": "IEX-M007-C04-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 64 carries the committed fault value",
+    "external_delta": [
+      64
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249500
+  },
+  {
+    "CaseID": "IEX-M007-C04-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 116 carries the committed fault value",
+    "external_delta": [
+      116
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 5249500
+  },
+  {
+    "CaseID": "IEX-M007-C05-T01",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 12 carries the committed fault value",
+    "external_delta": [
+      12
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7275500
+  },
+  {
+    "CaseID": "IEX-M007-C05-T02",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 63 carries the committed fault value",
+    "external_delta": [
+      63
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7165500
+  },
+  {
+    "CaseID": "IEX-M007-C05-T03",
+    "AttemptID": "attempt-0003",
+    "ActualTerminal": "SDC",
+    "ClassificationReason": "selected episode slot 115 carries the committed fault value",
+    "external_delta": [
+      115
+    ],
+    "detection_flag": false,
+    "timeout": false,
+    "last_progress": 7028000
+  }
+]

@@ -1,0 +1,9 @@
+results/
+pilots/
+controls/
+logs/
+m5out/
+delivery/
+final_package/
+validation/
+__pycache__/

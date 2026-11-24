@@ -1,0 +1,25 @@
+IEX_WHEN_5x3_v3_2026-11-23 reproduction
+======================================
+cd /home/sdc/gem5-fi-IEX/when_5x3_v3
+
+# 1. rebuild injected gem5 (branch when_5x3_v3)
+cd gem5
+scons build/ARM/gem5.opt -j 32
+cd ..
+
+# 2. regenerate frozen workloads + independent bigint oracle
+python3 scripts/iex_oracle.py
+python3 scripts/gen_workloads_v3.py
+
+# 3. plan / controls / pilots / faults / audit
+python3 scripts/run_campaign.py plan --jobs 12
+python3 scripts/run_campaign.py control --jobs 12
+python3 scripts/run_campaign.py pilot
+python3 scripts/run_campaign.py fault --jobs 12
+python3 scripts/run_campaign.py audit
+
+# One case:
+python3 scripts/run_campaign.py fault --case IEX-M001-C01-T01 --jobs 1
+
+# 4. rebuild delivery
+python3 scripts/build_delivery.py

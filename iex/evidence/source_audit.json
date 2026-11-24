@@ -1,0 +1,103 @@
+{
+  "models": {
+    "IEX-M001": {
+      "ModelID": "IEX-M001",
+      "FaultMechanism": "ADD \u534a\u5b57\u8fb9\u754c\u8fdb\u4f4d\u4e22\u5931",
+      "TargetInstruction": "ADD Xd,Xn,Xm,LSL #0",
+      "NormalBehavior": "(a+b) mod 2^64",
+      "FaultBehavior": "\u6b63\u5e38\u548c\u51cf 2^32\uff08\u6a21 2^64\uff09",
+      "FrozenSourceAnchor": "data64.isa:86\u2013106,119\u2013135,144\uff1baarch64.isa:2223",
+      "ProposedHook": "\u5728 AddXSReg \u8bed\u4e49\u4e2d\uff0c\u5148\u6c42\u4f4e\u534a\u5b57 33 \u4f4d\u548c\u5e76\u7528\u4e8e\u89e6\u53d1\uff1b\u4f4e 32 \u4f4d\u7167\u5e38\uff0c\u9ad8\u534a\u5b57\u6c42\u548c\u65f6\u4e22\u5f03 c32\uff0c\u518d\u7ec4\u88c5\u7ed3\u679c\uff0c\u4f4d\u4e8e op_wb \u524d\u3002",
+      "ObservedSites": [
+        "AddXSReg::execute"
+      ],
+      "TargetPC": "0x0000000000400144"
+    },
+    "IEX-M002": {
+      "ModelID": "IEX-M002",
+      "FaultMechanism": "LSLV \u6709\u6548\u79fb\u4f4d\u91cf\u4f4d 0 \u53cd\u8f6c",
+      "TargetInstruction": "LSLV Xd,Xn,Xm",
+      "NormalBehavior": "(a << (b mod 64)) mod 2^64",
+      "FaultBehavior": "(a << ((b mod 64) XOR 1)) mod 2^64",
+      "FrozenSourceAnchor": "data64.isa:222\u2013223\uff1bstatic_inst.cc:95\u2013105\uff1baarch64.isa:2388",
+      "ProposedHook": "\u5728 Lslv64 \u8c03\u7528\u8fb9\u5c06\u8be5\u6b21\u6709\u6548\u53c2\u6570\u6539\u4e3a ((Op264 & 0x3f) XOR 1)\uff0c\u539f Op264\u3001\u5171\u4eab helper \u548c X \u4f4d\u5bbd\u4fdd\u6301\u3002",
+      "ObservedSites": [
+        "Lslv64::execute"
+      ],
+      "TargetPC": "0x0000000000400144"
+    },
+    "IEX-M003": {
+      "ModelID": "IEX-M003",
+      "FaultMechanism": "UMULH \u4ea4\u53c9\u9879\u5408\u5e76\u8fdb\u4f4d\u4e22\u5931",
+      "TargetInstruction": "UMULH Xd,Xn,Xm",
+      "NormalBehavior": "\u9ad8 64 \u4f4d = floor(a*b/2^64)",
+      "FaultBehavior": "\u9ad8 64 \u4f4d\u51cf 1\uff08\u6a21 2^64\uff09",
+      "FrozenSourceAnchor": "data64.isa:207\u2013218\uff0c\u4e3b\u951a\u70b9 L214 \u540e / L215 \u524d\uff1baarch64.isa:2612",
+      "ProposedHook": "\u4ec5\u5728 L214 \u540e\u3001L215 \u524d\uff0c\u82e5 result=1 \u5219\u7f6e 0\uff1b\u4fdd\u6301 mid1\u3001mid2\u3001\u4f4e\u4f4d\u4e58\u79ef\u9ad8\u9879\u3001L215/L216 \u53ca L217 \u7684\u9ad8\u00d7\u9ad8\u9879\u3002",
+      "ObservedSites": [
+        "Umulh64::execute:L214"
+      ],
+      "TargetPC": "0x0000000000400144"
+    },
+    "IEX-M004": {
+      "ModelID": "IEX-M004",
+      "FaultMechanism": "UDIV \u9664\u96f6\u9009\u62e9\u8bef\u5224",
+      "TargetInstruction": "UDIV Xd,Xn,Xm",
+      "NormalBehavior": "b\u22600 \u65f6 q=floor(a/b)\uff0cb=0 \u65f6 q=0",
+      "FaultBehavior": "\u6709\u975e\u96f6\u9664\u6570\u65f6\u9519\u8bef\u9009\u62e9 q=0",
+      "FrozenSourceAnchor": "data64.isa:273\u2013274\uff1baarch64.isa:2384\uff1bFuncUnitConfig.py:50\u201356",
+      "ProposedHook": "\u5bf9 a\u2265b>0 \u7684 UDIV X \u5f3a\u5236\u8d70\u65e2\u6709\u96f6\u7ed3\u679c\u5206\u652f\uff0c\u4fdd\u6301\u539f\u59cb\u9664\u6570\u3001\u6307\u4ee4\u6545\u969c\u548c\u5b8c\u6210\u4e8b\u4ef6\u8def\u5f84\u3002",
+      "ObservedSites": [
+        "Udiv64::execute"
+      ],
+      "TargetPC": "0x0000000000400144"
+    },
+    "IEX-M005": {
+      "ModelID": "IEX-M005",
+      "FaultMechanism": "B.cond \u6267\u884c\u65b9\u5411\u51b3\u7b56\u53cd\u8f6c",
+      "TargetInstruction": "B.<cond> \u4e24\u4e2a\u5408\u6cd5\u672c\u5730\u76ee\u6807",
+      "NormalBehavior": "\u6b63\u786e NZCV \u548c cond \u51b3\u5b9a\u76ee\u6807/\u987a\u5e8f NPC",
+      "FaultBehavior": "\u53cd\u8f6c\u5b9e\u9645\u6267\u884c\u65b9\u5411\uff0c\u9009\u53e6\u4e00\u4e2a\u5408\u6cd5 NPC",
+      "FrozenSourceAnchor": "branch64.isa:147\u2013159\uff1boperands.isa:526\uff1bdyn_inst.hh:549\u2013555\uff1biew.cc:475\u2013491,1320\u20131335",
+      "ProposedHook": "\u5148\u8ba1\u7b97\u771f\u5b9e predicate\uff0c\u518d\u4ec5\u5728 BCond64 \u6267\u884c\u8bed\u4e49\u4e2d\u53d6\u53cd\u540e\u51b3\u5b9a NPC\u3002\u539f NZCV\u3001cond\u3001imm \u548c\u9884\u6d4b\u503c\u4e0d\u53d8\u3002",
+      "ObservedSites": [
+        "BCond64::execute"
+      ],
+      "TargetPC": "0x0000000000400144"
+    },
+    "IEX-M006": {
+      "ModelID": "IEX-M006",
+      "FaultMechanism": "SUBS Z \u6807\u5fd7\u751f\u6210\u53cd\u8f6c",
+      "TargetInstruction": "SUBS Xd,Xn,Xm,LSL #0 \u2192 CSEL EQ",
+      "NormalBehavior": "Z=(resTemp==0)\uff0cN/C/V \u7531\u6b63\u5e38\u903b\u8f91\u4ea7\u751f",
+      "FaultBehavior": "Z XOR 1\uff0cGPR \u6570\u503c\u53ca N/C/V \u4fdd\u6301",
+      "FrozenSourceAnchor": "data64.isa:44\u201366,72\u201382,92\u2013111,119\u2013123,143,674\u2013684\uff1baarch64.isa:2229\uff1boperands.isa:339\u2013341\uff1bcondcodes.hh:84\u2013102\uff1butility.hh:65\u201372\uff1brename.cc:1120,1155,1194,1249\uff1bdyn_inst.hh:1213\u20131248\uff1bregfile.hh:271\u2013272,389\u2013390",
+      "ProposedHook": "\u53ea\u5728 SubXSRegCc X L49\u201350 \u7684 _iz \u4e0a XOR 1\u3002\u4fdd\u6301 GPR \u548c N/C/V\uff1b\u7531\u6a21\u677f\u5199\u56de\u5206\u5f00\u7684 CC \u76ee\u7684\u3002",
+      "ObservedSites": [
+        "SubXSRegCc::execute:_iz"
+      ],
+      "TargetPC": "0x000000000040014c"
+    },
+    "IEX-M007": {
+      "ModelID": "IEX-M007",
+      "FaultMechanism": "CLZ \u975e\u96f6\u8ba1\u6570\u504f\u79fb 1",
+      "TargetInstruction": "CLZ Xd,Xn",
+      "NormalBehavior": "a\u22600 \u65f6 63\u2212msb(a)\uff0ca=0 \u65f6 64",
+      "FaultBehavior": "\u4ec5\u975e\u96f6\u5206\u652f\u6539\u4e3a 64\u2212msb(a)",
+      "FrozenSourceAnchor": "data64.isa:282\u2013284\uff1baarch64.isa:2530",
+      "ProposedHook": "\u4ec5\u5bf9\u975e\u96f6 CLZ X \u628a 63\u2212findMsbSet(a) \u6539\u4e3a 64\u2212findMsbSet(a)\uff0c\u4fdd\u6301\u96f6\u8f93\u5165\u8fd4\u56de 64\u3002",
+      "ObservedSites": [
+        "Clz64::execute"
+      ],
+      "TargetPC": "0x0000000000400144"
+    }
+  },
+  "gem5_commit": "1e8214e25b0518836c9778fd710794c023b9ca7b",
+  "changed_files": [
+    "src/cpu/o3/iex_fault.cc",
+    "src/cpu/o3/iex_fault.hh",
+    "src/cpu/o3/inst_queue.cc"
+  ],
+  "isa_semantics_changed_by_v3": false,
+  "note": "v3 selector/trace changes only; model hooks in data64.isa/branch64.isa are unchanged from the frozen v1 implementation."
+}

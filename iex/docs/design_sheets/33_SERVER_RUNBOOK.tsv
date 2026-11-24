@@ -1,0 +1,17 @@
+StepID	动作	具体执行要求或建议命令	边界与失败处理	产物	Gate
+S01	审计与绑定	读取27–35及原02/03/04；查找原服务器工程与冻结v1证据；填34所有REQUIRED项，保存git status、HEAD、source blob和原结果hash。旧v2设计不执行。	不得猜测不存在的脚本/命令。不存在原路径时先只读定位并绑定ActualValue。	environment.json,baseline.sha256	G01
+S02	建立独立工作区	从已核对基线创建独立worktree/分支，默认子目录when_5x3_v3；复用已有正确hook并审核选择器；不存在则在副本实现。	不得覆盖LSU/MMU/IEX v1；dirty变化必须归档且能说明。	source_audit.json,hook.diff	G02
+S03	实现35个汇编kernel	按28每行输入、guard、指令链实现独立Model/Context变体；推荐.S内固定目标标签+独立C驱动。每episode初始化输入，计数器用独立寄存器，目标不能控制循环。N不足只增episode并升SpecVersion。	CSEL/NZCV窗口不得有flag-clobber；M005两落点汇合；C03无raw泄漏；所有目标PC由objdump绑定。	35 source files or parameterized kernels, objdump	G03/G04
+S04	独立参考计算	Python bigint实现七模型golden/fault；用28给定精确输入生成所有episode golden；结果按mod2^64，ROR64；客体驱动不以目标运算自行生成预期值。	C04 y=3*ROR64(((raw XOR A5...A5)+17) mod2^64,7) mod2^64；C05按真分支路径；raw对M005是路径marker，对M006是CSEL结果。	oracle_vectors.json, golden_outputs/	G03
+S05	实现事件选择器	目标执行hook先匹配model/core/tid/ROI/PC/opcode/原guard；C05额外older未解析。记录全census并按首次出现Seq计数，1-based ordinal。选定ordinal时仅Fault变异一次，Control只记命中不改值。	重放/同Seq hook去重；注入后不重算N；不得选择终态不同的事件。	selector implementation,selector unit checks	G02/G05
+S06	执行35个Control	无故障完整ROI扫描与输出；记录N/hash/trace/oracle，填写30；相同Context再预检重复性，解析三ordinal并冻结manifest。C05窗口失败保留预检并明确技术原因。	最少N=20，默认100；若状态不稳定不能强行PASS。	controls/,census.jsonl,repeat_prefix.json	G04–G07
+S07	Pilot与负控	按32 G08逐模型验证变异和guard拒绝；每个C05单独Pilot；测试35Context生成、105键、ordinal=10/50/90(N=100)、N不足拒绝、重复Seq去重。	Pilot不得计作正式105；仅调负载scaffold不调故障语义，变更后重做受影响Control。	pilots/,negative_controls/	G08
+S08	实施runner与命令绑定	在独立工程实现run_campaign.py（建议接口见下），把实际命令写34；支持plan/control/pilot/fault/audit、单Case恢复、attempt追加、timeout、产物hash；读manifest而非凭自然语言手输参数。	以下接口是要求服务器实现的契约，不声称文件已存在。先--help和单Case dry-run验证，再正式执行。	runner + exact_commands.txt + manifests/	G09
+S09	正式Fault	仅运行ready_manifest中Gate通过的Case；每Case独立启动gem5/清洁ROI状态；三T固定输入配置与Control；日志完整保留。根据证据回填29实际字段。	没有选到目标或prefix不一致立即标失败，禁止补注入另一事件。	runs/<CaseID>/attempt-0001/	G10/G11
+S10	分类与复现	逐attempt按32 G12判终态，复现有效Case的selector与结果；如非决定性记录全部差异，不删除失败重跑。	C03正常输出不能单独证明MASKED；C05无输出差异也不能证明全部影响被squash。	terminal_audit, reproduction logs	G12
+S11	交付与停止	交付修改后的工作簿、105行manifest、35Control、源码diff/patch、构建脚本、精确命令、ELF及hash、全trace、Oracle与QC；列出N/A/未完成与原因。	批量并行资源由实测CPU/RAM预算决定；失败保留证据，正式运行不得无止境重试。	delivery_index.json,hashes.sha256	G13
+CLI01	要求实现的接口	python3 run_campaign.py plan --workbook <xlsx> --root <IEX_WHEN_ROOT>	生成manifest，不运行Fault；拒绝重复键/缺失Context/T和未绑定环境。	manifest.json	IMPLEMENT_REQUIRED
+CLI02	要求实现的接口	python3 run_campaign.py control --manifest <manifest.json> --context IEX-M001-C01	建立该Context nofault完整census与baseline；重跑追加attempt。	control artifacts	IMPLEMENT_REQUIRED
+CLI03	要求实现的接口	python3 run_campaign.py pilot --manifest <manifest.json> --model IEX-M001	完成模型Pilot/负控；C05单独验证。	pilot artifacts	IMPLEMENT_REQUIRED
+CLI04	要求实现的接口	python3 run_campaign.py fault --manifest <ready_manifest.json> --case IEX-M001-C01-T01	必须先校验实际环境、Gate、控制hash及ordinal；只注入一次。	fault artifacts	IMPLEMENT_REQUIRED
+CLI05	要求实现的接口	python3 run_campaign.py audit --manifest <manifest.json>	输出全部105条件和35Control状态，含无效attempt及N/A；生成closure，不替换原始证据。	closure.json	IMPLEMENT_REQUIRED

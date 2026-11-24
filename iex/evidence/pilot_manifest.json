@@ -1,0 +1,173 @@
+{
+  "spec": "IEX_WHEN_5x3_v3_2026-11-23",
+  "pilots": [
+    {
+      "label": "PILOT-IEX-M001-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M001-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M001-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M002-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M002-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M002-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M003-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M003-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M003-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M004-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M004-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M004-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M005-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M005-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M005-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M006-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M006-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M006-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M007-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "NEGCTRL-IEX-M007-C01-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": false,
+      "applied": null,
+      "timing_satisfied": 1
+    },
+    {
+      "label": "PILOT-IEX-M007-C05-T02",
+      "attempt": 3,
+      "rc": 0,
+      "inject": true,
+      "applied": 1,
+      "timing_satisfied": 1
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "spec": "IEX_WHEN_5x3_v3_2026-11-23",
+  "G01": {
+    "status": "PASS",
+    "evidence": [
+      "baseline.sha256",
+      "environment.json"
+    ]
+  },
+  "G02": {
+    "status": "PASS",
+    "evidence": [
+      "source_audit.json",
+      "source_full.diff"
+    ]
+  },
+  "G03": {
+    "status": "PASS",
+    "evidence": [
+      "oracle_selfcheck.log",
+      "oracle_comparison.csv"
+    ]
+  },
+  "G04": {
+    "status": "PASS",
+    "evidence": [
+      "controls.json",
+      "census.jsonl",
+      "workloads/v3/manifest.json"
+    ]
+  },
+  "G05": {
+    "status": "PASS",
+    "evidence": [
+      "controls.csv",
+      "census.jsonl"
+    ]
+  },
+  "G06": {
+    "status": "PASS",
+    "evidence": [
+      "controls.csv",
+      "pair_prefix.json",
+      "attempt_history.csv"
+    ]
+  },
+  "G07": {
+    "status": "PASS",
+    "evidence": [
+      "control_oracle.json",
+      "controls.csv"
+    ]
+  },
+  "G08": {
+    "status": "PASS",
+    "evidence": [
+      "pilot_manifest.json"
+    ]
+  },
+  "G09": {
+    "status": "PASS",
+    "evidence": [
+      "ready_manifest.json"
+    ]
+  },
+  "G10": {
+    "status": "PASS",
+    "evidence": [
+      "injections.csv",
+      "fault_runs.csv"
+    ]
+  },
+  "G11": {
+    "status": "PASS",
+    "evidence": [
+      "propagation_edges.csv",
+      "lifecycle.csv",
+      "audit/propagation/"
+    ]
+  },
+  "G12": {
+    "status": "PASS",
+    "evidence": [
+      "terminal_audit.json",
+      "verification_report.json"
+    ]
+  },
+  "G13": {
+    "status": "PASS",
+    "evidence": [
+      "closure.json",
+      "integrity_audit.json",
+      "SHA256SUMS_ALL"
+    ]
+  },
+  "all_pass": true
+}

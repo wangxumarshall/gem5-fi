@@ -1,0 +1,19 @@
+证据组	RequiredFields	采集粒度	判定契约	Producer	缺失处理
+身份	CampaignID,PlanVersion,CaseID,ControlID,AttemptID,ContextKey,TimingID,RunRole,FaultEnabled	每次运行及每条事件	唯一联合键；同一进程禁止注入多个Case	Runner	MISSING_RECORD
+构建	git_commit,dirty_diff_sha,source_blob_hash,hook_patch_sha,gem5_sha,ELF_sha,config_sha,input_sha,seed	每次运行	与34环境绑定一致；三T除ordinal/FaultEnabled/输出路径外功能参数一致	Builder/Runner	PAIR_MISMATCH
+Census	ROI_ID,core,tid,PC,opcode,SeqNum,eligible_ordinal,episode_id,iteration,tick,guard_values	每个合格候选	1-based执行hook到达顺序；同一(core,tid,SeqNum)重复hook不重复计数；新动态Seq包括可撤销实例；C05再筛older未解析	Selector	NO_ELIGIBLE_EVENT
+选择	N_control,ceil(p*N),selected_ordinal,selected_seq,decision,rejection_reason	候选及选择时	基线固定N；Fault只使用预定ordinal；到选中点的候选prefix逐项可比，不用Fault之后N回算	Selector	CONDITION_UNMET
+变异	armed,applied,before,after,changed,application_count,guard_snapshot	目标hook	Fault count=1；Control=0；armed不等于applied；同Seq不可再注入	ModelHook	HOOK_NOT_APPLIED/NO_EFFECT
+生命周期	core,tid,seq,PC,issue_tick,execute_tick,WB_tick,commit_tick,squash_tick,reason	目标及所有声称的消费者	目标被squash仍保留注入事件；不能据最终输出倒推路径	O3 IEW/ROB	TRACE_INCOMPLETE
+依赖	producer_seq,consumer_seq,reg_class,phys_tag,allocation_generation,operand_index,actual_read_value,write_value	每条因果边	逻辑寄存器同名不等于同一物理版本；C03只允许一个故障数据消费者再覆盖	Rename/RF/IEW	CONSUMER_UNOBSERVED
+C05状态	older_branch_seq,target_seq,unresolved_at_hook,predicted_NPC,resolved_NPC,resolve_tick,redirect,recovery_range	每个C05合格候选及后续解析	older_seq<target_seq且resolve_tick>hook_tick；state snapshot与event ordering联合验证	Branch/ROB	CONDITION_UNMET
+M001	a,b,low33,c32,golden_sum,fault_sum	每候选/目标	c32=1；低32保持；高32减1（模2^32）	ADDHook	INVALID_SEMANTICS
+M002	raw_count,effective_count_before,effective_count_after,a,res_before,res_after	每候选/目标	effective=(b&63)；after=before XOR1；X宽度；结果必须不同	LSLVHook	INVALID_GUARD
+M003	op1L,op1H,op2L,op2H,mid1,mid2,result_L214_before/after,L215,L216,L217	每候选/目标	L214 before=1 after=0，其余中间贡献保留；最终high64=golden−1	UMULHHook	INVALID_SEMANTICS
+M004	a,b,normal_quotient,selected_zero,actual_result,completion_event	每候选/目标	a≥b>0；变异为选择既有零结果，非实际除零；比较完成事件	UDIVHook	INVALID_SEMANTICS
+M005	NZCV,cond,predicate_before/after,predicted_NPC,golden_NPC,fault_resolved_NPC,committed_path_marker	每目标分支	只反转真实predicate，不改预测/NZCV/imm；older分支和consumer分支必须分开ID	BCondHook	INVALID_SEMANTICS
+M006	SUBS_GPR,N,Z,C,V,_iz_before/after,Nz_dest_tag+generation,CSEL_src_tag+generation,CSEL_EQ_read,selected_value	每目标及CSEL	SUBS GPR/N/C/V不变；只有Z翻转；同Nz版本真实消费；C05仍先CSEL再比较分支	SUBSHook/CC/CSEL	CC_VERSION_MISMATCH
+M007	a,findMsbSet,normal_count,fault_count,zero_guard	每候选/目标	a!=0；fault=normal+1；零输入仅负控，非正式条件	CLZHook	INVALID_GUARD
+客体输出	episode_id,final_hex,aux_hex,exit_code,stdout_sha,timeout_progress	每episode及全程序	先由独立bigint oracle重算；final采用64位无符号；C03不泄漏raw；保存全部episode，不能用XOR聚合取消错误	Guest/Oracle	ORACLE_MISSING
+终态	ActualTerminal,classification_reason,external_delta,detection_flag,last_progress,timeout_limit	每次attempt	SDC/MASKED/SQUASHED/DETECTED/CRASH/HANG_TIMEOUT/UNKNOWN按32门槛；无证据UNKNOWN	Auditor	UNCLASSIFIED
+完整性	event_id,parent_event_ids,event_loss_count,file_sha256,trace_start/end	所有事件和文件	声称完整因果链必须无关键缺边；保留无效attempt	Collector	TRACE_INCOMPLETE
