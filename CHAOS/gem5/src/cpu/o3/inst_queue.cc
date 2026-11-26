@@ -1613,6 +1613,7 @@ InstructionQueue::addToDependents(const DynInstPtr &new_inst)
                         "became ready before it reached the IQ.\n",
                         new_inst->pcState(), src_reg->index(),
                         src_reg->className());
+                RFWB::onIQRepair(new_inst.get(), src_reg);
                 // Mark a register ready within the instruction.
                 new_inst->markSrcRegReady(src_reg_idx);
             }

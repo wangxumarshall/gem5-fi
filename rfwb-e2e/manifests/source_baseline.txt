@@ -1,0 +1,18 @@
+# RF/WB source baseline
+
+Source commit:   2f4e00b434ec8690fbb8cb6965e435094de7e784
+Source tree:     f34ae2d1e8f002c03e919218ef4f2c00e40b0a95
+Commit date:     2026-10-27 02:17:22 +0800
+Commit subject:  [LSU][MDSPEC][0202-T02F2-MSHR] 报告/freeze 回填确切提交 SHA
+Repository:      git@github.com:wangxumarshall/gem5-fi.git
+Upstream gem5:   25.1.0.1 (CHAOS/gem5_base_version.md: upstream 62c7bf2)
+Historical design baseline 226778cf: NOT_RECOVERABLE (not used as source baseline)
+
+Before publication the baseline commit is NOT reachable from any remote branch.
+The RF_WB branch is therefore based directly on 2f4e00b4 (17 unique commits).
+Offline baseline bundle (outside the repo):
+  RF_WB_EVIDENCE_ARCHIVE_20261126/source_baseline_2f4e00b4.bundle
+  SHA256 10c9415cf0c48d21580086938b19a85797846ef0ba306cee60cef179e27d3531
+
+Patch:           src/RF_WB_Source_Injection_Final.patch
+Patch SHA256:    87c8968fe1e555db97fc8b5e735e6e975fdafa1e9f867732789d9e5822f8e60a

@@ -1,0 +1,29 @@
+# RF/WB build information
+
+Date: 2026-11-26T16:28:14+08:00
+Host: aarch64; openEuler 24.03 (LTS-SP3)
+gcc: gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)
+python3: Python 3.11.6
+scons: SCons by Steven Knight et al.:
+gem5: 25.1.0.1
+gem5 upstream commit: 62c7bf2
+
+Build command (in the gem5-fi source root, e.g. $GEM5_ROOT/CHAOS/gem5):
+  scons -j16 build/ARM/gem5.opt
+
+Patched source tree required: CHAOS/gem5/src/cpu/o3/rfwb.cc exists.
+Final build log: manifests/final_build.log
+Final build log SHA256: 9ecad86fe47e5a3b94f859bc1f73643aaeb27b2c482a7e41a080db8d28f8af3b
+gem5.opt SHA256: 16a7bc1eac1b86c14219f02fc7484449bc3cd01b9560830fa7ba63c210cc6c61
+
+Workload build command:
+  gcc -O2 -static workloads/source/rfwb_0N.c workloads/source/rfwb_0N.S -o rfwb_0N
+
+## Rebuild verification (2026-11-26)
+Build command: scripts/build/build_gem5.sh (JOBS=16)
+Result: scons exit 0; incremental rebuild + relink in 5m16s.
+Rebuilt gem5.opt SHA256: 761eba05b074d625622943d70b7c9329b840ad05ded56da3d46639f8e62f82fb
+Frozen evidence gem5.opt SHA256: 16a7bc1eac1b86c14219f02fc7484449bc3cd01b9560830fa7ba63c210cc6c61
+The SHA differs because gem5 embeds build timestamp/link state. Functional checks
+with the rebuilt binary: M005 C01 N=6/ordinals 1/3/6; smoke 5 Controls golden
+match, 5 Faults single injection, classification equals the frozen table.

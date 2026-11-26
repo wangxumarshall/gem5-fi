@@ -56,6 +56,7 @@
 // call chaosFreeList->maybeCorrupt(). Non-circular: CHAOSFreeList.hh only
 // forward-declares o3::UnifiedFreeList (does NOT include free_list.hh).
 #include "cpu/o3/CHAOSFreeList/CHAOSFreeList.hh"
+#include "cpu/o3/rfwb.hh"
 
 namespace gem5
 {
@@ -92,7 +93,7 @@ class SimpleFreeList
     SimpleFreeList() {};
 
     /** Add a physical register to the free list */
-    void addReg(PhysRegIdPtr reg) { freeRegs.push(reg); }
+    void addReg(PhysRegIdPtr reg) { RFWB::onPhysFree(classValue, reg); freeRegs.push(reg); }
 
     /** Add physical registers to the free list */
     template<class InputIt>
@@ -117,6 +118,7 @@ class SimpleFreeList
             return free_reg;
         }
         freeRegs.pop();
+        RFWB::onPhysAlloc(classValue, free_reg);
         // §2.2 CHAOSFreeList: post-pop hook. NOTE: rename calls
         // SimpleFreeList::getReg() directly (rename_map.cc:91 via
         // freeList = &(UnifiedFreeList::freeLists[i])), NOT

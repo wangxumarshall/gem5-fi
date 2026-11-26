@@ -47,6 +47,7 @@
 #include <deque>
 #include <list>
 #include <string>
+#include <vector>
 
 #include "base/refcnt.hh"
 #include "base/trace.hh"
@@ -58,6 +59,7 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/lsq_unit.hh"
+#include "cpu/o3/rfwb.hh"
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -363,6 +365,10 @@ class DynInst : public ExecContext, public RefCounted
     // 0 = untouched: every non-shrunk load keeps today's exact allocation,
     // so non-A06 output stays byte-identical.
     unsigned chaosA06BufBytes = 0;
+
+    /** RF/WB M002 per-DynInst vector write shadow. */
+    std::vector<uint8_t> rfwbVecShadow;
+    bool rfwbVecShadowActive = false;
 
     /** Load queue index. */
     ssize_t lqIdx = -1;
@@ -1216,7 +1222,8 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedSrcIdx(idx);
         if (reg->is(InvalidRegClass))
             return 0;
-        return cpu->getReg(reg, threadNumber);
+        RegVal val = cpu->getReg(reg, threadNumber);
+        return RFWB::onScalarRead(this, idx, reg, val);
     }
 
     void
@@ -1226,12 +1233,17 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->getReg(reg, val, threadNumber);
+        if (reg->classValue() == VecRegClass)
+            RFWB::onVectorRead(this, idx, reg, val);
     }
 
     void *
     getWritableRegOperand(const StaticInst *si, int idx) override
     {
-        return cpu->getWritableReg(renamedDestIdx(idx), threadNumber);
+        const PhysRegIdPtr reg = renamedDestIdx(idx);
+        if (void *shadow = RFWB::onWritableVec(this, idx, reg))
+            return shadow;
+        return cpu->getWritableReg(reg, threadNumber);
     }
 
     /** @todo: Make results into arrays so they can handle multiple dest
@@ -1244,6 +1256,8 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->setReg(reg, val, threadNumber);
+        RFWB::onScalarWrite(this, idx, reg, val);
+        RFWB::onScalarWriteAny(this, idx, reg, val);
         setResult(reg->regClass(), val);
     }
 

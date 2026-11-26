@@ -56,6 +56,8 @@ p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
+p.add_argument("--max_ticks", type=lambda x: int(x, 0), default=0,
+               help="RF/WB: bounded simulation run in ticks; 0 = unlimited")
 # --- OOO window sweep knobs (north star; default = OOO) ---
 p.add_argument("--rob", type=int, default=OOO["rob"],
                help=f"numROBEntries (north star ROB={OOO['rob']})")
@@ -861,4 +863,7 @@ if args.maxinsts:
     cpu0.max_insts_any_thread = args.maxinsts
 
 simulator = Simulator(board=board, full_system=False)
-simulator.run()
+if args.max_ticks:
+    simulator.run(max_ticks=args.max_ticks)
+else:
+    simulator.run()

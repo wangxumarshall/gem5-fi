@@ -1155,7 +1155,9 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
         inst->renameSrcReg(src_idx, renamed_reg);
 
         // See if the register is ready or not.
-        if (scoreboard->getReg(renamed_reg)) {
+        bool globalReady = scoreboard->getReg(renamed_reg);
+        RFWB::onRenameSrc(inst.get(), src_idx, renamed_reg, globalReady);
+        if (globalReady) {
             DPRINTF(Rename,
                     "[tid:%i] "
                     "Register %d (flat: %d) (%s) is ready.\n",

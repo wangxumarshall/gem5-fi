@@ -1,0 +1,804 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/SConscript b/CHAOS/gem5/src/cpu/o3/SConscript
+index 53a022b7..c23f0eed 100755
+--- a/CHAOS/gem5/src/cpu/o3/SConscript
++++ b/CHAOS/gem5/src/cpu/o3/SConscript
+@@ -65,6 +65,7 @@ if env['CONF']['BUILD_ISA']:
+     Source('lsq_unit.cc')
+     Source('mem_dep_unit.cc')
+     Source('regfile.cc')
++    Source('rfwb.cc')
+     Source('rename.cc')
+     Source('rename_map.cc')
+     Source('rob.cc')
+diff --git a/CHAOS/gem5/src/cpu/o3/commit.cc b/CHAOS/gem5/src/cpu/o3/commit.cc
+index 4b3a5b40..7d4f4d54 100644
+--- a/CHAOS/gem5/src/cpu/o3/commit.cc
++++ b/CHAOS/gem5/src/cpu/o3/commit.cc
+@@ -660,6 +660,7 @@ Commit::tick()
+             const DynInstPtr &inst = rob->readHeadInst(tid);
+ 
+             ppCommitStall->notify(inst);
++            RFWB::onCommitStall(inst.get());
+ 
+             DPRINTF(Commit,"[tid:%i] Can't commit, Instruction [sn:%llu] PC "
+                     "%s is head of ROB and not ready\n",
+@@ -1003,6 +1004,7 @@ Commit::commitInsts()
+                     ->committedInstType[head_inst->opClass()]++;
+                 stats.committedInstType[tid][head_inst->opClass()]++;
+                 ppCommit->notify(head_inst);
++                RFWB::onCommit(head_inst.get());
+ 
+                 // hardware transactional memory
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/dyn_inst.cc b/CHAOS/gem5/src/cpu/o3/dyn_inst.cc
+index 523fa557..ecb10e89 100644
+--- a/CHAOS/gem5/src/cpu/o3/dyn_inst.cc
++++ b/CHAOS/gem5/src/cpu/o3/dyn_inst.cc
+@@ -45,6 +45,7 @@
+ #include "base/intmath.hh"
+ #include "cpu/o3/CHAOSExec/CHAOSExec.hh"  // §2.12 full def for maybeCorrupt call
+ #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"    // §2.6 full def for maybeCorrupt call
++#include "cpu/o3/rfwb.hh"
+ #include "debug/DynInst.hh"
+ #include "debug/IQ.hh"
+ #include "debug/O3PipeView.hh"
+@@ -324,6 +325,7 @@ DynInst::markSrcRegReady(RegIndex src_idx)
+ void
+ DynInst::setSquashed()
+ {
++    RFWB::onSquash(this);
+     status.set(Squashed);
+ 
+     if (!isPinnedRegsRenamed() || isPinnedRegsSquashDone())
+@@ -367,6 +369,7 @@ DynInst::execute()
+         if (cpu->chaosExec) cpu->chaosExec->maybeCorrupt(this);
+         if (cpu->chaosFPU)   cpu->chaosFPU->maybeCorrupt(this);
+     }
++    RFWB::onExecute(this, fault == NoFault);
+ 
+     thread->noSquashFromTC = no_squash_from_TC;
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/dyn_inst.hh b/CHAOS/gem5/src/cpu/o3/dyn_inst.hh
+index d769079a..9eca7426 100644
+--- a/CHAOS/gem5/src/cpu/o3/dyn_inst.hh
++++ b/CHAOS/gem5/src/cpu/o3/dyn_inst.hh
+@@ -47,6 +47,7 @@
+ #include <deque>
+ #include <list>
+ #include <string>
++#include <vector>
+ 
+ #include "base/refcnt.hh"
+ #include "base/trace.hh"
+@@ -58,6 +59,7 @@
+ #include "cpu/o3/cpu.hh"
+ #include "cpu/o3/dyn_inst_ptr.hh"
+ #include "cpu/o3/lsq_unit.hh"
++#include "cpu/o3/rfwb.hh"
+ #include "cpu/op_class.hh"
+ #include "cpu/reg_class.hh"
+ #include "cpu/static_inst.hh"
+@@ -364,6 +366,10 @@ class DynInst : public ExecContext, public RefCounted
+     // so non-A06 output stays byte-identical.
+     unsigned chaosA06BufBytes = 0;
+ 
++    /** RF/WB M002 per-DynInst vector write shadow. */
++    std::vector<uint8_t> rfwbVecShadow;
++    bool rfwbVecShadowActive = false;
++
+     /** Load queue index. */
+     ssize_t lqIdx = -1;
+     typename LSQUnit::LQIterator lqIt;
+@@ -1216,7 +1222,8 @@ class DynInst : public ExecContext, public RefCounted
+         const PhysRegIdPtr reg = renamedSrcIdx(idx);
+         if (reg->is(InvalidRegClass))
+             return 0;
+-        return cpu->getReg(reg, threadNumber);
++        RegVal val = cpu->getReg(reg, threadNumber);
++        return RFWB::onScalarRead(this, idx, reg, val);
+     }
+ 
+     void
+@@ -1226,12 +1233,17 @@ class DynInst : public ExecContext, public RefCounted
+         if (reg->is(InvalidRegClass))
+             return;
+         cpu->getReg(reg, val, threadNumber);
++        if (reg->classValue() == VecRegClass)
++            RFWB::onVectorRead(this, idx, reg, val);
+     }
+ 
+     void *
+     getWritableRegOperand(const StaticInst *si, int idx) override
+     {
+-        return cpu->getWritableReg(renamedDestIdx(idx), threadNumber);
++        const PhysRegIdPtr reg = renamedDestIdx(idx);
++        if (void *shadow = RFWB::onWritableVec(this, idx, reg))
++            return shadow;
++        return cpu->getWritableReg(reg, threadNumber);
+     }
+ 
+     /** @todo: Make results into arrays so they can handle multiple dest
+@@ -1244,6 +1256,8 @@ class DynInst : public ExecContext, public RefCounted
+         if (reg->is(InvalidRegClass))
+             return;
+         cpu->setReg(reg, val, threadNumber);
++        RFWB::onScalarWrite(this, idx, reg, val);
++        RFWB::onScalarWriteAny(this, idx, reg, val);
+         setResult(reg->regClass(), val);
+     }
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/free_list.hh b/CHAOS/gem5/src/cpu/o3/free_list.hh
+index bb18ccf2..0fd4fcd1 100644
+--- a/CHAOS/gem5/src/cpu/o3/free_list.hh
++++ b/CHAOS/gem5/src/cpu/o3/free_list.hh
+@@ -56,6 +56,7 @@
+ // call chaosFreeList->maybeCorrupt(). Non-circular: CHAOSFreeList.hh only
+ // forward-declares o3::UnifiedFreeList (does NOT include free_list.hh).
+ #include "cpu/o3/CHAOSFreeList/CHAOSFreeList.hh"
++#include "cpu/o3/rfwb.hh"
+ 
+ namespace gem5
+ {
+@@ -92,7 +93,7 @@ class SimpleFreeList
+     SimpleFreeList() {};
+ 
+     /** Add a physical register to the free list */
+-    void addReg(PhysRegIdPtr reg) { freeRegs.push(reg); }
++    void addReg(PhysRegIdPtr reg) { RFWB::onPhysFree(classValue, reg); freeRegs.push(reg); }
+ 
+     /** Add physical registers to the free list */
+     template<class InputIt>
+@@ -117,6 +118,7 @@ class SimpleFreeList
+             return free_reg;
+         }
+         freeRegs.pop();
++        RFWB::onPhysAlloc(classValue, free_reg);
+         // §2.2 CHAOSFreeList: post-pop hook. NOTE: rename calls
+         // SimpleFreeList::getReg() directly (rename_map.cc:91 via
+         // freeList = &(UnifiedFreeList::freeLists[i])), NOT
+diff --git a/CHAOS/gem5/src/cpu/o3/iew.cc b/CHAOS/gem5/src/cpu/o3/iew.cc
+index 6e0b8ebf..30add621 100644
+--- a/CHAOS/gem5/src/cpu/o3/iew.cc
++++ b/CHAOS/gem5/src/cpu/o3/iew.cc
+@@ -1294,7 +1294,8 @@ IEW::executeInsts()
+ 
+             inst->setExecuted();
+ 
+-            instToCommit(inst);
++            if (!RFWB::skipCommit(inst.get()))
++                instToCommit(inst);
+         }
+ 
+         updateExeInstStats(inst);
+@@ -1519,7 +1520,10 @@ IEW::writebackInsts()
+                     DPRINTF(IEW,"Setting Destination Register %i (%s)\n",
+                             inst->renamedDestIdx(i)->index(),
+                             inst->renamedDestIdx(i)->className());
+-                    scoreboard->setReg(inst->renamedDestIdx(i));
++                    PhysRegIdPtr dreg = inst->renamedDestIdx(i);
++                    bool gb = scoreboard->getReg(dreg);
++                    if (!RFWB::skipGlobalReady(inst.get(), i, gb))
++                        scoreboard->setReg(dreg);
+                 }
+             }
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/inst_queue.cc b/CHAOS/gem5/src/cpu/o3/inst_queue.cc
+index 04141048..601a9abc 100644
+--- a/CHAOS/gem5/src/cpu/o3/inst_queue.cc
++++ b/CHAOS/gem5/src/cpu/o3/inst_queue.cc
+@@ -1613,6 +1613,7 @@ InstructionQueue::addToDependents(const DynInstPtr &new_inst)
+                         "became ready before it reached the IQ.\n",
+                         new_inst->pcState(), src_reg->index(),
+                         src_reg->className());
++                RFWB::onIQRepair(new_inst.get(), src_reg);
+                 // Mark a register ready within the instruction.
+                 new_inst->markSrcRegReady(src_reg_idx);
+             }
+diff --git a/CHAOS/gem5/src/cpu/o3/inst_queue.hh b/CHAOS/gem5/src/cpu/o3/inst_queue.hh
+index 49c3f669..4e715701 100644
+--- a/CHAOS/gem5/src/cpu/o3/inst_queue.hh
++++ b/CHAOS/gem5/src/cpu/o3/inst_queue.hh
+@@ -272,6 +272,14 @@ class InstructionQueue
+     /** Returns number of free entries for a thread. */
+     unsigned numFreeEntries(const DynInstPtr &inst);
+ 
++    /** RF/WB read-only view of the IQ-local ready scoreboard. */
++    bool
++    isRegReady(PhysRegIdPtr reg) const
++    {
++        return reg && !reg->isAlwaysReady() &&
++               regScoreboard[reg->flatIndex()];
++    }
++
+     /** Returns whether or not the IQ is full. */
+     bool isFull();
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/rename.cc b/CHAOS/gem5/src/cpu/o3/rename.cc
+index b87681d0..07d613d1 100644
+--- a/CHAOS/gem5/src/cpu/o3/rename.cc
++++ b/CHAOS/gem5/src/cpu/o3/rename.cc
+@@ -1155,7 +1155,9 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
+         inst->renameSrcReg(src_idx, renamed_reg);
+ 
+         // See if the register is ready or not.
+-        if (scoreboard->getReg(renamed_reg)) {
++        bool globalReady = scoreboard->getReg(renamed_reg);
++        RFWB::onRenameSrc(inst.get(), src_idx, renamed_reg, globalReady);
++        if (globalReady) {
+             DPRINTF(Rename,
+                     "[tid:%i] "
+                     "Register %d (flat: %d) (%s) is ready.\n",
+diff --git a/CHAOS/gem5/src/cpu/o3/rfwb.cc b/CHAOS/gem5/src/cpu/o3/rfwb.cc
+new file mode 100644
+index 00000000..c6d8c2af
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/rfwb.cc
+@@ -0,0 +1,427 @@
++#include "cpu/o3/rfwb.hh"
++
++#include <cstdlib>
++#include <sstream>
++
++#include "cpu/o3/cpu.hh"
++#include "cpu/o3/dyn_inst.hh"
++#include "cpu/o3/iew.hh"
++#include "cpu/o3/inst_queue.hh"
++#include "cpu/o3/regfile.hh"
++#include "sim/core.hh"
++
++namespace gem5
++{
++
++RFWB &
++RFWB::instance()
++{
++    static RFWB inj;
++    return inj;
++}
++
++RFWB::RFWB()
++{
++    const char *m = std::getenv("RFWB_MODEL");
++    const char *md = std::getenv("RFWB_MODE");
++    if (!m || !*m || !md || std::string(md) == "off")
++        return;
++
++    model = m;
++    mode = md;
++    enabled = true;
++    countMode = (mode == "count");
++    faultMode = (mode == "fault");
++
++    auto env_u64 = [](const char *name, uint64_t dflt) {
++        const char *v = std::getenv(name);
++        return v && *v ? std::strtoull(v, nullptr, 0) : dflt;
++    };
++    auto env_int = [](const char *name, int dflt) {
++        const char *v = std::getenv(name);
++        return v && *v ? std::atoi(v) : dflt;
++    };
++    const char *s = std::getenv("RFWB_SAMPLE");
++    sample = s && *s ? s : "NA";
++    const char *tp = std::getenv("RFWB_TRACE");
++    tracePath = tp && *tp ? tp : "/tmp/rfwb_trace.csv";
++
++    ordinal = env_u64("RFWB_ORDINAL", 1);
++    producerPc = env_u64("RFWB_PRODUCER_PC", 0);
++    markerPc = env_u64("RFWB_MARKER_PC", 0);
++    consumerPc = env_u64("RFWB_CONSUMER_PC", 0);
++    srcIdx = env_int("RFWB_SRC_IDX", 0);
++    bit = env_int("RFWB_BIT", 0);
++    byteIdx = env_int("RFWB_BYTE", 0);
++    targetSeq = env_u64("RFWB_TARGET_SEQ", 0);
++
++    trace.open(tracePath, std::ios::out | std::ios::trunc);
++    if (trace.is_open()) {
++        trace << "tick,sample,model,mode,event,eligible,ordinal,seq,pc,"
++                 "phys_idx,flat_idx,gen,src,value,extra\n";
++    }
++}
++
++bool
++RFWB::matchPC(o3::DynInst *inst, uint64_t pc) const
++{
++    return pc != 0 && inst && inst->pcState().instAddr() == pc;
++}
++
++bool
++RFWB::isEligibleModel(const char *m) const
++{
++    return enabled && model == m;
++}
++
++void
++RFWB::logRaw(const std::string &line)
++{
++    if (trace.is_open())
++        trace << line << "\n";
++}
++
++void
++RFWB::log(const char *event, o3::DynInst *inst, PhysRegIdPtr reg,
++          int src, uint64_t value, const std::string &extra)
++{
++    if (!trace.is_open())
++        return;
++    std::ostringstream os;
++    os << curTick() << ',' << sample << ',' << model << ',' << mode << ','
++       << event << ',' << eligible << ',' << ordinal << ',';
++    if (inst)
++        os << inst->seqNum << ",0x" << std::hex
++           << inst->pcState().instAddr() << std::dec;
++    else
++        os << "0,0x0";
++    os << ',';
++    if (reg)
++        os << reg->index() << ',' << reg->flatIndex();
++    else
++        os << "-1,-1";
++    os << ',' << (reg ? generation(reg) : 0) << ',' << src << ','
++       << value << ",\"";
++    for (char c : extra) {
++        if (c == '"' || c == '\\') os << '\\';
++        os << c;
++    }
++    os << "\"";
++    logRaw(os.str());
++}
++
++RegVal
++RFWB::onScalarRead(o3::DynInst *inst, int idx, PhysRegIdPtr reg, RegVal val)
++{
++    RFWB &r = instance();
++    if (!r.enabled)
++        return val;
++
++    if (r.isEligibleModel("M001") && r.matchPC(inst, r.markerPc) &&
++        idx == r.srcIdx) {
++        ++r.eligible;
++        r.log("M001_MARKER_READ", inst, reg, idx, val,
++              "producer=" + (r.producerReg
++                  ? std::to_string(r.producerReg->flatIndex()) : "none"));
++        if (r.faultMode && !r.injected && r.eligible == r.ordinal &&
++            r.producerReg) {
++            RegVal cur = inst->cpu->physRegFile().getReg(r.producerReg);
++            RegVal bad = cur ^ (1ULL << r.bit);
++            inst->cpu->physRegFile().setReg(r.producerReg, bad);
++            r.injected = true;
++            r.faultProducerReg = r.producerReg;
++            r.faultProducerSeq = r.producerSeq;
++            r.faultTick = curTick();
++            r.log("M001_INJECT", inst, r.producerReg, idx, bad,
++                  "orig=" + std::to_string(cur) + ",bit=" +
++                  std::to_string(r.bit));
++        }
++        if (r.faultProducerReg && reg == r.faultProducerReg) {
++            r.log("M001_CONSUMER_READ", inst, reg, idx, val, "pc=" +
++                  std::to_string(inst->pcState().instAddr()));
++        }
++        return val;
++    }
++
++    if (r.isEligibleModel("M003") && r.matchPC(inst, r.consumerPc) &&
++        idx == r.srcIdx) {
++        ++r.eligible;
++        RegVal bad = val ^ (1ULL << r.bit);
++        r.log("M003_CONSUMER_READ", inst, reg, idx, val,
++              "return=" + std::to_string(bad));
++        if (r.faultMode && !r.injected && r.eligible == r.ordinal) {
++            r.injected = true;
++            r.faultProducerReg = r.producerReg;
++            r.faultReadReg = reg;
++            r.faultProducerSeq = r.producerSeq;
++            r.faultTick = curTick();
++            r.log("M003_INJECT", inst, reg, idx, bad,
++                  "orig=" + std::to_string(val));
++            return bad;
++        }
++        if (r.faultReadReg && reg == r.faultReadReg)
++            r.log("M003_PRF_READ", inst, reg, idx, val, "prf_correct=1");
++    }
++    if (r.isEligibleModel("M001") && r.injected && r.faultProducerReg &&
++        reg == r.faultProducerReg)
++        r.log("M001_CONSUMER_READ", inst, reg, idx, val, "pc=" +
++              std::to_string(inst->pcState().instAddr()));
++    if (r.isEligibleModel("M003") && r.injected && r.faultReadReg &&
++        reg == r.faultReadReg)
++        r.log("M003_PRF_READ", inst, reg, idx, val, "prf_correct=1");
++    if (r.isEligibleModel("M005") && r.faultProducerReg &&
++        reg == r.faultProducerReg)
++        r.log("M005_CONSUMER_READ", inst, reg, idx, val, "prf_read=1");
++    return val;
++}
++
++void
++RFWB::onScalarWrite(o3::DynInst *inst, int idx, PhysRegIdPtr reg, RegVal val)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !reg || !r.matchPC(inst, r.producerPc))
++        return;
++    if (!(r.isEligibleModel("M001") || r.isEligibleModel("M003") ||
++          r.isEligibleModel("M004") || r.isEligibleModel("M005")))
++        return;
++    r.producerReg = reg;
++    r.producerSeq = inst->seqNum;
++    r.producerVal = val;
++    r.log("PRODUCER_WRITE", inst, reg, idx, val,
++          "model=" + r.model);
++}
++
++void
++RFWB::onScalarWriteAny(o3::DynInst *inst, int idx, PhysRegIdPtr reg,
++                       RegVal val)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.injected || !reg)
++        return;
++    if (r.isEligibleModel("M001"))
++        r.log("M001_CONSUMER_WRITE", inst, reg, idx, val, "");
++    if (r.isEligibleModel("M003"))
++        r.log("M003_CONSUMER_WRITE", inst, reg, idx, val, "");
++}
++
++void *
++RFWB::onWritableVec(o3::DynInst *inst, int idx, PhysRegIdPtr reg)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M002") || !reg ||
++        reg->classValue() != VecRegClass)
++        return nullptr;
++    if (r.injected)
++        r.log("M002_VEC_WRITE", inst, reg, idx, 0, "post_injection=1");
++    if (!r.matchPC(inst, r.producerPc))
++        return nullptr;
++    auto inserted = r.seenVecEvents.insert(inst->seqNum);
++    if (!inserted.second) {
++        return inst->rfwbVecShadowActive ? inst->rfwbVecShadow.data()
++                                         : nullptr;
++    }
++    ++r.eligible;
++    size_t n = reg->regClass().regBytes();
++    r.log("M002_VEC_ELIGIBLE", inst, reg, idx, n,
++          "seq=" + std::to_string(inst->seqNum));
++    if (r.faultMode && !r.injected && r.eligible == r.ordinal) {
++        inst->rfwbVecShadow.assign(n, 0);
++        inst->cpu->getReg(reg, inst->rfwbVecShadow.data(),
++                          inst->threadNumber);
++        inst->rfwbVecShadowActive = true;
++        r.log("M002_SHADOW", inst, reg, idx, n,
++              "byte=" + std::to_string(r.byteIdx));
++        return inst->rfwbVecShadow.data();
++    }
++    return nullptr;
++}
++
++void
++RFWB::onExecute(o3::DynInst *inst, bool noFault)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !inst)
++        return;
++    if (r.isEligibleModel("M004") && r.matchPC(inst, r.producerPc)) {
++        r.log("M004_EXECUTED", inst, r.producerReg, 0, r.producerVal,
++              "noFault=" + std::to_string(noFault));
++    }
++    if (!r.isEligibleModel("M002") || !inst->rfwbVecShadowActive)
++        return;
++    if (!noFault) {
++        r.log("M002_ABORT_FAULT", inst, inst->renamedDestIdx(0), 0, 0, "");
++    } else {
++        size_t n = inst->rfwbVecShadow.size();
++        if (r.byteIdx >= 0 && (size_t)r.byteIdx < n)
++            inst->rfwbVecShadow[r.byteIdx] = 0;
++        PhysRegIdPtr reg = inst->renamedDestIdx(0);
++        inst->cpu->setReg(reg, inst->rfwbVecShadow.data(),
++                          inst->threadNumber);
++        r.injected = true;
++        r.faultVecReg = reg;
++        r.faultTick = curTick();
++        r.log("M002_COMMIT", inst, reg, 0, n,
++              "byte=" + std::to_string(r.byteIdx));
++    }
++    inst->rfwbVecShadowActive = false;
++}
++
++bool
++RFWB::skipCommit(o3::DynInst *inst)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M004") ||
++        !r.matchPC(inst, r.producerPc) || inst->isMemRef() ||
++        inst->isControl() || inst->isSquashed())
++        return false;
++    ++r.eligible;
++    r.log("M004_ELIGIBLE", inst, r.producerReg, 0, r.producerVal,
++          "seq=" + std::to_string(inst->seqNum));
++    if (r.faultMode && !r.injected && r.eligible == r.ordinal) {
++        r.injected = true;
++        r.log("M004_SKIP_INSTTOCOMMIT", inst, r.producerReg, 0,
++              r.producerVal, "");
++        return true;
++    }
++    return false;
++}
++
++bool
++RFWB::skipGlobalReady(o3::DynInst *inst, int destIdx, bool globalBefore)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M005") ||
++        !r.matchPC(inst, r.producerPc) || destIdx != 0)
++        return false;
++    ++r.eligible;
++    PhysRegIdPtr reg = inst->renamedDestIdx(destIdx);
++    bool iq = inst->cpu->o3IEW().instQueue.isRegReady(reg);
++    r.log("M005_WB", inst, reg, destIdx, r.producerVal,
++          "global_before=" + std::to_string(globalBefore) +
++          ",iq_ready=" + std::to_string(iq));
++    bool selected = r.faultMode &&
++        ((r.targetSeq != 0 && inst->seqNum == r.targetSeq) ||
++         (r.targetSeq == 0 && !r.injected && r.eligible == r.ordinal));
++    if (selected) {
++        r.injected = true;
++        r.faultProducerReg = r.producerReg;
++        r.faultProducerSeq = r.producerSeq;
++        r.faultProducerGen = r.generation(reg);
++        r.faultTick = curTick();
++        r.log("M005_SKIP_GLOBAL_READY", inst, reg, destIdx,
++              r.producerVal, "fault_tick=" + std::to_string(r.faultTick));
++        return true;
++    }
++    return false;
++}
++
++void
++RFWB::onRenameSrc(o3::DynInst *inst, int srcIdx, PhysRegIdPtr reg,
++                  bool globalReady)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M005") || !reg)
++        return;
++    if (r.faultProducerReg &&
++        (reg != r.faultProducerReg || r.generation(reg) != r.faultProducerGen))
++        return;
++    bool iq = inst->cpu->o3IEW().instQueue.isRegReady(reg);
++    bool target = r.faultProducerReg && reg == r.faultProducerReg;
++    r.log("M005_CONSUMER_RENAME", inst, reg, srcIdx, 0,
++          "global=" + std::to_string(globalReady) +
++          ",iq=" + std::to_string(iq) +
++          ",target=" + std::to_string(target));
++}
++
++void
++RFWB::onIQRepair(o3::DynInst *inst, PhysRegIdPtr reg)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M005") || !reg)
++        return;
++    if (r.faultProducerReg &&
++        (reg != r.faultProducerReg || r.generation(reg) != r.faultProducerGen))
++        return;
++    bool target = r.faultProducerReg && reg == r.faultProducerReg;
++    r.log("M005_IQ_REPAIR", inst, reg, -1, 0,
++          "target=" + std::to_string(target));
++}
++
++void
++RFWB::onVectorRead(o3::DynInst *inst, int idx, PhysRegIdPtr reg,
++                   const void *val)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.faultVecReg || reg != r.faultVecReg || !val)
++        return;
++    const uint8_t *p = static_cast<const uint8_t *>(val);
++    std::ostringstream os;
++    os << "bytes16=";
++    for (int i = 0; i < 16; i++) {
++        if (i) os << ':';
++        os << std::hex << (unsigned)p[i];
++    }
++    r.log("M002_CONSUMER_READ", inst, reg, idx, 0, os.str());
++}
++
++void
++RFWB::onCommitStall(o3::DynInst *inst)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M004") || !inst)
++        return;
++    r.log("M004_COMMIT_STALL", inst, nullptr, 0, 0,
++          "head=1,canCommit=" + std::to_string(inst->readyToCommit()));
++}
++
++void
++RFWB::onCommit(o3::DynInst *inst)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !inst)
++        return;
++    if (r.isEligibleModel("M004") && r.matchPC(inst, r.producerPc))
++        r.log("M004_COMMIT", inst, nullptr, 0, 0, "committed=1");
++    if (r.isEligibleModel("M005") && r.matchPC(inst, r.consumerPc))
++        r.log("M005_CONSUMER_COMMIT", inst, nullptr, 0, 0, "committed=1");
++}
++
++uint64_t
++RFWB::generation(PhysRegIdPtr reg) const
++{
++    if (!reg) return 0;
++    auto it = physGen.find(reg->flatIndex());
++    return it == physGen.end() ? 0 : it->second;
++}
++
++void
++RFWB::onPhysAlloc(int cls, PhysRegIdPtr reg)
++{
++    if (!reg) return;
++    RFWB &r = instance();
++    ++r.physGen[reg->flatIndex()];
++    r.physAllocTick[reg->flatIndex()] = curTick();
++}
++
++void
++RFWB::onPhysFree(int cls, PhysRegIdPtr reg)
++{
++    if (!reg) return;
++    (void)cls;
++    instance().physAllocTick[reg->flatIndex()] = curTick();
++}
++
++void
++RFWB::onSquash(o3::DynInst *inst)
++{
++    RFWB &r = instance();
++    if (!r.enabled || !r.isEligibleModel("M004") || !inst)
++        return;
++    if (r.matchPC(inst, r.producerPc))
++        r.log("M004_SQUASH", inst, nullptr, 0, 0, "squashed=1");
++}
++
++} // namespace gem5
++
++
++
+diff --git a/CHAOS/gem5/src/cpu/o3/rfwb.hh b/CHAOS/gem5/src/cpu/o3/rfwb.hh
+new file mode 100644
+index 00000000..f563eb4f
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/rfwb.hh
+@@ -0,0 +1,113 @@
++#ifndef __CPU_O3_RFWB_HH__
++#define __CPU_O3_RFWB_HH__
++
++#include <cstdint>
++#include <fstream>
++#include <string>
++#include <unordered_set>
++#include <unordered_map>
++#include <vector>
++
++#include "base/types.hh"
++#include "cpu/reg_class.hh"
++
++namespace gem5
++{
++
++class StaticInst;
++
++namespace o3
++{
++class DynInst;
++}
++
++/**
++ * Minimal RF/WB experiment injector.
++ *
++ * Configuration is read from the environment so the same gem5 binary can be
++ * reused for count-only pre-scan, Control, and one-shot fault runs:
++ *   RFWB_MODEL=M001..M005
++ *   RFWB_MODE=off|count|fault
++ *   RFWB_ORDINAL=<1-based eligible-event ordinal>
++ *   RFWB_PRODUCER_PC=<hex>   RFWB_MARKER_PC=<hex>
++ *   RFWB_CONSUMER_PC=<hex>   RFWB_SRC_IDX=<n>
++ *   RFWB_BIT=<0..63>         RFWB_BYTE=<0..15>
++ *   RFWB_TRACE=<csv path>    RFWB_SAMPLE=<id>
++ *
++ * Hooks are intentionally thin; all model state lives here.
++ */
++class RFWB
++{
++  public:
++    static RFWB &instance();
++
++    bool active() const { return enabled; }
++
++    static RegVal onScalarRead(o3::DynInst *inst, int idx,
++                               PhysRegIdPtr reg, RegVal val);
++    static void onScalarWrite(o3::DynInst *inst, int idx,
++                              PhysRegIdPtr reg, RegVal val);
++    static void onScalarWriteAny(o3::DynInst *inst, int idx,
++                                 PhysRegIdPtr reg, RegVal val);
++    static void *onWritableVec(o3::DynInst *inst, int idx,
++                               PhysRegIdPtr reg);
++    static void onExecute(o3::DynInst *inst, bool noFault);
++    static bool skipCommit(o3::DynInst *inst);
++    static bool skipGlobalReady(o3::DynInst *inst, int destIdx,
++                                bool globalBefore);
++    static void onRenameSrc(o3::DynInst *inst, int srcIdx,
++                            PhysRegIdPtr reg, bool globalReady);
++    static void onIQRepair(o3::DynInst *inst, PhysRegIdPtr reg);
++    static void onVectorRead(o3::DynInst *inst, int idx, PhysRegIdPtr reg,
++                             const void *val);
++    static void onCommitStall(o3::DynInst *inst);
++    static void onCommit(o3::DynInst *inst);
++    static void onSquash(o3::DynInst *inst);
++    static void onPhysAlloc(int cls, PhysRegIdPtr reg);
++    static void onPhysFree(int cls, PhysRegIdPtr reg);
++    uint64_t generation(PhysRegIdPtr reg) const;
++
++  private:
++    RFWB();
++    bool matchPC(o3::DynInst *inst, uint64_t pc) const;
++    bool isVecTarget(o3::DynInst *inst) const;
++    bool isEligibleModel(const char *m) const;
++    void log(const char *event, o3::DynInst *inst, PhysRegIdPtr reg,
++             int srcIdx, uint64_t value, const std::string &extra);
++    void logRaw(const std::string &line);
++
++    bool enabled = false;
++    bool countMode = false;
++    bool faultMode = false;
++    bool injected = false;
++    std::string model;
++    std::string mode;
++    std::string sample;
++    std::string tracePath;
++    uint64_t ordinal = 1;
++    uint64_t eligible = 0;
++    uint64_t producerPc = 0;
++    uint64_t markerPc = 0;
++    uint64_t consumerPc = 0;
++    int srcIdx = 0;
++    int bit = 0;
++    int byteIdx = 0;
++    uint64_t producerSeq = 0;
++    uint64_t targetSeq = 0;
++    uint64_t faultProducerSeq = 0;
++    uint64_t faultProducerGen = 0;
++    uint64_t faultTick = 0;
++    RegVal producerVal = 0;
++    PhysRegIdPtr producerReg = nullptr;
++    PhysRegIdPtr faultProducerReg = nullptr;
++    PhysRegIdPtr faultVecReg = nullptr;
++    PhysRegIdPtr faultReadReg = nullptr;
++    std::ofstream trace;
++    std::unordered_set<uint64_t> seenVecEvents;
++    std::unordered_map<int, uint64_t> physGen;
++    std::unordered_map<int, uint64_t> physAllocTick;
++};
++
++} // namespace gem5
++
++#endif // __CPU_O3_RFWB_HH__
+diff --git a/configs/se/ooo_proxy.py b/configs/se/ooo_proxy.py
+index f3c74a57..d90a0748 100644
+--- a/configs/se/ooo_proxy.py
++++ b/configs/se/ooo_proxy.py
+@@ -56,6 +56,8 @@ p = argparse.ArgumentParser()
+ p.add_argument("--cmd", required=True)
+ p.add_argument("--cpu", default="O3", choices=list(cpu_map))
+ p.add_argument("--maxinsts", type=int, default=0)
++p.add_argument("--max_ticks", type=lambda x: int(x, 0), default=0,
++               help="RF/WB: bounded simulation run in ticks; 0 = unlimited")
+ # --- OOO window sweep knobs (north star; default = OOO) ---
+ p.add_argument("--rob", type=int, default=OOO["rob"],
+                help=f"numROBEntries (north star ROB={OOO['rob']})")
+@@ -861,4 +863,7 @@ if args.maxinsts:
+     cpu0.max_insts_any_thread = args.maxinsts
+ 
+ simulator = Simulator(board=board, full_system=False)
+-simulator.run()
++if args.max_ticks:
++    simulator.run(max_ticks=args.max_ticks)
++else:
++    simulator.run()

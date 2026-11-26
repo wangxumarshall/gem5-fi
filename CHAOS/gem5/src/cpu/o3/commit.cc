@@ -660,6 +660,7 @@ Commit::tick()
             const DynInstPtr &inst = rob->readHeadInst(tid);
 
             ppCommitStall->notify(inst);
+            RFWB::onCommitStall(inst.get());
 
             DPRINTF(Commit,"[tid:%i] Can't commit, Instruction [sn:%llu] PC "
                     "%s is head of ROB and not ready\n",
@@ -1003,6 +1004,7 @@ Commit::commitInsts()
                     ->committedInstType[head_inst->opClass()]++;
                 stats.committedInstType[tid][head_inst->opClass()]++;
                 ppCommit->notify(head_inst);
+                RFWB::onCommit(head_inst.get());
 
                 // hardware transactional memory
 

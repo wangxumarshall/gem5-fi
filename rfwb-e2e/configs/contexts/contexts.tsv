@@ -1,0 +1,26 @@
+model	context	category	workload	context_binary	producer_pc	second_pc	src_idx	byte	description
+M001	C01	Baseline activation: shortest producer -> consumer path	rfwb_01	rfwb_01_C01	0x400834	0x400838	0	0	M001 C01: Baseline activation: shortest producer -> consumer path
+M001	C02	Activation variation: different consumer form / operand index / target byte	rfwb_01	rfwb_01_C02	0x400874	0x400878	0	0	M001 C02: Activation variation: different consumer form / operand index / target byte
+M001	C03	Limited dependency: faulted value or notification has few successors or is overwritten	rfwb_01	rfwb_01_C03	0x4008b4	0x4008b8	0	0	M001 C03: Limited dependency: faulted value or notification has few successors or is overwritten
+M001	C04	Extended dependency: multiple consumers or longer data chain	rfwb_01	rfwb_01_C04	0x4008f8	0x4008fc	0	0	M001 C04: Extended dependency: multiple consumers or longer data chain
+M001	C05	Control & speculation: target lies on a branch/speculative path and feeds output or control	rfwb_01	rfwb_01_C05	0x400940	0x400944	0	0	M001 C05: Control & speculation: target lies on a branch/speculative path and feeds output or control
+M002	C01	Baseline activation: shortest producer -> consumer path	rfwb_02	rfwb_02_C01	0x400880	0x0	0	0	M002 C01: Baseline activation: shortest producer -> consumer path
+M002	C02	Activation variation: different consumer form / operand index / target byte	rfwb_02	rfwb_02_C02	0x4008c4	0x0	0	5	M002 C02: Activation variation: different consumer form / operand index / target byte
+M002	C03	Limited dependency: faulted value or notification has few successors or is overwritten	rfwb_02	rfwb_02_C03	0x400908	0x0	0	0	M002 C03: Limited dependency: faulted value or notification has few successors or is overwritten
+M002	C04	Extended dependency: multiple consumers or longer data chain	rfwb_02	rfwb_02_C04	0x400950	0x0	0	7	M002 C04: Extended dependency: multiple consumers or longer data chain
+M002	C05	Control & speculation: target lies on a branch/speculative path and feeds output or control	rfwb_02	rfwb_02_C05	0x40099c	0x0	0	3	M002 C05: Control & speculation: target lies on a branch/speculative path and feeds output or control
+M003	C01	Baseline activation: shortest producer -> consumer path	rfwb_03	rfwb_03_C01	0x400834	0x400838	0	0	M003 C01: Baseline activation: shortest producer -> consumer path
+M003	C02	Activation variation: different consumer form / operand index / target byte	rfwb_03	rfwb_03_C02	0x400874	0x400878	1	0	M003 C02: Activation variation: different consumer form / operand index / target byte
+M003	C03	Limited dependency: faulted value or notification has few successors or is overwritten	rfwb_03	rfwb_03_C03	0x4008b4	0x4008b8	0	0	M003 C03: Limited dependency: faulted value or notification has few successors or is overwritten
+M003	C04	Extended dependency: multiple consumers or longer data chain	rfwb_03	rfwb_03_C04	0x4008f4	0x4008f8	0	0	M003 C04: Extended dependency: multiple consumers or longer data chain
+M003	C05	Control & speculation: target lies on a branch/speculative path and feeds output or control	rfwb_03	rfwb_03_C05	0x400938	0x40094c	0	0	M003 C05: Control & speculation: target lies on a branch/speculative path and feeds output or control
+M004	C01	Baseline activation: shortest producer -> consumer path	rfwb_04	rfwb_04_C01	0x400834	0x0	0	0	M004 C01: Baseline activation: shortest producer -> consumer path
+M004	C02	Activation variation: different consumer form / operand index / target byte	rfwb_04	rfwb_04_C02	0x400870	0x0	0	0	M004 C02: Activation variation: different consumer form / operand index / target byte
+M004	C03	Limited dependency: faulted value or notification has few successors or is overwritten	rfwb_04	rfwb_04_C03	0x4008ac	0x0	0	0	M004 C03: Limited dependency: faulted value or notification has few successors or is overwritten
+M004	C04	Extended dependency: multiple consumers or longer data chain	rfwb_04	rfwb_04_C04	0x4008f0	0x0	0	0	M004 C04: Extended dependency: multiple consumers or longer data chain
+M004	C05	Control & speculation: target lies on a branch/speculative path and feeds output or control	rfwb_04	rfwb_04_C05	0x40093c	0x0	0	0	M004 C05: Control & speculation: target lies on a branch/speculative path and feeds output or control
+M005	C01	Baseline activation: shortest producer -> consumer path	rfwb_05	rfwb_05_C01	0x400838	0x40089c	0	0	M005 C01: Baseline activation: shortest producer -> consumer path
+M005	C02	Activation variation: different consumer form / operand index / target byte	rfwb_05	rfwb_05_C02	0x4008d8	0x40093c	0	0	M005 C02: Activation variation: different consumer form / operand index / target byte
+M005	C03	Limited dependency: faulted value or notification has few successors or is overwritten	rfwb_05	rfwb_05_C03	0x400978	0x4009dc	0	0	M005 C03: Limited dependency: faulted value or notification has few successors or is overwritten
+M005	C04	Extended dependency: multiple consumers or longer data chain	rfwb_05	rfwb_05_C04	0x400a1c	0x400a80	0	0	M005 C04: Extended dependency: multiple consumers or longer data chain
+M005	C05	Control & speculation: target lies on a branch/speculative path and feeds output or control	rfwb_05	rfwb_05_C05	0x400ac4	0x400b34	0	0	M005 C05: Control & speculation: target lies on a branch/speculative path and feeds output or control

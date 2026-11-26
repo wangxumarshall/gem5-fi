@@ -272,6 +272,14 @@ class InstructionQueue
     /** Returns number of free entries for a thread. */
     unsigned numFreeEntries(const DynInstPtr &inst);
 
+    /** RF/WB read-only view of the IQ-local ready scoreboard. */
+    bool
+    isRegReady(PhysRegIdPtr reg) const
+    {
+        return reg && !reg->isAlwaysReady() &&
+               regScoreboard[reg->flatIndex()];
+    }
+
     /** Returns whether or not the IQ is full. */
     bool isFull();
 

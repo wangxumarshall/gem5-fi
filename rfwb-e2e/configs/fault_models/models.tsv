@@ -1,0 +1,6 @@
+model	fault_name	fault_action	eligible_event	injection_event	implementation
+M001	GPR PRF resident value bit flip	physRegFile.setReg(producerReg, value ^ (1<<bit))	M001_MARKER_READ	M001_INJECT	rfwb.cc:onScalarRead/onScalarWrite + dyn_inst.hh operand hooks
+M002	FP/SIMD PRF target byte zeroing	per-DynInst vector shadow; target byte zeroed after execute, then setReg	M002_VEC_ELIGIBLE	M002_COMMIT	rfwb.cc:onWritableVec/onExecute/onVectorRead + dyn_inst.hh writable operand hook
+M003	Register read-port return value flip (PRF untouched)	return val ^ (1<<bit) from getRegOperand; no setReg	M003_CONSUMER_READ	M003_INJECT	rfwb.cc:onScalarRead (M003) + dyn_inst.hh getRegOperand
+M004	Writeback completion notification drop	guard instToCommit in IEW::executeInsts; data writeback remains	M004_ELIGIBLE	M004_SKIP_INSTTOCOMMIT	rfwb.cc:skipCommit + iew.cc executeInsts + commit.cc
+M005	Global register-ready set omission	guard scoreboard->setReg in IEW::writebackInsts; IQ repair remains	M005_WB	M005_SKIP_GLOBAL_READY	rfwb.cc:skipGlobalReady/onRenameSrc/onIQRepair + iew.cc writebackInsts + inst_queue.hh isRegReady

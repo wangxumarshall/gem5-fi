@@ -1,0 +1,55 @@
+# RF/WB binary SHA256
+# Frozen workload ELFs are authoritative run inputs.
+# The 25 _C0x entries are symlinks to the five base ELFs.
+
+## gem5 (external build, not shipped in this compact repository)
+16a7bc1eac1b86c14219f02fc7484449bc3cd01b9560830fa7ba63c210cc6c61  /home/sdc/gem5-fi-RF_WB/source/CHAOS/gem5/build/ARM/gem5.opt
+
+## workload ELFs (shipped)
+935aa6aef2cecc2e66d12182b97a88f728ceee88fa938de4a6c679c33f401bb6  workloads/build/rfwb_01
+564220e906e8c0b23d675f7e522048f996798b4be63c23c74e86f19f549779f4  workloads/build/rfwb_02
+d214467dfbc567b2819a4f6d5c8440fac9845d0d1c5417988d61af311681af8f  workloads/build/rfwb_03
+01dda2c06f3d3412b22402f63c33f96fa83105b9c8236301c6f07a1e1b6d1433  workloads/build/rfwb_04
+94716bef8f77d4108351520fed9e9ff16384c069a418683d9ebe89705a5e1ede  workloads/build/rfwb_05
+
+## context symlink targets (all resolve to the five base ELFs)
+workloads/build/rfwb_01_C01 -> rfwb_01
+workloads/build/rfwb_01_C02 -> rfwb_01
+workloads/build/rfwb_01_C03 -> rfwb_01
+workloads/build/rfwb_01_C04 -> rfwb_01
+workloads/build/rfwb_01_C05 -> rfwb_01
+workloads/build/rfwb_02_C01 -> rfwb_02
+workloads/build/rfwb_02_C02 -> rfwb_02
+workloads/build/rfwb_02_C03 -> rfwb_02
+workloads/build/rfwb_02_C04 -> rfwb_02
+workloads/build/rfwb_02_C05 -> rfwb_02
+workloads/build/rfwb_03_C01 -> rfwb_03
+workloads/build/rfwb_03_C02 -> rfwb_03
+workloads/build/rfwb_03_C03 -> rfwb_03
+workloads/build/rfwb_03_C04 -> rfwb_03
+workloads/build/rfwb_03_C05 -> rfwb_03
+workloads/build/rfwb_04_C01 -> rfwb_04
+workloads/build/rfwb_04_C02 -> rfwb_04
+workloads/build/rfwb_04_C03 -> rfwb_04
+workloads/build/rfwb_04_C04 -> rfwb_04
+workloads/build/rfwb_04_C05 -> rfwb_04
+workloads/build/rfwb_05_C01 -> rfwb_05
+workloads/build/rfwb_05_C02 -> rfwb_05
+workloads/build/rfwb_05_C03 -> rfwb_05
+workloads/build/rfwb_05_C04 -> rfwb_05
+workloads/build/rfwb_05_C05 -> rfwb_05
+
+## final build log
+9ecad86fe47e5a3b94f859bc1f73643aaeb27b2c482a7e41a080db8d28f8af3b  manifests/final_build.log
+
+## host compiler used for frozen ELFs
+gcc 12.3.1-109 (embedded in .comment); current host gcc 12.3.1-111
+A rebuild may change BuildID/.comment and therefore the file SHA256.
+
+## rebuild verification (2026-11-26, gcc 12.3.1-111, incremental scons -j16)
+761eba05b074d625622943d70b7c9329b840ad05ded56da3d46639f8e62f82fb  /home/sdc/gem5-fi-RF_WB/source/CHAOS/gem5/build/ARM/gem5.opt
+# Same RF/WB source patch as the frozen binary.  SHA differs because gem5 embeds
+# build timestamps / link state.  Rebuilt-binary verification:
+#   - M005 C01 eligible N=6, ordinals 1/3/6 (frozen-identical)
+#   - smoke: 5/5 Controls match golden; 5/5 Faults inject exactly once;
+#     classification matches the frozen table.

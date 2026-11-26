@@ -1294,7 +1294,8 @@ IEW::executeInsts()
 
             inst->setExecuted();
 
-            instToCommit(inst);
+            if (!RFWB::skipCommit(inst.get()))
+                instToCommit(inst);
         }
 
         updateExeInstStats(inst);
@@ -1519,7 +1520,10 @@ IEW::writebackInsts()
                     DPRINTF(IEW,"Setting Destination Register %i (%s)\n",
                             inst->renamedDestIdx(i)->index(),
                             inst->renamedDestIdx(i)->className());
-                    scoreboard->setReg(inst->renamedDestIdx(i));
+                    PhysRegIdPtr dreg = inst->renamedDestIdx(i);
+                    bool gb = scoreboard->getReg(dreg);
+                    if (!RFWB::skipGlobalReady(inst.get(), i, gb))
+                        scoreboard->setReg(dreg);
                 }
             }
 

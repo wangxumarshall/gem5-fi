@@ -45,6 +45,7 @@
 #include "base/intmath.hh"
 #include "cpu/o3/CHAOSExec/CHAOSExec.hh"  // §2.12 full def for maybeCorrupt call
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"    // §2.6 full def for maybeCorrupt call
+#include "cpu/o3/rfwb.hh"
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
@@ -324,6 +325,7 @@ DynInst::markSrcRegReady(RegIndex src_idx)
 void
 DynInst::setSquashed()
 {
+    RFWB::onSquash(this);
     status.set(Squashed);
 
     if (!isPinnedRegsRenamed() || isPinnedRegsSquashDone())
@@ -367,6 +369,7 @@ DynInst::execute()
         if (cpu->chaosExec) cpu->chaosExec->maybeCorrupt(this);
         if (cpu->chaosFPU)   cpu->chaosFPU->maybeCorrupt(this);
     }
+    RFWB::onExecute(this, fault == NoFault);
 
     thread->noSquashFromTC = no_squash_from_TC;
 
