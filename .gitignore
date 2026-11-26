@@ -10,3 +10,7 @@ __pycache__/
 # Editor/OS noise
 *.swp
 .DS_Store
+
+# Deliverable packages (generated, not source)
+FPU_FINAL_CODE_RELEASE_PACKAGE.zip
+FPU_FINAL_EXPERIMENT_EVIDENCE_PACKAGE.zip

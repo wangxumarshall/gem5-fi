@@ -1,0 +1,10 @@
+# FPU/SIMD 5x3 final release — SHA256 checksums
+# Generated: 2026-11-26
+
+dd273c7a935df49c1ac474e8b744f4196cc34ea6511f8544a959167c0568b230  FPU_FINAL_CODE_RELEASE_PACKAGE.zip
+9fe5eebb8bc7aa3292d9896d29a3edf46797af185cd162f0b1cf980d0a091391  FPU_FINAL_EXPERIMENT_EVIDENCE_PACKAGE.zip
+0d96e7fddfc2f1ee1de9a4331fe0f3336f562b19b5fa84f36d9c82f16524da32  reports/source_changes.patch
+1484dbbb94420dd8a65071c80e0c9a52262355d6f697286976315af161f9b140  inputs/gem5-fi-FPU_SIMD-Final-Paper-Experiment-Plan.xlsx
+99583266772bcceeb33f75a3bf5a34485e9296a09483cffae635fe20a658a502  gem5/src/arch/arm/fpu_fi.hh
+0a380ba464b655928e4c78525c4485beba937d44adf5a4431dc0de4acf230594  gem5/src/cpu/o3/FPUInjector.hh
+327d4467cdab218853eaff136f66b00a1b9346f971bb4478a6c3e0eb6359d2f1  gem5/src/cpu/o3/FPUInjector.cc
