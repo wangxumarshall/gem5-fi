@@ -12,9 +12,9 @@
 | 目标分支 | `FPU` |
 | 分支地址 | https://github.com/wangxumarshall/gem5-fi/tree/FPU |
 | Git remote (origin) | `https://github.com/wangxumarshall/gem5-fi` |
-| 本地 HEAD | `268c844de57b3724b5b69dc12c3dbce5142acf2f` |
-| 远端 HEAD | `268c844de57b3724b5b69dc12c3dbce5142acf2f`（一致 ✅） |
-| 主提交（代码） | `7012567e7827f7a802281d783fd063700cc1b4d4` |
+| 最终 Commit Hash（代码提交） | `7012567e7827f7a802281d783fd063700cc1b4d4` |
+| 后续文档提交 | `268c844`（SHA256SUMS + 本报告）、`a55f8bb`（HEAD 引用修正） |
+| 本地 HEAD == 远端 HEAD | ✅ 一致（推送后 `git rev-parse HEAD` == `origin/FPU`） |
 | Commit Message | `Finalize FPU/SIMD fault injection experiments (12 models, 5 contexts, 3 timings)` |
 | 推送结果 | ✅ 成功（`[new branch] FPU -> FPU`，`PUSH_EXIT: 0`） |
 | Force push | 否 |
@@ -46,7 +46,7 @@ FPU_FINAL_REPRODUCIBILITY_AUDIT.md / FPU_FINAL_GIT_RELEASE_REPORT.md
 
 | 分支 | HEAD | 状态 |
 |---|---|---|
-| FPU | `268c844de57b3724b5b69dc12c3dbce5142acf2f`（2 commits：`7012567` 代码 + `268c844` 报告/校验和） | 新建 ✅ |
+| FPU | 代码提交 `7012567` + 文档提交 `268c844` / `a55f8bb`（HEAD） | 新建 ✅ |
 | main | `f104bd830ddb892c20b54047b5e820ebe9430a73` | 未改动 ✅ |
 | mmu-final | `0bcfda1eef295614ae4d8d6bfb6a2e5738798bb4` | 未改动 ✅ |
 | lsu | `e52f7ab1453efbebc3ae5e82a8edfd523c9c58d1` | 未改动 ✅ |
