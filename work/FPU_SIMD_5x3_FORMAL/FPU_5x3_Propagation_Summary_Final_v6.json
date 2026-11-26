@@ -1,0 +1,47 @@
+{
+  "total_fault_runs": 180,
+  "terminal_counts": {
+    "WRONG_RESULT": 132,
+    "MASKED_OVERWRITE": 36,
+    "SQUASHED": 12
+  },
+  "total_edges": 4453,
+  "direct_edges": 323,
+  "indirect_edges": 2616,
+  "addr_edges": 1514,
+  "value_propagation_evidence": {
+    "FaultValueReachedConsumer": 293,
+    "OperandReadVerified": 2110,
+    "UnknownInfluence": 2050
+  },
+  "fault_value_reached_consumer": 293,
+  "operand_read_verified": 2110,
+  "unknown_influence": 2050,
+  "phys_mismatch_edges": 0,
+  "phys_mismatch_by_kind": {},
+  "max_depth": 93,
+  "producer_classification": {
+    "resolved": 777693,
+    "squashed": 10323,
+    "initial": 411,
+    "unresolved": 1665,
+    "sum": 790092,
+    "total_sources": 790092
+  },
+  "mutually_exclusive": true,
+  "global_unresolved_producer_count": 1665,
+  "target_input_unresolved_count": 0,
+  "reachable_unresolved_dependency": 0,
+  "downstream_unresolved_dependency": 0,
+  "traversal_exhausted": 180,
+  "target_input_provenance_complete": 180,
+  "downstream_propagation_complete": 157,
+  "full_causal_graph_complete": 157,
+  "by_round": {
+    "R1": 108,
+    "R2": 72
+  },
+  "injection_miss": [],
+  "partial_trace": [],
+  "output_mismatch": []
+}

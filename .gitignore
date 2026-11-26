@@ -1,0 +1,12 @@
+# Reproducible build artifacts (rebuilt via `scons build/ARM/gem5.opt`)
+gem5/build/
+gem5/m5out/
+gem5/.sconsign.dblite
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Editor/OS noise
+*.swp
+.DS_Store

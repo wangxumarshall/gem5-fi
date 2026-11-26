@@ -1,0 +1,883 @@
+--- /dev/null
++++ b/src/arch/arm/fpu_fi.hh
+@@ -0,0 +1,24 @@
++#ifndef __ARCH_ARM_FPU_FI_HH__
++#define __ARCH_ARM_FPU_FI_HH__
++
++#include <cstdint>
++
++namespace gem5
++{
++namespace fpu_fi
++{
++
++// Lightweight interface used by the ARM fplib/NEON semantic hooks.
++// The implementation lives in cpu/o3/FPUInjector.cc and is driven by the
++// FPU_FI_* environment variables for each run.
++bool active(int model);
++int model();
++int lane();
++
++void note_injection(const char *site, uint64_t old_value, uint64_t new_value,
++                    int lane, uint64_t aux = 0);
++
++} // namespace fpu_fi
++} // namespace gem5
++
++#endif
+--- a/src/arch/arm/isa.hh
++++ b/src/arch/arm/isa.hh
+@@ -41,6 +41,7 @@
+ #ifndef __ARCH_ARM_ISA_HH__
+ #define __ARCH_ARM_ISA_HH__
+ 
++#include "arch/arm/fpu_fi.hh"
+ #include "arch/arm/isa_device.hh"
+ #include "arch/arm/mmu.hh"
+ #include "arch/arm/pcstate.hh"
+--- a/src/arch/arm/insts/fplib.cc
++++ b/src/arch/arm/insts/fplib.cc
+@@ -41,6 +41,7 @@
+ #include <cassert>
+ #include <cmath>
+ 
++#include "arch/arm/fpu_fi.hh"
+ #include "base/logging.hh"
+ #include "fplib.hh"
+ 
+@@ -2060,6 +2061,12 @@
+ 
+     // Multiply and normalise:
+     x_sgn = a_sgn ^ b_sgn;
++    if (fpu_fi::active(2) && a_sgn != b_sgn) {
++        const int old_sgn = x_sgn;
++        x_sgn = 0;
++        fpu_fi::note_injection("fplib.cc.fp32_mul.x_sgn", old_sgn, x_sgn, -1,
++                               (uint64_t)a | ((uint64_t)b << 32));
++    }
+     x_exp = a_exp + b_exp - FP32_EXP_BIAS + 2 * FP32_EXP_BITS + 1;
+     x_mnt = (uint64_t)a_mnt * b_mnt;
+     x_mnt = fp64_normalise(x_mnt, &x_exp);
+@@ -2737,6 +2744,13 @@
+     x_mnt = fp64_normalise(x_mnt, &x_exp);
+     x_mnt = x_mnt >> (FP32_BITS - 1) | !!(uint32_t)(x_mnt << 1);
+ 
++    if (fpu_fi::active(4)) {
++        const int old_exp = x_exp;
++        --x_exp;
++        fpu_fi::note_injection("fplib.cc.fp32_div.x_exp", old_exp, x_exp, -1,
++                               (uint64_t)a | ((uint64_t)b << 32));
++    }
++
+     return fp32_round(x_sgn, x_exp, x_mnt, mode, flags);
+ }
+ 
+@@ -3015,8 +3029,14 @@
+     if (a_exp == FP32_EXP_INF && !a_sgn)
+         return fp32_infinity(a_sgn);
+     if (a_sgn) {
+-        *flags |= FPLIB_IOC;
+-        return fp32_defaultNaN(mode);
++        if (a_exp != FP32_EXP_INF && a_mnt != 0 && fpu_fi::active(5)) {
++            fpu_fi::note_injection("fplib.cc.fp32_sqrt.negative_domain",
++                                   a, a & 0x7fffffffU, -1, a);
++            a_sgn = 0;
++        } else {
++            *flags |= FPLIB_IOC;
++            return fp32_defaultNaN(mode);
++        }
+     }
+ 
+     // FPProcessDenorms
+@@ -3356,7 +3376,14 @@
+ fplibAdd(uint32_t op1, uint32_t op2, FPSCR &fpscr, FPCR fpcr)
+ {
+     int flags = 0;
+-    uint32_t result = fp32_add(op1, op2, 0, modeConv(fpscr, fpcr), &flags);
++    int mode = modeConv(fpscr, fpcr);
++    if (fpu_fi::active(1)) {
++        const int old_mode = mode;
++        mode = (mode & ~(int)FPLIB_RZ) | FPLIB_RZ;
++        fpu_fi::note_injection("fp64.fp32_add.rMode", old_mode, mode, -1,
++                               op1 | ((uint64_t)op2 << 32));
++    }
++    uint32_t result = fp32_add(op1, op2, 0, mode, &flags);
+     set_fpscr0(fpscr, flags);
+     return result;
+ }
+@@ -3413,6 +3440,14 @@
+ {
+     int mode = modeConv(fpscr, fpcr);
+     int flags = 0;
++    if (fpu_fi::active(7)) {
++        const uint32_t old1 = op1;
++        const uint32_t old2 = op2;
++        op1 = old2;
++        op2 = old1;
++        fpu_fi::note_injection("fp64.FcmpRegS.cOp_order", old1, op1, -1,
++                               ((uint64_t)old2 << 32) | old1);
++    }
+     int sgn1, exp1, sgn2, exp2, result;
+     uint32_t mnt1, mnt2;
+ 
+@@ -3889,6 +3924,12 @@
+             FPCR fpcr)
+ {
+     int flags = 0;
++    if (fpu_fi::active(3)) {
++        const uint32_t old_addend = addend;
++        addend = 0;
++        fpu_fi::note_injection("fp64.fplibMulAdd.cOp3", old_addend, addend, -1,
++                               (uint64_t)op1 | ((uint64_t)op2 << 32));
++    }
+     uint32_t result = fp32_muladd(addend, op1, op2, 0, modeConv(fpscr, fpcr),
+                                   &flags);
+     set_fpscr0(fpscr, flags);
+@@ -6654,6 +6695,11 @@
+     uint32_t mnt;
+     uint64_t result;
+ 
++    if (fpu_fi::active(6) && fbits == 0) {
++        fpu_fi::note_injection("fp64.FcvtFpSIntXZS.fbits", fbits, 1, -1, op);
++        fbits = 1;
++    }
++
+     // Unpack using FPCR to determine if subnormals are flushed-to-zero:
+     int mode = modeConv(fpscr, fpcr);
+     if (mode & FPLIB_AH) {
+--- a/src/arch/arm/isa/insts/neon64.isa
++++ b/src/arch/arm/isa/insts/neon64.isa
+@@ -527,6 +527,16 @@
+         ''' % { "reg" : reg, "destReg": destReg }
+             destReg += 1
+         if hi:
++            eWalkCode += '''
++        if (fpu_fi::active(12)) {
++            uint64_t old_low = (uint64_t)AA64FpDestP0_uw |
++                ((uint64_t)AA64FpDestP1_uw << 32);
++            fpu_fi::note_injection("neon64.Xtn2X.old_dest_low", old_low, 0,
++                                   -1, old_low);
++            AA64FpDestP0_uw = 0;
++            AA64FpDestP1_uw = 0;
++        }
++        '''
+             for reg in range(0, 2):  # Explicitly merge with the lower half
+                 eWalkCode += '''
+         AA64FpDestP%(reg)d_uw = AA64FpDestP%(reg)d_uw;''' % { "reg" : reg }
+@@ -985,6 +995,13 @@
+         code += '''
+         for (unsigned i = 0; i < sizeof(destReg); i++) {
+             uint8_t index = srcReg2.bytes[i];
++            if (fpu_fi::active(11) && fpu_fi::lane() == (int)i &&
++                    index >= 16 * length) {
++                const uint8_t old_index = index;
++                index &= 0x0f;
++                fpu_fi::note_injection("neon64.Tbl1QX.index_alias",
++                                       old_index, index, (int)i, 0);
++            }
+             if (index < 16 * length) {
+                 destReg.bytes[i] = table.bytes[index];
+             } else {
+@@ -2558,6 +2575,17 @@
+                   True)
+     # SMULL, SMULL2 (by element)
+     mullCode = "destElem = (BigElement)srcElem1 * (BigElement)srcElem2;"
++    umullCode = '''
++            destElem = (BigElement)srcElem1 * (BigElement)srcElem2;
++            if (fpu_fi::active(9) && fpu_fi::lane() == (int)i) {
++                BigElement full = destElem;
++                destElem = (BigElement)(full & 0xff);
++                fpu_fi::note_injection("neon64.UmullX.high_byte",
++                                       (uint64_t)full, (uint64_t)destElem,
++                                       (int)i, (uint64_t)srcElem1 |
++                                       ((uint64_t)srcElem2 << 8));
++            }
++    '''
+     threeRegLongInstX("smull", "SmullElemX", "SimdMultOp", smallSignedTypes,
+                       mullCode, byElem=True)
+     threeRegLongInstX("smull", "SmullElem2X", "SimdMultOp", smallSignedTypes,
+@@ -3342,6 +3370,14 @@
+     # SSHL
+     shlCode = '''
+             int16_t shiftAmt = (int8_t)srcElem2;
++            if (shiftAmt < 0 && fpu_fi::active(10) &&
++                    fpu_fi::lane() == (int)i) {
++                fpu_fi::note_injection("neon64.UshlQX.shift_direction",
++                                       (uint64_t)(uint16_t)shiftAmt,
++                                       (uint64_t)(uint16_t)(-shiftAmt),
++                                       (int)i, (uint64_t)srcElem1);
++                shiftAmt = -shiftAmt;
++            }
+             if (shiftAmt < 0) {
+                 shiftAmt = -shiftAmt;
+                 if (shiftAmt >= sizeof(Element) * 8) {
+@@ -3644,7 +3680,7 @@
+                       mullCode, byElem=True, hi=True)
+     # UMULL, UMULL2 (vector)
+     threeRegLongInstX("umull", "UmullX", "SimdMultOp", smallUnsignedTypes,
+-                      mullCode)
++                      umullCode)
+     threeRegLongInstX("umull", "Umull2X", "SimdMultOp", smallUnsignedTypes,
+                       mullCode, hi=True)
+     # UQADD
+@@ -3652,7 +3688,15 @@
+             destElem = srcElem1 + srcElem2;
+             FPSCR fpscr = (FPSCR) FpscrQc;
+             if (destElem < srcElem1 || destElem < srcElem2) {
+-                destElem = (Element)(-1);
++                if (!(fpu_fi::active(8) && fpu_fi::lane() == (int)i)) {
++                    destElem = (Element)(-1);
++                } else {
++                    fpu_fi::note_injection("neon64.UqaddQX.saturate",
++                                           (uint64_t)(Element)(-1),
++                                           (uint64_t)destElem, (int)i,
++                                           (uint64_t)srcElem1 |
++                                           ((uint64_t)srcElem2 << 8));
++                }
+                 fpscr.qc = 1;
+             }
+             FpscrQc = fpscr;
+--- /dev/null
++++ b/src/cpu/o3/FPUInjector.hh
+@@ -0,0 +1,33 @@
++#ifndef __CPU_O3_FPU_INJECTOR_HH__
++#define __CPU_O3_FPU_INJECTOR_HH__
++
++#include <cstdint>
++
++namespace gem5
++{
++namespace o3 { class DynInst; }
++
++namespace fpu_fi
++{
++
++// O3 lifecycle hooks.  All functions are no-ops unless FI_TRACE/FI_ENABLE
++// environment configuration was supplied.
++void begin_exec(o3::DynInst *inst);
++void end_exec(o3::DynInst *inst);
++void trace_rename(o3::DynInst *inst);
++void trace_issue(o3::DynInst *inst);
++void trace_writeback(o3::DynInst *inst);
++void trace_commit(o3::DynInst *inst, uint64_t commit_seq);
++void trace_squash(o3::DynInst *inst);
++void trace_branch(o3::DynInst *inst, bool pred_taken, bool actual_taken,
++                  uint64_t pred_pc, uint64_t actual_pc);
++void trace_squash_reason(uint64_t squashed_seq, const char *reason);
++
++uint64_t eligible_count();
++uint64_t applied_count();
++bool is_target(uint64_t pc);
++
++} // namespace fpu_fi
++} // namespace gem5
++
++#endif
+--- /dev/null
++++ b/src/cpu/o3/FPUInjector.cc
+@@ -0,0 +1,473 @@
++// FPUInjector.cc -- per-dynamic-instruction FPU/SIMD fault injector and
++// O3 lifecycle tracer for the 0202 FPU/SIMD fault campaign.
++//
++// Configuration is entirely per-run via environment variables:
++//   FI_ENABLE=1       enable one semantic fault
++//   FI_MODEL=M001..M012
++//   FI_PC=0x...       exact static target PC
++//   FI_ORDINAL=N      1-based eligible dynamic-instruction ordinal
++//   FI_LANE=N         target SIMD lane (-1 for scalar / whole-vector)
++//   FI_COUNT_ONLY=1   count eligible events, never inject
++//   FI_TRACE=/path/events.jsonl
++//   FI_SAMPLE / FI_PAIR / FI_CONTEXT / FI_MODE
++//   FI_STATE=READY_COMMIT|DEPENDENCY_DELAY|SPEC_EXEC_SQUASH
++//
++// The semantic hooks in fplib.cc and neon64.isa consult active(model), so
++// the actual arithmetic transformation stays at the audited source anchor;
++// this file only decides which DynInst is eligible and records evidence.
++
++#include "cpu/o3/FPUInjector.hh"
++
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include <iostream>
++#include <sstream>
++#include <string>
++
++#include "arch/arm/regs/misc.hh"
++#include "base/types.hh"
++#include "cpu/o3/cpu.hh"
++#include "cpu/o3/dyn_inst.hh"
++#include "cpu/reg_class.hh"
++#include "sim/cur_tick.hh"
++#include "sim/sim_exit.hh"
++#include "cpu/thread_context.hh"
++
++namespace gem5
++{
++namespace fpu_fi
++{
++
++namespace
++{
++
++static uint64_t
++env_u64(const char *name, uint64_t def)
++{
++    const char *s = std::getenv(name);
++    if (!s || !*s) return def;
++    return std::strtoull(s, nullptr, 0);
++}
++
++static std::string
++env_str(const char *name, const char *def = "")
++{
++    const char *s = std::getenv(name);
++    return s ? std::string(s) : std::string(def);
++}
++
++static std::string
++json_escape(const std::string &s)
++{
++    std::ostringstream o;
++    for (char c : s) {
++        switch (c) {
++          case '"': o << "\\\""; break;
++          case '\\': o << "\\\\"; break;
++          case '\n': o << "\\n"; break;
++          case '\r': o << "\\r"; break;
++          case '\t': o << "\\t"; break;
++          default: o << c;
++        }
++    }
++    return o.str();
++}
++
++static std::string
++hex64(uint64_t v)
++{
++    char b[32];
++    std::snprintf(b, sizeof(b), "0x%016llx", (unsigned long long)v);
++    return std::string(b);
++}
++
++struct Config
++{
++    bool enable = false;
++    bool count_only = false;
++    int model = 0;
++    uint64_t target_pc = 0;
++    uint64_t ordinal = 1;
++    int lane = -1;
++    std::string trace_path;
++    std::string sample;
++    std::string pair;
++    std::string context;
++    std::string mode;
++    std::string state;
++    uint64_t eligible = 0;
++    uint64_t applied = 0;
++    uint64_t event_id = 0;
++    bool exit_registered = false;
++    std::ofstream out;
++};
++
++static Config cfg;
++
++static int
++parse_model(const std::string &s)
++{
++    if (s.size() >= 4 && s[0] == 'M') {
++        return std::atoi(s.c_str() + 1);
++    }
++    return std::atoi(s.c_str());
++}
++
++static void
++init()
++{
++    static bool done = false;
++    if (done) return;
++    done = true;
++
++    cfg.enable = env_u64("FI_ENABLE", 0) != 0;
++    cfg.count_only = env_u64("FI_COUNT_ONLY", 0) != 0;
++    cfg.model = parse_model(env_str("FI_MODEL", "0"));
++    cfg.target_pc = env_u64("FI_PC", 0);
++    cfg.ordinal = env_u64("FI_ORDINAL", 1);
++    cfg.lane = (int)env_u64("FI_LANE", (uint64_t)(int64_t)-1);
++    cfg.trace_path = env_str("FI_TRACE");
++    cfg.sample = env_str("FI_SAMPLE");
++    cfg.pair = env_str("FI_PAIR");
++    cfg.context = env_str("FI_CONTEXT");
++    cfg.mode = env_str("FI_MODE");
++    cfg.state = env_str("FI_STATE");
++
++    if (!cfg.trace_path.empty()) {
++        cfg.out.open(cfg.trace_path, std::ios::out | std::ios::trunc);
++        if (!cfg.out) {
++            std::cerr << "FPU_FI: cannot open trace " << cfg.trace_path
++                      << std::endl;
++        }
++    }
++
++    if (!cfg.exit_registered) {
++        cfg.exit_registered = true;
++        registerExitCallback([]() {
++            if (cfg.out.is_open()) {
++                cfg.out << "{\"schema\":\"fpu-fi-v1\",\"event\":\"run_end\","
++                    << "\"tick\":" << curTick()
++                    << ",\"eligible_total\":" << cfg.eligible
++                    << ",\"applied_total\":" << cfg.applied
++                    << ",\"sample\":\"" << json_escape(cfg.sample)
++                    << "\",\"context\":\"" << json_escape(cfg.context)
++                    << "\",\"state\":\"" << json_escape(cfg.state)
++                    << "\"}\n";
++                cfg.out.flush();
++                cfg.out.close();
++            }
++            std::cout << "FPU_FI_ELIGIBLE_COUNT=" << cfg.eligible << std::endl;
++            std::cout << "FPU_FI_APPLIED_COUNT=" << cfg.applied << std::endl;
++            std::cout.flush();
++        });
++    }
++}
++
++static uint64_t
++dyn_pc(const o3::DynInst *inst)
++{
++    return inst ? inst->pcState().instAddr() : 0;
++}
++
++static std::string
++reg_class_name(PhysRegIdPtr r)
++{
++    if (!r || r->is(InvalidRegClass)) return "Invalid";
++    return std::string(r->className());
++}
++
++static std::string
++reg_value(o3::DynInst *inst, PhysRegIdPtr r, bool writable)
++{
++    if (!inst || !r || r->is(InvalidRegClass)) return "null";
++    auto *cpu = dynamic_cast<o3::CPU *>(inst->getCpuPtr());
++    if (!cpu) return "null";
++
++    const RegClassType rc = r->classValue();
++    if (rc == MiscRegClass || rc == InvalidRegClass)
++        return "null";
++    if (rc == VecRegClass) {
++        uint8_t buf[64] = {};
++        void *p = writable ? cpu->getWritableReg(r, inst->threadNumber)
++                           : (cpu->getReg(r, buf, inst->threadNumber), (void*)buf);
++        if (!p) return "null";
++        std::memcpy(buf, p, 16);
++        std::ostringstream o;
++        o << "\"";
++        for (int i = 15; i >= 0; --i) {
++            char b[3];
++            std::snprintf(b, sizeof(b), "%02x", buf[i]);
++            o << b;
++        }
++        o << "\"";
++        return o.str();
++    }
++    if (rc == VecElemClass) {
++        uint64_t v = cpu->getReg(r, inst->threadNumber);
++        return "\"" + hex64(v) + "\"";
++    }
++    RegVal v = cpu->getReg(r, inst->threadNumber);
++    return "\"" + hex64(v) + "\"";
++}
++
++static void
++append_regs(std::ostringstream &o, o3::DynInst *inst, bool dest, bool values)
++{
++    const int n = dest ? inst->numDestRegs() : inst->numSrcRegs();
++    o << "[";
++    for (int i = 0; i < n; ++i) {
++        if (i) o << ",";
++        PhysRegIdPtr phys = dest ? inst->renamedDestIdx(i)
++                                 : inst->renamedSrcIdx(i);
++        const RegId &arch = dest ? inst->destRegIdx(i) : inst->srcRegIdx(i);
++        o << "{\"idx\":" << i
++          << ",\"arch\":" << (arch.is(InvalidRegClass) ? -1 : (int)arch.index())
++          << ",\"phys\":" << (phys && !phys->is(InvalidRegClass)
++                                ? (int)phys->index() : -1)
++          << ",\"class\":\"" << reg_class_name(phys) << "\"";
++        if (values) o << ",\"value\":" << reg_value(inst, phys, dest);
++        o << "}";
++    }
++    o << "]";
++}
++
++static void
++emit_base(std::ostringstream &o, const char *event, o3::DynInst *inst,
++          uint64_t pc)
++{
++    o << "{\"schema\":\"fpu-fi-v1\",\"eid\":" << (++cfg.event_id)
++      << ",\"event\":\"" << event << "\""
++      << ",\"tick\":" << curTick()
++      << ",\"seq\":" << (inst ? (long long)inst->seqNum : -1)
++      << ",\"pc\":" << pc
++      << ",\"is_target\":" << ((pc == cfg.target_pc) ? "true" : "false")
++      << ",\"model\":\"" << cfg.model << "\""
++      << ",\"sample\":\"" << json_escape(cfg.sample) << "\""
++      << ",\"pair\":\"" << json_escape(cfg.pair) << "\""
++      << ",\"context\":\"" << json_escape(cfg.context) << "\""
++      << ",\"state\":\"" << json_escape(cfg.state) << "\""
++      << ",\"thread\":" << (inst ? (int)inst->threadNumber : -1)
++      << ",\"target_pc\":" << cfg.target_pc;
++}
++
++static void
++write_line(std::ostringstream &o)
++{
++    o << "}\n";
++    if (cfg.out.is_open()) {
++        cfg.out << o.str();
++        cfg.out.flush();
++    }
++}
++
++struct Current
++{
++    o3::DynInst *inst = nullptr;
++    uint64_t pc = 0;
++    uint64_t ordinal = 0;
++    bool active = false;
++    bool applied = false;
++    uint64_t src_values[8] = {};
++    bool have_src_values = false;
++};
++
++static thread_local Current cur;
++
++} // anonymous namespace
++
++bool is_target(uint64_t pc) { init(); return pc == cfg.target_pc; }
++uint64_t eligible_count() { init(); return cfg.eligible; }
++uint64_t applied_count() { init(); return cfg.applied; }
++int model() { init(); return cfg.model; }
++int lane() { init(); return cfg.lane; }
++
++bool
++active(int model_id)
++{
++    init();
++    return cur.inst && cur.active && cfg.model == model_id;
++}
++
++void
++note_injection(const char *site, uint64_t old_value, uint64_t new_value,
++               int lane_id, uint64_t aux)
++{
++    init();
++    if (!cur.active || !cur.inst || cur.applied) return;
++    // One semantic fault application per selected dynamic instruction.  A
++    // vector model may call this from the target lane only; a second call is
++    // a bug and is deliberately not silently accepted.
++    if (cfg.applied >= cfg.ordinal + 1 && cfg.ordinal != 0) {
++        // no-op guard; keep counting below
++    }
++    cur.applied = true;
++    ++cfg.applied;
++    std::ostringstream o;
++    emit_base(o, "fault_inject", cur.inst, cur.pc);
++    o << ",\"fault_id\":\"FPU-M" << (cfg.model < 10 ? "00" : "0")
++      << cfg.model << "\""
++      << ",\"site\":\"" << json_escape(site) << "\""
++      << ",\"ordinal\":" << cur.ordinal
++      << ",\"lane\":" << lane_id
++      << ",\"old\":" << old_value
++      << ",\"new\":" << new_value
++      << ",\"aux\":" << aux
++      << ",\"application_count\":" << cfg.applied;
++    write_line(o);
++}
++
++void
++begin_exec(o3::DynInst *inst)
++{
++    init();
++    cur = Current();
++    if (!inst) return;
++    const uint64_t pc = dyn_pc(inst);
++    cur.inst = inst;
++    cur.pc = pc;
++
++    if (pc == cfg.target_pc) {
++        cur.ordinal = ++cfg.eligible;
++        const bool selected = cfg.enable && !cfg.count_only &&
++                              cur.ordinal == cfg.ordinal;
++        cur.active = selected;
++        std::ostringstream o;
++        emit_base(o, "target_begin", inst, pc);
++        o << ",\"ordinal\":" << cur.ordinal
++          << ",\"selected\":" << (selected ? "true" : "false")
++          << ",\"count_only\":" << (cfg.count_only ? "true" : "false")
++          << ",\"op\":\"" << inst->staticInst->disassemble(pc) << "\""
++          << ",\"src\":"; append_regs(o, inst, false, true);
++        write_line(o);
++    }
++}
++
++void
++end_exec(o3::DynInst *inst)
++{
++    init();
++    if (!inst) return;
++    const uint64_t pc = dyn_pc(inst);
++    if (pc == cfg.target_pc) {
++        std::ostringstream o;
++        emit_base(o, "target_end", inst, pc);
++        o << ",\"ordinal\":" << cur.ordinal
++          << ",\"fault_applied\":" << (cur.applied ? "true" : "false")
++          << ",\"fpsr\":" << inst->tcBase()->readMiscRegNoEffect(
++                 ArmISA::MISCREG_FPSR)
++          << ",\"fpcr\":" << inst->tcBase()->readMiscRegNoEffect(
++                 ArmISA::MISCREG_FPCR)
++          << ",\"nzcv\":" << inst->tcBase()->readMiscRegNoEffect(
++                 ArmISA::MISCREG_NZCV)
++          << ",\"src\":"; append_regs(o, inst, false, true);
++        o << ",\"dest\":"; append_regs(o, inst, true, true);
++        write_line(o);
++    }
++    cur = Current();
++}
++
++void
++trace_rename(o3::DynInst *inst)
++{
++    init();
++    if (!inst || cfg.trace_path.empty()) return;
++    const uint64_t pc = dyn_pc(inst);
++    if (pc == 0) return;
++    std::ostringstream o;
++    emit_base(o, "rename", inst, pc);
++    o << ",\"op\":\"" << inst->staticInst->disassemble(pc) << "\""
++      << ",\"op_class\":" << (int)inst->opClass()
++      << ",\"src\":"; append_regs(o, inst, false, false);
++    o << ",\"dest\":"; append_regs(o, inst, true, false);
++    write_line(o);
++}
++
++void
++trace_issue(o3::DynInst *inst)
++{
++    init();
++    if (!inst || cfg.trace_path.empty()) return;
++    const uint64_t pc = dyn_pc(inst);
++    std::ostringstream o;
++    emit_base(o, "issue", inst, pc);
++    o << ",\"src\":"; append_regs(o, inst, false, true);
++    write_line(o);
++}
++
++void
++trace_writeback(o3::DynInst *inst)
++{
++    init();
++    if (!inst || cfg.trace_path.empty()) return;
++    const uint64_t pc = dyn_pc(inst);
++    std::ostringstream o;
++    emit_base(o, "writeback", inst, pc);
++    o << ",\"dest\":"; append_regs(o, inst, true, true);
++    write_line(o);
++}
++
++void
++trace_commit(o3::DynInst *inst, uint64_t commit_seq)
++{
++    init();
++    if (!inst || cfg.trace_path.empty()) return;
++    const uint64_t pc = dyn_pc(inst);
++    std::ostringstream o;
++    emit_base(o, "commit", inst, pc);
++    o << ",\"commit_seq\":" << commit_seq
++      << ",\"fpsr\":" << inst->tcBase()->readMiscRegNoEffect(
++             ArmISA::MISCREG_FPSR)
++      << ",\"fpcr\":" << inst->tcBase()->readMiscRegNoEffect(
++             ArmISA::MISCREG_FPCR)
++      << ",\"nzcv\":" << inst->tcBase()->readMiscRegNoEffect(
++             ArmISA::MISCREG_NZCV)
++      << ",\"dest\":"; append_regs(o, inst, true, true);
++    write_line(o);
++}
++
++void
++trace_squash(o3::DynInst *inst)
++{
++    init();
++    if (!inst || cfg.trace_path.empty() || !inst->isExecuted()) return;
++    const uint64_t pc = dyn_pc(inst);
++    std::ostringstream o;
++    emit_base(o, "squash", inst, pc);
++    write_line(o);
++}
++
++void
++trace_branch(o3::DynInst *inst, bool pred_taken, bool actual_taken,
++             uint64_t pred_pc, uint64_t actual_pc)
++{
++    init();
++    if (!inst || cfg.trace_path.empty()) return;
++    const uint64_t pc = dyn_pc(inst);
++    std::ostringstream o;
++    emit_base(o, "branch_mispredict", inst, pc);
++    o << ",\"pred_taken\":" << (pred_taken ? "true" : "false")
++      << ",\"actual_taken\":" << (actual_taken ? "true" : "false")
++      << ",\"pred_pc\":" << pred_pc
++      << ",\"actual_pc\":" << actual_pc;
++    write_line(o);
++}
++
++void
++trace_squash_reason(uint64_t squashed_seq, const char *reason)
++{
++    init();
++    if (cfg.trace_path.empty()) return;
++    std::ostringstream o;
++    o << "{\"schema\":\"fpu-fi-v1\",\"eid\":" << (++cfg.event_id)
++      << ",\"event\":\"squash_reason\",\"tick\":" << curTick()
++      << ",\"squashed_seq\":" << squashed_seq
++      << ",\"reason\":\"" << json_escape(reason ? reason : "") << "\""
++      << ",\"sample\":\"" << json_escape(cfg.sample) << "\""
++      << ",\"context\":\"" << json_escape(cfg.context) << "\""
++      << ",\"state\":\"" << json_escape(cfg.state) << "\"";
++    write_line(o);
++}
++
++} // namespace fpu_fi
++} // namespace gem5
+--- a/src/cpu/o3/SConscript
++++ b/src/cpu/o3/SConscript
+@@ -58,6 +58,7 @@
+     Source('fetch.cc')
+     Source('free_list.cc')
+     Source('ftq.cc')
++    Source('FPUInjector.cc')
+     Source('fu_pool.cc')
+     Source('iew.cc')
+     Source('inst_queue.cc')
+--- a/src/cpu/o3/dyn_inst.cc
++++ b/src/cpu/o3/dyn_inst.cc
+@@ -45,6 +45,7 @@
+ #include "base/intmath.hh"
+ #include "cpu/o3/CHAOSExec/CHAOSExec.hh"  // §2.12 full def for maybeCorrupt call
+ #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"    // §2.6 full def for maybeCorrupt call
++#include "cpu/o3/FPUInjector.hh"
+ #include "debug/DynInst.hh"
+ #include "debug/IQ.hh"
+ #include "debug/O3PipeView.hh"
+@@ -325,6 +326,7 @@
+ DynInst::setSquashed()
+ {
+     status.set(Squashed);
++    fpu_fi::trace_squash(this);
+ 
+     if (!isPinnedRegsRenamed() || isPinnedRegsSquashDone())
+         return;
+@@ -356,7 +358,9 @@
+     bool no_squash_from_TC = thread->noSquashFromTC;
+     thread->noSquashFromTC = true;
+ 
++    fpu_fi::begin_exec(this);
+     fault = staticInst->execute(this, traceData);
++    fpu_fi::end_exec(this);
+ 
+     // §2.12 CHAOSExec / §2.6 CHAOSFPU: post-execute result corruption.
+     // Each injector filters by opClass (IntAlu/IntMult/IntDiv vs Float*/Simd*);
+--- a/src/cpu/o3/rename.cc
++++ b/src/cpu/o3/rename.cc
+@@ -39,6 +39,7 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include "cpu/o3/FPUInjector.hh"
+ #include "cpu/o3/rename.hh"
+ 
+ #include <list>
+@@ -768,6 +769,7 @@
+         // Notify potential listeners that source and destination registers for
+         // this instruction have been renamed.
+         ppRename->notify(inst);
++        fpu_fi::trace_rename(inst.get());
+ 
+         inst->renameEndTick = curTick() - inst->fetchTick;
+ 
+--- a/src/cpu/o3/inst_queue.cc
++++ b/src/cpu/o3/inst_queue.cc
+@@ -39,6 +39,7 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include "cpu/o3/FPUInjector.hh"
+ #include "cpu/o3/inst_queue.hh"
+ 
+ #include <limits>
+@@ -1016,6 +1017,7 @@
+             }
+ 
+             issuing_inst->setIssued();
++            fpu_fi::trace_issue(issuing_inst.get());
+             ++total_issued;
+ 
+ #if TRACING_ON
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -43,6 +43,7 @@
+ // iew.  There's a clear delay between issue and execute, yet backwards
+ // communication happens simultaneously.
+ 
++#include "cpu/o3/FPUInjector.hh"
+ #include "cpu/o3/iew.hh"
+ 
+ #include <queue>
+@@ -1330,6 +1331,11 @@
+                         "Redirecting fetch to PC: %s\n",
+                         tid, inst->seqNum, inst->pcState());
+                 // If incorrect, then signal the ROB that it must be squashed.
++                fpu_fi::trace_branch(inst.get(), inst->readPredTaken(),
++                                     inst->pcState().branching(),
++                                     inst->readPredTarg().instAddr(),
++                                     inst->pcState().instAddr());
++                fpu_fi::trace_squash_reason(inst->seqNum, "branch_mispredict");
+                 squashDueToBranch(inst, tid);
+ 
+                 ppMispredict->notify(inst);
+@@ -1502,6 +1508,7 @@
+         // Notify potential listeners that execution is complete for this
+         // instruction.
+         ppToCommit->notify(inst);
++        fpu_fi::trace_writeback(inst.get());
+ 
+         // Some instructions will be sent to commit without having
+         // executed because they need commit to handle them.
+--- a/src/cpu/o3/commit.cc
++++ b/src/cpu/o3/commit.cc
+@@ -39,6 +39,7 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include "cpu/o3/FPUInjector.hh"
+ #include "cpu/o3/commit.hh"
+ 
+ #include <algorithm>
+@@ -551,6 +552,8 @@
+ void
+ Commit::squashFromTrap(ThreadID tid)
+ {
++    fpu_fi::trace_squash_reason(rob->isEmpty(tid) ? 0 :
++                                rob->readHeadInst(tid)->seqNum, "trap");
+     squashAll(tid);
+ 
+     DPRINTF(Commit, "Squashing from trap, restarting at PC %s\n", *pc[tid]);
+@@ -1288,6 +1291,8 @@
+                                  head_inst->renamedDestIdx(i));
+     }
+ 
++    fpu_fi::trace_commit(head_inst.get(), head_inst->seqNum);
++
+     /* gem5-fi W2.1 */ if (chaosCommitTrace) {
+         // Read-only L2 commit trace, one line per committed instruction.
+         // Placed AFTER the setEntry loop and BEFORE rob->retireHead.

@@ -1,0 +1,13 @@
+# -*- mode:python -*-
+# CHAOSCommitTrace — W2.1 read-only L2 commit-per-instruction trace.
+# Discovered by src/SConscript's os.walk. O3-only: hooks Commit::commitHead
+# (after the commit-renameMap setEntry loop, before rob->retireHead) via the
+# CHAOSRAS-style setter attached at startup(); writes one pinned-format CSV
+# line per committed instruction to a simout.create stream (.gz = gzip).
+
+Import('*')
+
+SimObject('CHAOSCommitTrace.py', sim_objects=['CHAOSCommitTrace'], enums=[])
+Source('CHAOSCommitTrace.cc')
+
+DebugFlag('CHAOSCommitTrace')

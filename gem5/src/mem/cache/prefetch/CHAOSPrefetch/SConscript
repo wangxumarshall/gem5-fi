@@ -1,0 +1,4 @@
+Import('*')
+
+SimObject('CHAOSPrefetch.py', sim_objects=['CHAOSPrefetch'])
+Source('CHAOSPrefetch.cc')
